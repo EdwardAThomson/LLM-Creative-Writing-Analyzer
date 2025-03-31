@@ -1,0 +1,228 @@
+# ai_helper.py
+# https://platform.openai.com/docs/models
+
+from openai import OpenAI
+import os
+from dotenv import load_dotenv
+import google.generativeai as genai
+from anthropic import Anthropic
+
+
+load_dotenv()  # This will load environment variables from the .env file
+
+# Create an OpenAI client instance
+# Ensure you've set your OpenAI API key
+client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+)
+
+# Adding the possibility of using the Gemini API
+g_api_key = os.environ.get("GEMINI_API_KEY")
+genai.configure(api_key=g_api_key)
+
+# Configure Anthropic client for Claude
+anthropic_client = Anthropic(
+    api_key=os.environ.get("ANTHROPIC_API_KEY"),
+)
+
+def send_prompt(prompt, model="gpt-4o"):
+    # Define configurations for each model
+    model_config = {
+        "gpt-4o": lambda prompt: send_prompt_oai(
+            prompt=prompt,
+            model="gpt-4o",
+            max_tokens=16384,
+            temperature=0.7,
+            role_description="You are an expert storyteller focused on character relationships."
+        ),
+        "o1": lambda prompt: send_prompt_o1(prompt, model="o1"),
+        "o1-mini": lambda prompt: send_prompt_o1(prompt, model="o1-mini"),
+        "gemini-1.5-pro": lambda prompt: send_prompt_gemini(
+            prompt=prompt,
+            model_name="gemini-1.5-pro",
+            max_output_tokens=8192,
+            temperature=0.7,
+            top_p=1,
+            top_k=40
+        ),
+        "gemini-2.0-pro-exp-02-05": lambda prompt: send_prompt_gemini(
+            prompt=prompt,
+            model_name="gemini-2.0-pro-exp-02-05",
+            max_output_tokens=8192,
+            temperature=0.7,
+            top_p=1,
+            top_k=40
+        ),
+        "gemini-2.5-pro-exp-03-25": lambda prompt: send_prompt_gemini(
+            prompt=prompt,
+            model_name="gemini-2.5-pro-exp-03-25",
+            max_output_tokens=8192,
+            temperature=0.7,
+            top_p=1,
+            top_k=40
+        ),
+        "gemini-2.0-flash-thinking-exp-01-21": lambda prompt: send_prompt_gemini(
+            prompt=prompt,
+            model_name="gemini-2.0-flash-thinking-exp-01-21",
+            max_output_tokens=8192,
+            temperature=0.7,
+            top_p=1,
+            top_k=40
+        ),
+        "claude-3-opus": lambda prompt: send_prompt_claude(
+            prompt=prompt,
+            model="claude-3-opus-20240229",
+            max_tokens=4096,
+            temperature=0.7
+        ),
+        "claude-3-sonnet": lambda prompt: send_prompt_claude(
+            prompt=prompt,
+            model="claude-3-sonnet-20240229",
+            max_tokens=4096,
+            temperature=0.7
+        ),
+        "claude-3-haiku": lambda prompt: send_prompt_claude(
+            prompt=prompt,
+            model="claude-3-haiku-20240307",
+            max_tokens=4096,
+            temperature=0.7
+        ),
+        "claude-3-5-sonnet": lambda prompt: send_prompt_claude(
+            prompt=prompt,
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=4096,
+            temperature=0.7
+        ),
+        "claude-3-7-sonnet": lambda prompt: send_prompt_claude(
+            prompt=prompt,
+            model="claude-3-7-sonnet-20250219",
+            max_tokens=4096,
+            temperature=0.7
+        ),
+    }
+
+    # Check if the model is supported
+    if model not in model_config:
+        raise ValueError(f"Unsupported model: {model}")
+
+    print(f"trying:{model}")
+    # Call the corresponding function by looking up the dictionary
+    return model_config[model](prompt)
+
+
+# Send prompts with GPT4o and 4o-mini
+def send_prompt_oai(prompt, model="gpt-4o", max_tokens=1500, temperature=0.7,
+                role_description="You are a helpful fiction writing assistant. You will create original text only."):
+    # Make the chat completion request using the OpenAI client
+    response = client.chat.completions.create(
+        messages=[
+            {"role": "system", "content": role_description},
+            {"role": "user", "content": prompt},
+        ],
+        model=model,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+
+    print("model used: ", model)
+    # Extract the generated text from the response
+    content = response.choices[0].message.content
+
+    return content
+
+# Send prompts with o1 models
+# model="o1-preview"
+# model="o1-mini",
+def send_prompt_o1(prompt, model="o1-mini"):
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {
+            "role": "user",
+            "content": prompt
+            }
+        ]
+    )
+
+    print("Used model: ", model)
+    content = response.choices[0].message.content
+
+    return content
+
+
+def send_prompt_gemini(prompt, model_name="gemini-1.5-pro", max_output_tokens=1024, temperature=0.9, top_p=1, top_k=1):
+    """
+    Sends a prompt to the Gemini API and returns the response.
+
+    Args:
+        prompt: The text prompt to send.
+        model_name: The name of the Gemini model to use (e.g., "gemini-pro").
+        max_output_tokens: The maximum number of tokens to generate.
+        temperature: Controls the randomness of the output.
+        top_p: Controls the diversity of the output.
+        top_k: Controls the diversity of the output (similar to top_p).
+    Returns:
+        The generated text, or None if there was an error.
+    """
+
+    model = genai.GenerativeModel(model_name)
+
+    generation_config = genai.types.GenerationConfig(
+        max_output_tokens=max_output_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        top_k=top_k
+    )
+
+
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config,
+            stream=False
+        )
+
+        print("Used model: ", model)
+
+        return response.text
+    except Exception as e:
+        print(f"Error generating content: {e}")
+        return None
+
+
+def send_prompt_claude(prompt, model="claude-3-sonnet-20240229", max_tokens=4096, temperature=0.7,
+                     role_description="You are a skilled creative writer focused on producing original fiction."):
+    """
+    Sends a prompt to Anthropic's Claude API and returns the generated text.
+    
+    Args:
+        prompt: The text prompt to send.
+        model: The Claude model to use (e.g., "claude-3-opus-20240229").
+        max_tokens: Maximum number of tokens to generate.
+        temperature: Controls randomness of generations.
+        role_description: System prompt that sets the context for the model.
+        
+    Returns:
+        The generated text, or None if there was an error.
+    """
+    try:
+        # Create a message with system and user content
+        response = anthropic_client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=role_description,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        
+        print("Used model: ", model)
+        
+        # Extract the content from the response
+        return response.content[0].text
+        
+    except Exception as e:
+        print(f"Error generating content with Claude: {e}")
+        return None
+

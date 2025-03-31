@@ -1,0 +1,28 @@
+# Compiled Python files
+__pycache__/
+*.py[cod]
+
+# Environment files
+.env
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Build and distribution files
+build/
+dist/
+*.egg-info/
+
+# IDE and editor files
+.idea/
+.vscode/
+
+# Log and temporary files
+*.log
+*.tmp
+
+# Results and output directories
+results/
+output/
