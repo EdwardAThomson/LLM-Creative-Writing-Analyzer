@@ -1,0 +1,23 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20250326_153045
+Models tested: gpt-4o
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: gpt-4o
+  Text Similarity (exact matches):
+    Average similarity: 0.0284
+    Median similarity: 0.0301
+  Semantic Similarity (meaning):
+    Average: 0.5961
+    Median: 0.5831
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0822
+    Repeated entities: 17
+    Repeated name components: 3
+    Shared name parts: Elara (7/10), Lyra (2/10), Jax (2/10)
+  Average word count: 1041.70
+  Successful responses: 10/10
+

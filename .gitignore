@@ -23,6 +23,5 @@ dist/
 *.log
 *.tmp
 
-# Results and output directories
-results/
-output/
+# Temporary directories
+temp/

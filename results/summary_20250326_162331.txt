@@ -1,0 +1,23 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20250326_162331
+Models tested: gemini-2.0-pro-exp-02-05
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: gemini-2.0-pro-exp-02-05
+  Text Similarity (exact matches):
+    Average similarity: 0.0232
+    Median similarity: 0.0225
+  Semantic Similarity (meaning):
+    Average: 0.6117
+    Median: 0.6152
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0878
+    Repeated entities: 51
+    Repeated name components: 9
+    Shared name parts: Kaelen (7/10), Aethelburg (5/10), Aethel (3/10), Prime’s (2/10), Gamma (2/10) and 4 more
+  Average word count: 1571.00
+  Successful responses: 10/10
+

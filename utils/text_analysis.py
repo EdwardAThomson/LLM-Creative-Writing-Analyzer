@@ -9,6 +9,10 @@ import sys
 import spacy
 import numpy as np
 import argparse
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
+
 
 def calculate_similarity(text1, text2):
     """Calculate similarity between two text responses using SequenceMatcher."""
@@ -425,9 +429,6 @@ def calculate_semantic_similarities(responses):
         return {"semantic_similarity": "Needs at least 2 responses"}
     
     try:
-        from sentence_transformers import SentenceTransformer
-        from sklearn.metrics.pairwise import cosine_similarity
-        import numpy as np
         
         # Load model (first time will download it)
         model = SentenceTransformer('all-MiniLM-L6-v2')

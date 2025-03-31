@@ -1,0 +1,23 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20250326_182702
+Models tested: gemini-2.5-pro-exp-03-25
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: gemini-2.5-pro-exp-03-25
+  Text Similarity (exact matches):
+    Average similarity: 0.0193
+    Median similarity: 0.0199
+  Semantic Similarity (meaning):
+    Average: 0.5557
+    Median: 0.5534
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0720
+    Repeated entities: 51
+    Repeated name components: 8
+    Shared name parts: Kaelen (5/10), Kael (4/10), Elara (3/10), Gamma-Nine (3/10), Collective (3/10) and 3 more
+  Average word count: 1684.20
+  Successful responses: 10/10
+

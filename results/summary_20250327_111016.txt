@@ -1,0 +1,23 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20250327_111016
+Models tested: o1
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: o1
+  Text Similarity (exact matches):
+    Average similarity: 0.0147
+    Median similarity: 0.0146
+  Semantic Similarity (meaning):
+    Average: 0.5075
+    Median: 0.5116
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0801
+    Repeated entities: 38
+    Repeated name components: 7
+    Shared name parts: metropolis (2/10), Cora (2/10), Aurora (2/10), Novaris (2/10), City’s (2/10) and 2 more
+  Average word count: 2935.00
+  Successful responses: 10/10
+

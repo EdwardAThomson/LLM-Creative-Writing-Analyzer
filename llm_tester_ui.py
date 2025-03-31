@@ -369,23 +369,23 @@ class LLMTesterUI:
         
         threading.Thread(target=run_tests_thread, daemon=True).start()
 
-def calculate_semantic_similarity(text1, text2):
-    """Calculate semantic similarity between texts using embeddings."""
+# def calculate_semantic_similarity(text1, text2):
+#     """Calculate semantic similarity between texts using embeddings."""
     
     
-    # Load model (first time will download it)
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+#     # Load model (first time will download it)
+#     model = SentenceTransformer('all-MiniLM-L6-v2')
     
-    # Create embeddings
-    embedding1 = model.encode(text1)
-    embedding2 = model.encode(text2)
+#     # Create embeddings
+#     embedding1 = model.encode(text1)
+#     embedding2 = model.encode(text2)
     
-    # Calculate cosine similarity
+#     # Calculate cosine similarity
     
-    return cosine_similarity(
-        embedding1.reshape(1, -1),
-        embedding2.reshape(1, -1)
-    )[0][0]
+#     return cosine_similarity(
+#         embedding1.reshape(1, -1),
+#         embedding2.reshape(1, -1)
+#     )[0][0]
 
 def main():
     root = tk.Tk()

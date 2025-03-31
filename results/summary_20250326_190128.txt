@@ -1,0 +1,23 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20250326_190128
+Models tested: claude-3-7-sonnet
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: claude-3-7-sonnet
+  Text Similarity (exact matches):
+    Average similarity: 0.0180
+    Median similarity: 0.0164
+  Semantic Similarity (meaning):
+    Average: 0.5520
+    Median: 0.5430
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0539
+    Repeated entities: 43
+    Repeated name components: 14
+    Shared name parts: Elara (7/10), Voss (5/10), ARIA (4/10), Tomas (2/10), Reeve (2/10) and 9 more
+  Average word count: 1495.00
+  Successful responses: 10/10
+

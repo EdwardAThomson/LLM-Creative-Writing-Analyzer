@@ -1,0 +1,23 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20250326_185105
+Models tested: claude-3-5-sonnet
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: claude-3-5-sonnet
+  Text Similarity (exact matches):
+    Average similarity: 0.0374
+    Median similarity: 0.0362
+  Semantic Similarity (meaning):
+    Average: 0.6481
+    Median: 0.6866
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0797
+    Repeated entities: 30
+    Repeated name components: 8
+    Shared name parts: Chen (8/10), Maya (5/10), Mira (4/10), ARIA (3/10), Elena (2/10) and 3 more
+  Average word count: 1004.00
+  Successful responses: 10/10
+
