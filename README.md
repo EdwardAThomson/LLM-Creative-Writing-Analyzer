@@ -31,7 +31,7 @@ This project allows you to test multiple LLMs with the same creative writing pro
 
 1. Clone this repository:
    ```
-   git clone <repository-url>
+   git clone https://github.com/EdwardAThomson/LLM-Creative-Writing-Analyzer
    cd llm-creative-tester
    ```
 
