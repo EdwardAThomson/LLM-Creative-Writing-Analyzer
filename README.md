@@ -1,4 +1,4 @@
-# LLM Creative Writing Tester
+# LLM Creative Writing Analyzer
 
 A tool for testing and analyzing creative writing capabilities of various Large Language Models (LLMs).
 
