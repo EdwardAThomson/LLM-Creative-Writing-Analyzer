@@ -37,6 +37,8 @@ def send_prompt(prompt, model="gpt-4o"):
         ),
         "o1": lambda prompt: send_prompt_o1(prompt, model="o1"),
         "o1-mini": lambda prompt: send_prompt_o1(prompt, model="o1-mini"),
+        "o3": lambda prompt: send_prompt_o1(prompt, model="o3"),
+        "o4-mini": lambda prompt: send_prompt_o1(prompt, model="o4-mini"),
         "gemini-1.5-pro": lambda prompt: send_prompt_gemini(
             prompt=prompt,
             model_name="gemini-1.5-pro",
@@ -91,7 +93,7 @@ def send_prompt(prompt, model="gpt-4o"):
             prompt=prompt,
             model="claude-3-5-sonnet-20241022",
             max_tokens=4096,
-            temperature=0.7
+            temperature=1.0
         ),
         "claude-3-7-sonnet": lambda prompt: send_prompt_claude(
             prompt=prompt,

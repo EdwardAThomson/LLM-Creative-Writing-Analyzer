@@ -40,28 +40,50 @@ def load_parameters(params_file="parameters.txt"):
     
     return params_text
 
-def create_prompt(parameters_text, word_count=1500):
-    """Create a complete prompt for the LLM based on parameters and word count.
+def create_prompt(parameters_text, word_count=1500, system_prompt_file=None):
+    """Create a complete prompt for the LLM based on parameters and word count,
+    optionally including a system prompt from a file.
     
     Args:
         parameters_text: The text containing the story parameters
         word_count: Target word count for the generated content
+        system_prompt_file: Path to a file containing an additional system prompt/context (optional)
         
     Returns:
         A formatted prompt string ready to be sent to the LLM
     """
-    prompt = f"""
-You are a professional science fiction author. Write the engaging opening section of a novel using 
-the parameters below. The opening should hook the reader, establish the setting, and introduce 
-at least one main character.
+    
+    system_prompt_content = ""
+    if system_prompt_file and os.path.exists(system_prompt_file):
+        try:
+            with open(system_prompt_file, 'r') as f:
+                system_prompt_content = f.read()
+        except Exception as e:
+            print(f"Warning: Could not read system prompt file {system_prompt_file}: {e}")
+            system_prompt_content = f"[Error reading system prompt file: {system_prompt_file}]"
+    elif system_prompt_file:
+        print(f"Warning: System prompt file {system_prompt_file} not found.")
+        system_prompt_content = f"[System prompt file not found: {system_prompt_file}]"
 
-Your writing should be original, creative, and high-quality. Aim for approximately {word_count} words.
+    # Construct the main prompt
+    prompt_parts = [
+        f"You are a professional science fiction author. Write the engaging opening section of a novel using \n"
+        f"the parameters below. The opening should hook the reader, establish the setting, and introduce \n"
+        f"at least one main character.\n"
+    ]
 
-PARAMETERS:
-{parameters_text}
+    # Add the system prompt content if it exists
+    if system_prompt_content:
+        prompt_parts.append(f"\nADDITIONAL SYSTEM CONTEXT / PERSONA:\n{'='*30}\n{system_prompt_content}\n{'='*30}\n\n")
 
-Write the opening section now:
-"""
+    # Add the rest of the original prompt
+    prompt_parts.extend([
+        f"\nYour writing should be original, creative, and high-quality. Aim for approximately {word_count} words.\n",
+        f"\nPARAMETERS:\n{parameters_text}",
+        f"\nWrite the opening section now:\n"
+    ])
+
+    prompt = "".join(prompt_parts)
     return prompt
 
 def ensure_output_dir(output_dir):
@@ -174,30 +196,41 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
         # Named entity analysis if available
         if 'entity_analysis' in analysis:
             ent = analysis['entity_analysis']
+            print(f"DEBUG (write_results): Type of ent (entity_analysis): {type(ent)}") # DEBUG
             f.write("NAMED ENTITY ANALYSIS:\n")
+            # Add checks before accessing potentially missing keys with default values
             f.write(f"  Total entities detected: {ent.get('total_entities', 'N/A')}\n")
             f.write(f"  Unique entities: {ent.get('unique_entities', 'N/A')}\n")
             
             # Entity types summary
-            if 'entity_types' in ent:
+            entity_types_data = ent.get('entity_types')
+            print(f"DEBUG (write_results): Type of entity_types_data: {type(entity_types_data)}") # DEBUG
+            if isinstance(entity_types_data, dict):
                 f.write("\n  ENTITY TYPES:\n")
-                for entity_type, count in ent['entity_types'].items():
+                for entity_type, count in entity_types_data.items():
                     f.write(f"    {entity_type}: {count}\n")
             
             # Entity similarity
-            if 'entity_similarity' in ent:
-                ent_sim = ent['entity_similarity']
+            ent_sim = ent.get('entity_similarity')
+            print(f"DEBUG (write_results): Type of ent_sim (entity_similarity): {type(ent_sim)}") # DEBUG
+            if isinstance(ent_sim, dict):
                 f.write(f"\n  ENTITY SIMILARITY:\n")
                 f.write(f"    Average entity overlap: {ent_sim.get('average', 'N/A'):.4f}\n")
                 f.write(f"    Max entity overlap: {ent_sim.get('max', 'N/A'):.4f}\n")
                 
                 # If there are repeated entities, list them
-                if 'repeated_entities' in ent and ent['repeated_entities']:
+                repeated_entities_data = ent.get('repeated_entities')
+                print(f"DEBUG (write_results): Type of repeated_entities_data: {type(repeated_entities_data)}") # DEBUG
+                if isinstance(repeated_entities_data, list) and repeated_entities_data:
                     f.write("\n  REPEATED ENTITIES (appearing in multiple responses):\n")
                     # Group by entity type
                     repeated_by_type = defaultdict(list)
-                    for entity in ent['repeated_entities']:
-                        repeated_by_type[entity['type']].append(entity['text'])
+                    # Add check for dict type within the list
+                    for entity in repeated_entities_data:
+                        if isinstance(entity, dict) and 'type' in entity and 'text' in entity:
+                            repeated_by_type[entity['type']].append(entity['text'])
+                        else:
+                            print(f"DEBUG (write_results): Skipping non-dict or malformed item in repeated_entities_data: {entity}") # DEBUG
                         
                     for entity_type, entities in repeated_by_type.items():
                         f.write(f"    {entity_type}:\n")
@@ -205,33 +238,48 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
                             f.write(f"      - {entity}\n")
                 
                 # Name component analysis
-                if 'name_components' in ent:
-                    name_comp = ent['name_components']
+                name_comp = ent.get('name_components')
+                print(f"DEBUG (write_results): Type of name_comp (name_components): {type(name_comp)}") # DEBUG
+                if isinstance(name_comp, dict):
                     f.write(f"\n  NAME COMPONENT ANALYSIS:\n")
                     f.write(f"    Total name components: {name_comp.get('total', 'N/A')}\n")
                     f.write(f"    Unique name components: {name_comp.get('unique', 'N/A')}\n")
                     
-                    if 'similarity' in name_comp:
-                        name_sim = name_comp['similarity']
+                    name_sim = name_comp.get('similarity')
+                    print(f"DEBUG (write_results): Type of name_sim (name_components[similarity]): {type(name_sim)}") # DEBUG
+                    if isinstance(name_sim, dict):
                         f.write(f"    Average name component overlap: {name_sim.get('average', 'N/A'):.4f}\n")
                         f.write(f"    Max name component overlap: {name_sim.get('max', 'N/A'):.4f}\n")
                     
                     # If there are repeated name components, list them
-                    if 'repeated' in name_comp and name_comp['repeated']:
+                    repeated_name_comp_data = name_comp.get('repeated')
+                    print(f"DEBUG (write_results): Type of repeated_name_comp_data: {type(repeated_name_comp_data)}") # DEBUG
+                    if isinstance(repeated_name_comp_data, list) and repeated_name_comp_data:
                         f.write("\n  REPEATED NAME COMPONENTS (appearing across multiple responses):\n")
                         # Sort by number of responses the component appears in (descending)
-                        sorted_components = sorted(name_comp['repeated'], 
-                                                 key=lambda x: (x.get('response_count', 0), x.get('total_count', 0)), 
-                                                 reverse=True)
-                        for comp in sorted_components:
-                            response_count = comp.get('response_count', 0)
-                            total_count = comp.get('total_count', 0)
-                            f.write(f"    - {comp['text']} (appears in {response_count}/{len(responses)} responses, {total_count} total occurrences)\n")
+                        try:
+                            # Add check for dict type within the list during sort key access
+                            sorted_components = sorted(
+                                [item for item in repeated_name_comp_data if isinstance(item, dict)], # Filter for dicts first
+                                key=lambda x: (x.get('response_count', 0), x.get('total_count', 0)), 
+                                reverse=True)
+                            
+                            for comp in sorted_components:
+                                # Use .get() for safer access
+                                response_count = comp.get('response_count', 'N/A')
+                                total_count = comp.get('total_count', 'N/A')
+                                text = comp.get('text', '{Missing Text}')
+                                f.write(f"    - {text} (appears in {response_count}/{len(responses)} responses, {total_count} total occurrences)\n")
+                        except TypeError as sort_err:
+                             print(f"DEBUG (write_results): TypeError during sorting/processing repeated name components: {sort_err}") # DEBUG
+                             f.write("    Error processing repeated name components.\n")
                 
                 # Detailed entity overlap
-                if 'detailed_overlap' in ent_sim and ent_sim['detailed_overlap']:
+                # Check if detailed_overlap exists, is a list (not the 'Not Calculated' string), and is not empty
+                detailed_overlap_data = ent_sim.get('detailed_overlap')
+                if isinstance(detailed_overlap_data, list) and detailed_overlap_data:
                     f.write("\n  DETAILED ENTITY OVERLAP:\n")
-                    for comparison in ent_sim['detailed_overlap']:
+                    for comparison in detailed_overlap_data:
                         f.write(f"    Responses {comparison['responses']}:\n")
                         
                         # For each entity type

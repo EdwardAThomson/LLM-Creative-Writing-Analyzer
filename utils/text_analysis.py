@@ -143,11 +143,21 @@ def analyze_text_structure(responses):
         }
     }
 
-def calculate_advanced_metrics(responses):
+def calculate_advanced_metrics(
+    responses, 
+    run_structure_analysis=True, 
+    run_semantic_analysis=True, 
+    run_entity_analysis=True,
+    run_entity_overlap_calculation=True
+):
     """Calculate more advanced metrics on the responses.
     
     Args:
         responses: List of text responses
+        run_structure_analysis (bool): Whether to perform text structure analysis
+        run_semantic_analysis (bool): Whether to perform semantic similarity analysis
+        run_entity_analysis (bool): Whether to perform named entity analysis
+        run_entity_overlap_calculation (bool): Whether to calculate detailed entity overlap (requires run_entity_analysis=True)
         
     Returns:
         Dictionary with additional metrics beyond basic similarity
@@ -172,27 +182,56 @@ def calculate_advanced_metrics(responses):
     
     vocabulary_diversity = len(unique_words) / len(all_words) if all_words else 0
     
-    # Try to calculate named entity metrics if spaCy is available
+    # Initialize result dictionaries
     entity_metrics = {}
-    try:
-        entity_metrics = analyze_named_entities(responses)
-    except ImportError:
-        entity_metrics = {"entity_error": "spaCy not installed. Run: pip install spacy && python -m spacy download en_core_web_sm"}
-    except Exception as e:
-        entity_metrics = {"entity_error": f"Error analyzing named entities: {str(e)}"}
-    
-    # Try to calculate semantic similarity if sentence-transformers is available
     semantic_metrics = {}
-    try:
-        semantic_metrics = calculate_semantic_similarities(responses)
-    except ImportError:
-        semantic_metrics = {"semantic_error": "sentence-transformers not installed. Run: pip install sentence-transformers"}
-    except Exception as e:
-        semantic_metrics = {"semantic_error": f"Error calculating semantic similarity: {str(e)}"}
+    structure_metrics = {}
     
-    # Calculate structure metrics
-    structure_metrics = analyze_text_structure(responses)
+    # Try to calculate named entity metrics if requested and spaCy is available
+    if run_entity_analysis:
+        print("DEBUG (calc_adv): Calling analyze_named_entities...") # DEBUG
+        try:
+            entity_metrics = analyze_named_entities(responses, run_entity_overlap_calculation)
+            print(f"DEBUG (calc_adv): Returned from analyze_named_entities. Type: {type(entity_metrics)}") # DEBUG
+        except ImportError:
+            entity_metrics = {"entity_error": "spaCy not installed. Run: pip install spacy && python -m spacy download en_core_web_sm"}
+            print("DEBUG (calc_adv): analyze_named_entities raised ImportError") # DEBUG
+        except Exception as e:
+            entity_metrics = {"entity_error": f"Error analyzing named entities: {str(e)}"}
+            print(f"DEBUG (calc_adv): analyze_named_entities raised Exception: {e}") # DEBUG
+    else:
+        print("DEBUG (calc_adv): Skipping analyze_named_entities.") # DEBUG
     
+    # Try to calculate semantic similarity if requested and sentence-transformers is available
+    if run_semantic_analysis:
+        print("DEBUG (calc_adv): Calling calculate_semantic_similarities...") # DEBUG
+        try:
+            semantic_metrics = calculate_semantic_similarities(responses)
+            print(f"DEBUG (calc_adv): Returned from calculate_semantic_similarities. Type: {type(semantic_metrics)}") # DEBUG
+        except ImportError:
+            semantic_metrics = {"semantic_error": "sentence-transformers not installed. Run: pip install sentence-transformers"}
+            print("DEBUG (calc_adv): calculate_semantic_similarities raised ImportError") # DEBUG
+        except Exception as e:
+            semantic_metrics = {"semantic_error": f"Error calculating semantic similarity: {str(e)}"}
+            print(f"DEBUG (calc_adv): calculate_semantic_similarities raised Exception: {e}") # DEBUG
+    else:
+        print("DEBUG (calc_adv): Skipping calculate_semantic_similarities.") # DEBUG
+    
+    # Calculate structure metrics if requested
+    if run_structure_analysis:
+        print("DEBUG (calc_adv): Calling analyze_text_structure...") # DEBUG
+        # Add try-except block here for better debugging
+        try:
+            structure_metrics = analyze_text_structure(responses)
+            print(f"DEBUG (calc_adv): Returned from analyze_text_structure. Type: {type(structure_metrics)}") # DEBUG
+        except Exception as e:
+            print(f"DEBUG (calc_adv): analyze_text_structure raised Exception: {e}") # DEBUG
+            # Assign an error dictionary if it fails, similar to other analyses
+            structure_metrics = {"structure_error": f"Error analyzing text structure: {str(e)}"}
+    else:
+        print("DEBUG (calc_adv): Skipping analyze_text_structure.") # DEBUG
+
+    print("DEBUG (calc_adv): Combining results...") # DEBUG
     return {
         "vocabulary_diversity": vocabulary_diversity,
         "unique_word_count": len(unique_words),
@@ -202,11 +241,12 @@ def calculate_advanced_metrics(responses):
         **structure_metrics
     }
 
-def analyze_named_entities(responses):
+def analyze_named_entities(responses, calculate_overlap=True):
     """Analyze named entities across responses to find similarities.
     
     Args:
         responses: List of text responses to analyze
+        calculate_overlap (bool): Whether to calculate detailed entity overlap
         
     Returns:
         Dictionary containing named entity analysis
@@ -303,33 +343,33 @@ def analyze_named_entities(responses):
     # Make sure everything is serializable
     serializable_entity_types = {str(label): len(entities) for label, entities in entity_types.items()}
     
-    # Compare entities between responses
+    # Compare entities between responses if requested
     entity_similarities = []
     entity_overlap_details = []
+    if calculate_overlap:
+        for i in range(len(response_entities)):
+            for j in range(i+1, len(response_entities)):
+                # Calculate similarity based on shared entities
+                overlap = calculate_entity_overlap(response_entities[i], response_entities[j])
+                entity_similarities.append(float(overlap["similarity"]))
+                entity_overlap_details.append({
+                    "responses": f"{i+1} vs {j+1}",
+                    "overlap": overlap["details"]
+                })
     
-    for i in range(len(response_entities)):
-        for j in range(i+1, len(response_entities)):
-            # Calculate similarity based on shared entities
-            overlap = calculate_entity_overlap(response_entities[i], response_entities[j])
-            entity_similarities.append(float(overlap["similarity"]))
-            entity_overlap_details.append({
-                "responses": f"{i+1} vs {j+1}",
-                "overlap": overlap["details"]
-            })
-    
-    # Compare name components between responses
+    # Compare name components between responses if requested
     name_component_similarities = []
     name_component_overlap_details = []
-    
-    for i in range(len(response_name_components)):
-        for j in range(i+1, len(response_name_components)):
-            # Calculate similarity based on shared name components
-            overlap = calculate_entity_overlap(response_name_components[i], response_name_components[j])
-            name_component_similarities.append(float(overlap["similarity"]))
-            name_component_overlap_details.append({
-                "responses": f"{i+1} vs {j+1}",
-                "overlap": overlap["details"]
-            })
+    if calculate_overlap:
+        for i in range(len(response_name_components)):
+            for j in range(i+1, len(response_name_components)):
+                # Calculate similarity based on shared name components
+                overlap = calculate_entity_overlap(response_name_components[i], response_name_components[j])
+                name_component_similarities.append(float(overlap["similarity"]))
+                name_component_overlap_details.append({
+                    "responses": f"{i+1} vs {j+1}",
+                    "overlap": overlap["details"]
+                })
     
     avg_similarity = 0
     max_similarity = 0
@@ -352,7 +392,7 @@ def analyze_named_entities(responses):
             "entity_similarity": {
                 "average": avg_similarity,
                 "max": max_similarity,
-                "detailed_overlap": entity_overlap_details
+                "detailed_overlap": entity_overlap_details if calculate_overlap else "Not Calculated"
             },
             "name_components": {
                 "total": len(all_name_components),
@@ -361,7 +401,7 @@ def analyze_named_entities(responses):
                 "similarity": {
                     "average": avg_name_similarity,
                     "max": max_name_similarity,
-                    "detailed_overlap": name_component_overlap_details
+                    "detailed_overlap": name_component_overlap_details if calculate_overlap else "Not Calculated"
                 }
             }
         }
@@ -638,11 +678,19 @@ def main():
     # Basic text similarity analysis (always run)
     analysis = analyze_responses(responses)
     
-    # Calculate vocabulary diversity - always include this
     print("Calculating vocabulary diversity...")
-    adv_metrics = calculate_advanced_metrics(responses)
-    # Only take vocabulary metrics from this call to avoid running
-    # other expensive analysis operations that might be skipped below
+    # We call calculate_advanced_metrics here mainly for vocabulary metrics,
+    # but pass flags so it *could* run other analyses if needed (though we run them separately below).
+    # This structure is a bit redundant now but preserves the original logic flow.
+    # We specifically disable entity overlap calculation here as it's handled conditionally later.
+    adv_metrics = calculate_advanced_metrics(
+        responses, 
+        run_structure_analysis=args.structure or args.all,
+        run_semantic_analysis=args.semantic or args.all,
+        run_entity_analysis=args.entity or args.all,
+        run_entity_overlap_calculation=False # Handled below
+    )
+    # Only take vocabulary metrics from this call
     if 'vocabulary_diversity' in adv_metrics:
         analysis['vocabulary_diversity'] = adv_metrics['vocabulary_diversity']
     if 'unique_word_count' in adv_metrics:
@@ -650,16 +698,22 @@ def main():
     if 'total_word_count' in adv_metrics:
         analysis['total_word_count'] = adv_metrics['total_word_count']
     
-    # Run additional analyses based on arguments
+    # Determine which analyses to run based on flags
     run_all = args.all or (not args.text_only and not args.semantic and not args.entity and not args.structure)
+    run_structure = run_all or args.structure
+    run_semantic = run_all or args.semantic
+    run_entity = run_all or args.entity
+    # For standalone analysis, let's assume if --entity is passed, we want overlap unless explicitly disabled.
+    # We don't have a separate --no-entity-overlap flag here, so entity implies overlap.
+    run_overlap = run_entity 
     
-    if run_all or args.structure:
+    if run_structure:
         # Text structure analysis
         print("Analyzing text structure...")
         structure_metrics = analyze_text_structure(responses)
         analysis.update(structure_metrics)
     
-    if run_all or args.semantic:
+    if run_semantic:
         # Semantic similarity analysis
         print("Analyzing semantic similarity...")
         try:
@@ -669,11 +723,12 @@ def main():
             print(f"Error in semantic analysis: {e}")
             analysis["semantic_error"] = str(e)
     
-    if run_all or args.entity:
+    if run_entity:
         # Named entity analysis
         print("Analyzing named entities...")
         try:
-            entity_metrics = analyze_named_entities(responses)
+            # Pass the overlap flag determined above
+            entity_metrics = analyze_named_entities(responses, calculate_overlap=run_overlap)
             analysis.update(entity_metrics)
         except Exception as e:
             print(f"Error in entity analysis: {e}")

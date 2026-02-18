@@ -1,0 +1,27 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20250506_132713
+Models tested: o3
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: o3
+  Text Similarity (exact matches):
+    Average similarity: 0.0165
+    Median similarity: 0.0174
+  Semantic Similarity (meaning):
+    Average: 0.4908
+    Median: 0.5049
+  Text Structure:
+    Paragraphs per 1000 words: 26.75
+    Sentences per paragraph: 3.52
+    Words per sentence: 11.35
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0622
+    Repeated entities: 57
+    Repeated name components: 6
+    Shared name parts: Kael (3/10), Nova (3/10), Cho (2/10), Terran (2/10), Lysandra (2/10) and 1 more
+  Average word count: 2118.50
+  Successful responses: 10/10
+

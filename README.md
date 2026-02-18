@@ -16,6 +16,7 @@ This project allows you to test multiple LLMs with the same creative writing pro
 
 - Support for multiple LLM providers (OpenAI GPT models, Google Gemini models, and Anthropic Claude models)
 - Configurable number of test repetitions per model
+- **Configurable analysis steps:** Enable/disable text structure, semantic similarity, named entity, and detailed entity overlap analysis.
 - Advanced similarity analysis between responses:
   - Text-based similarity (exact matches)
   - Semantic similarity (meaning-based comparison)
@@ -65,6 +66,7 @@ This will open a user-friendly interface with the following features:
 - A tab to view and edit the parameters file
 - Real-time output display
 - Buttons to save/load parameters and view results
+- **Analysis Options:** Checkboxes to selectively enable/disable advanced analysis steps.
 
 ### Command Line Interface
 
@@ -93,6 +95,15 @@ Available options:
 - `--params-file`: File containing story parameters (default: parameters.txt)
 - `--output-dir`: Directory to store results (default: results)
 - `--pause`: Seconds to pause between API calls (default: 1)
+
+#### Analysis Flags (Optional)
+
+By default, all advanced analyses (structure, semantic, entities, overlap) are performed. Use the following flags to **disable** specific analyses:
+
+- `--no-structure`: Disable text structure analysis.
+- `--no-semantic`: Disable semantic similarity analysis.
+- `--no-entities`: Disable named entity analysis (this also disables entity overlap).
+- `--no-entity-overlap`: Disable detailed entity overlap calculation (requires entity analysis to be enabled otherwise).
 
 ### Parameters File
 
@@ -123,9 +134,9 @@ results/
 
 ## Analysis Types
 
-The tool provides several types of similarity measurements:
+The tool provides several types of similarity measurements. These advanced analyses can be individually enabled or disabled via CLI flags or GUI checkboxes.
 
-1. **Text Similarity**: Based on exact text matches using Python's SequenceMatcher.
+1. **Text Similarity**: Based on exact text matches using Python's SequenceMatcher (always performed).
 2. **Semantic Similarity**: Measures similarity in meaning using embeddings (sentence-transformers).
 3. **Entity Analysis**: Detects and compares named entities (people, places, organizations).
 4. **Name Component Analysis**: A specialized analysis that breaks down person names into components to detect when parts of names (like surnames) appear across different responses, even if the full names differ.
@@ -151,26 +162,23 @@ To re-analyze an existing output file:
 python -m utils.text_analysis results/gpt-4o_20240601_120145.txt
 ```
 
-By default, this will run all available analyses. You can also specify which analyses to run:
+This command analyzes the specified file. By default, it performs basic text similarity and vocabulary analysis. Use the following flags to **include** specific advanced analyses:
 
 ```bash
-# Run only basic text similarity analysis
-python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --text-only
-
-# Run text similarity and text structure analysis
+# Include text structure analysis
 python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --structure
 
-# Run text similarity and semantic similarity
+# Include semantic similarity analysis
 python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --semantic
 
-# Run text similarity and entity analysis
+# Include named entity analysis (including overlap calculation)
 python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --entity
 
-# Run all analyses
+# Include all available advanced analyses
 python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --all
 
 # Save analysis results to a file
-python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --output results/reanalysis_20240601.txt
+python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --all --output results/reanalysis_20240601.txt
 ```
 
 This allows you to apply new analysis methods to existing results without needing to regenerate the responses. 
@@ -195,12 +203,12 @@ This allows you to apply new analysis methods to existing results without needin
 
 ## Supported Models
 
-Currently supported models include:
-- OpenAI: gpt-4o, o1, o1-mini
+Currently supported models (defined in `llm_tester_ui.py`) include:
+- OpenAI: gpt-4o, o1, o1-mini, o3, o4-mini
 - Google: gemini-1.5-pro, gemini-2.0-pro-exp-02-05, gemini-2.5-pro-exp-03-25
-- Anthropic: claude-3-opus, claude-3-sonnet, claude-3-haiku, claude-3-5-sonnet,claude-3-7-sonnet 
+- Anthropic: claude-3-opus, claude-3-5-sonnet, claude-3-7-sonnet
 
-To add support for additional models, modify the `ai_helper.py` file.
+To add support for additional models, modify the `ai_helper.py` file and update the `AVAILABLE_MODELS` list in `llm_tester_ui.py`.
 
 ## License
 

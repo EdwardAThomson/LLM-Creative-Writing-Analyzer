@@ -24,8 +24,10 @@ from llm_creative_tester import run_tests, DEFAULT_OUTPUT_DIR, DEFAULT_REPEATS, 
 AVAILABLE_MODELS = [
     "gpt-4o",
     "o1",
-    "o1-mini",
-    "gemini-1.5-pro",
+    # "o1-mini",
+    "o3",
+    "o4-mini",
+    # "gemini-1.5-pro",
     "gemini-2.0-pro-exp-02-05",
     "gemini-2.5-pro-exp-03-25",
     "claude-3-opus",
@@ -134,31 +136,39 @@ class LLMTesterUI:
         settings_frame = ttk.LabelFrame(frame, text="Test Settings", padding="10")
         settings_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
         
+        # === Test Configuration ===
+        test_config_frame = ttk.Frame(settings_frame)
+        test_config_frame.grid(row=0, column=0, sticky=tk.W, padx=5)
+
         # Repeats
-        ttk.Label(settings_frame, text="Repeats:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Label(test_config_frame, text="Repeats:").grid(row=0, column=0, sticky=tk.W, pady=2)
         self.repeats_var = tk.IntVar(value=DEFAULT_REPEATS)
-        repeats_spinner = ttk.Spinbox(settings_frame, from_=1, to=10, textvariable=self.repeats_var, width=5)
-        repeats_spinner.grid(row=0, column=1, sticky=tk.W, pady=5)
+        repeats_spinner = ttk.Spinbox(test_config_frame, from_=1, to=10, textvariable=self.repeats_var, width=5)
+        repeats_spinner.grid(row=0, column=1, sticky=tk.W, pady=2)
         
         # Word count
-        ttk.Label(settings_frame, text="Target Word Count:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(test_config_frame, text="Target Word Count:").grid(row=1, column=0, sticky=tk.W, pady=2)
         self.word_count_var = tk.IntVar(value=DEFAULT_WORD_COUNT)
-        word_count_spinner = ttk.Spinbox(settings_frame, from_=100, to=3000, increment=100, textvariable=self.word_count_var, width=5)
-        word_count_spinner.grid(row=1, column=1, sticky=tk.W, pady=5)
+        word_count_spinner = ttk.Spinbox(test_config_frame, from_=100, to=3000, increment=100, textvariable=self.word_count_var, width=5)
+        word_count_spinner.grid(row=1, column=1, sticky=tk.W, pady=2)
         
         # Pause between API calls
-        ttk.Label(settings_frame, text="Pause Between Calls (s):").grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(test_config_frame, text="Pause Between Calls (s):").grid(row=2, column=0, sticky=tk.W, pady=2)
         self.pause_var = tk.DoubleVar(value=DEFAULT_PAUSE)
-        pause_spinner = ttk.Spinbox(settings_frame, from_=0.1, to=10, increment=0.1, textvariable=self.pause_var, width=5)
-        pause_spinner.grid(row=2, column=1, sticky=tk.W, pady=5)
+        pause_spinner = ttk.Spinbox(test_config_frame, from_=0.1, to=10, increment=0.1, textvariable=self.pause_var, width=5)
+        pause_spinner.grid(row=2, column=1, sticky=tk.W, pady=2)
         
+        # === File Paths ===
+        file_paths_frame = ttk.Frame(settings_frame)
+        file_paths_frame.grid(row=0, column=1, sticky=tk.W, padx=5)
+
         # Output directory
-        ttk.Label(settings_frame, text="Output Directory:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        output_frame = ttk.Frame(settings_frame)
-        output_frame.grid(row=3, column=1, sticky=tk.W, pady=5)
+        ttk.Label(file_paths_frame, text="Output Directory:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        output_dir_frame = ttk.Frame(file_paths_frame)
+        output_dir_frame.grid(row=0, column=1, sticky=tk.W, pady=2)
         
         self.output_dir_var = tk.StringVar(value=DEFAULT_OUTPUT_DIR)
-        output_entry = ttk.Entry(output_frame, textvariable=self.output_dir_var, width=30)
+        output_entry = ttk.Entry(output_dir_frame, textvariable=self.output_dir_var, width=30)
         output_entry.pack(side=tk.LEFT, padx=(0, 5))
         
         def browse_output_dir():
@@ -166,16 +176,16 @@ class LLMTesterUI:
             if directory:
                 self.output_dir_var.set(directory)
         
-        browse_button = ttk.Button(output_frame, text="Browse...", command=browse_output_dir)
+        browse_button = ttk.Button(output_dir_frame, text="Browse...", command=browse_output_dir)
         browse_button.pack(side=tk.LEFT)
         
         # Parameters file
-        ttk.Label(settings_frame, text="Parameters File:").grid(row=4, column=0, sticky=tk.W, pady=5)
-        params_frame = ttk.Frame(settings_frame)
-        params_frame.grid(row=4, column=1, sticky=tk.W, pady=5)
+        ttk.Label(file_paths_frame, text="Parameters File:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        params_file_frame = ttk.Frame(file_paths_frame)
+        params_file_frame.grid(row=1, column=1, sticky=tk.W, pady=2)
         
         self.params_file_var = tk.StringVar(value=self.params_file_path)
-        params_entry = ttk.Entry(params_frame, textvariable=self.params_file_var, width=30)
+        params_entry = ttk.Entry(params_file_frame, textvariable=self.params_file_var, width=30)
         params_entry.pack(side=tk.LEFT, padx=(0, 5))
         
         def browse_params_file():
@@ -188,21 +198,65 @@ class LLMTesterUI:
                 self.params_file_path = file_path
                 self.load_parameters_text()
         
-        browse_button = ttk.Button(params_frame, text="Browse...", command=browse_params_file)
+        browse_button = ttk.Button(params_file_frame, text="Browse...", command=browse_params_file)
         browse_button.pack(side=tk.LEFT)
+
+        # System prompt file (optional)
+        ttk.Label(file_paths_frame, text="System Prompt File (Opt):").grid(row=2, column=0, sticky=tk.W, pady=2)
+        system_prompt_frame = ttk.Frame(file_paths_frame)
+        system_prompt_frame.grid(row=2, column=1, sticky=tk.W, pady=2)
+        
+        self.system_prompt_file_var = tk.StringVar(value="") # Initialize empty
+        system_prompt_entry = ttk.Entry(system_prompt_frame, textvariable=self.system_prompt_file_var, width=30)
+        system_prompt_entry.pack(side=tk.LEFT, padx=(0, 5))
+        
+        def browse_system_prompt_file():
+            file_path = filedialog.askopenfilename(
+                title="Select System Prompt File (Optional)",
+                filetypes=[("Markdown files", "*.md"), ("Text files", "*.txt"), ("All files", "*.*")]
+            )
+            if file_path:
+                self.system_prompt_file_var.set(file_path)
+            else:
+                # Allow clearing the selection
+                self.system_prompt_file_var.set("")
+        
+        browse_sys_prompt_button = ttk.Button(system_prompt_frame, text="Browse...", command=browse_system_prompt_file)
+        browse_sys_prompt_button.pack(side=tk.LEFT)
+
+        # === Analysis Options ===
+        analysis_frame = ttk.LabelFrame(frame, text="Analysis Options", padding="10")
+        analysis_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+
+        self.run_structure_var = tk.BooleanVar(value=True)
+        self.run_semantic_var = tk.BooleanVar(value=True)
+        self.run_entities_var = tk.BooleanVar(value=True)
+        self.run_overlap_var = tk.BooleanVar(value=True)
+
+        structure_cb = ttk.Checkbutton(analysis_frame, text="Text Structure Analysis", variable=self.run_structure_var)
+        structure_cb.grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+
+        semantic_cb = ttk.Checkbutton(analysis_frame, text="Semantic Similarity Analysis", variable=self.run_semantic_var)
+        semantic_cb.grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+
+        entities_cb = ttk.Checkbutton(analysis_frame, text="Named Entity Analysis", variable=self.run_entities_var, command=self.toggle_overlap_cb)
+        entities_cb.grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
+
+        self.overlap_cb = ttk.Checkbutton(analysis_frame, text="Detailed Entity Overlap", variable=self.run_overlap_var)
+        self.overlap_cb.grid(row=3, column=0, sticky=tk.W, padx=25, pady=2) # Indented
         
         # Run button
         run_button = ttk.Button(frame, text="Run Tests", command=self.run_tests)
-        run_button.grid(row=3, column=0, pady=10)
+        run_button.grid(row=4, column=0, pady=10)
         
         # Help text
         help_text = ttk.Label(
             frame, 
-            text="Select at least one model and configure your test settings, then click 'Run Tests'.\n"
-                 "You can view and edit the parameters in the 'Parameters' tab. Output will be shown in the 'Output' tab.",
+            text="Select models, configure settings and analysis options, then click 'Run Tests'.\n"
+                 "View/edit parameters in the 'Parameters' tab. Output appears in the 'Output' tab.",
             wraplength=700, justify=tk.LEFT
         )
-        help_text.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=10)
+        help_text.grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=10)
     
     def create_parameters_tab(self):
         """Create the Parameters tab content"""
@@ -309,6 +363,14 @@ class LLMTesterUI:
         pause_seconds = self.pause_var.get()
         output_dir = self.output_dir_var.get()
         params_file = self.params_file_var.get()
+        system_prompt_file = self.system_prompt_file_var.get() or None # Get path, use None if empty
+        
+        # Get analysis options
+        run_structure = self.run_structure_var.get()
+        run_semantic = self.run_semantic_var.get()
+        run_entities = self.run_entities_var.get()
+        # Overlap requires entities to be run
+        run_entity_overlap = self.run_overlap_var.get() and run_entities 
         
         # Validate settings
         if repeats < 1:
@@ -352,15 +414,23 @@ class LLMTesterUI:
                     repeats=repeats,
                     word_count=word_count,
                     output_dir=output_dir,
-                    pause_seconds=pause_seconds
+                    pause_seconds=pause_seconds,
+                    run_structure=run_structure,
+                    run_semantic=run_semantic,
+                    run_entities=run_entities,
+                    run_entity_overlap=run_entity_overlap,
+                    system_prompt_file=system_prompt_file # Pass system prompt path
                 )
                 
                 # Show completion message in the UI thread
                 self.root.after(0, lambda: self.status_var.set(f"Tests completed. Results saved to {output_dir}/"))
                 
             except Exception as e:
-                # Show error in the UI thread
-                self.root.after(0, lambda: messagebox.showerror("Error", f"Error running tests: {str(e)}"))
+                # Capture the error message immediately
+                error_msg_str = f"Error running tests: {str(e)}"
+                print(f"DEBUG: Exception caught in run_tests_thread: {error_msg_str}") # Also print to console/output tab
+                # Use the captured string in the lambda for the messagebox
+                self.root.after(0, lambda msg=error_msg_str: messagebox.showerror("Error", msg))
                 self.root.after(0, lambda: self.status_var.set("Error running tests"))
             finally:
                 # Restore stdout in the UI thread
@@ -368,6 +438,14 @@ class LLMTesterUI:
                 redirect.close()
         
         threading.Thread(target=run_tests_thread, daemon=True).start()
+
+    def toggle_overlap_cb(self):
+        """Enable/disable the overlap checkbox based on the entity checkbox state."""
+        if self.run_entities_var.get():
+            self.overlap_cb.config(state=tk.NORMAL)
+        else:
+            self.overlap_cb.config(state=tk.DISABLED)
+            self.run_overlap_var.set(False) # Uncheck if disabled
 
 # def calculate_semantic_similarity(text1, text2):
 #     """Calculate semantic similarity between texts using embeddings."""
