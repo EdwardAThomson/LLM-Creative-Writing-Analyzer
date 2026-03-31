@@ -26,7 +26,7 @@ from utils import (
 # Default settings
 DEFAULT_OUTPUT_DIR = "results"
 DEFAULT_REPEATS = 3
-DEFAULT_MODELS = ["gpt-4o", "gemini-1.5-pro"]
+DEFAULT_MODELS = ["gpt-5.4", "gemini-3.1-pro-preview"]
 DEFAULT_WORD_COUNT = 1500
 DEFAULT_PAUSE = 1  # seconds between API calls
 
@@ -124,7 +124,7 @@ def run_tests(models, parameters_text, repeats=3, word_count=500,
 def main():
     parser = argparse.ArgumentParser(description="Test LLMs for creative writing abilities")
     parser.add_argument("--models", nargs="+", default=DEFAULT_MODELS, 
-                        help="List of models to test (e.g., gpt-4o gemini-1.5-pro)")
+                        help="List of models to test (e.g., gpt-5.4 gemini-3.1-pro-preview)")
     parser.add_argument("--repeats", type=int, default=DEFAULT_REPEATS,
                         help="Number of times to repeat each test")
     parser.add_argument("--word-count", type=int, default=DEFAULT_WORD_COUNT,

@@ -22,17 +22,13 @@ from llm_creative_tester import run_tests, DEFAULT_OUTPUT_DIR, DEFAULT_REPEATS, 
 
 # List of available models from ai_helper.py
 AVAILABLE_MODELS = [
-    "gpt-4o",
-    "o1",
-    # "o1-mini",
-    "o3",
-    "o4-mini",
-    # "gemini-1.5-pro",
-    "gemini-2.0-pro-exp-02-05",
-    "gemini-2.5-pro-exp-03-25",
-    "claude-3-opus",
-    "claude-3-5-sonnet",
-    "claude-3-7-sonnet"
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gemini-3.1-pro-preview",
+    "gemini-3.1-flash-preview",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5",
 ]
 
 class RedirectText:

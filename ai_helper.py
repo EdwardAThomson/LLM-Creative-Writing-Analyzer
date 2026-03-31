@@ -1,5 +1,5 @@
 # ai_helper.py
-# https://platform.openai.com/docs/models
+# https://developers.openai.com/api/docs/models
 
 from openai import OpenAI
 import os
@@ -11,7 +11,6 @@ from anthropic import Anthropic
 load_dotenv()  # This will load environment variables from the .env file
 
 # Create an OpenAI client instance
-# Ensure you've set your OpenAI API key
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
 )
@@ -25,80 +24,57 @@ anthropic_client = Anthropic(
     api_key=os.environ.get("ANTHROPIC_API_KEY"),
 )
 
-def send_prompt(prompt, model="gpt-4o"):
+def send_prompt(prompt, model="gpt-5.4"):
     # Define configurations for each model
     model_config = {
-        "gpt-4o": lambda prompt: send_prompt_oai(
+        "gpt-5.4": lambda prompt: send_prompt_oai(
             prompt=prompt,
-            model="gpt-4o",
+            model="gpt-5.4",
             max_tokens=16384,
             temperature=0.7,
+            reasoning_effort="high",
             role_description="You are an expert storyteller focused on character relationships."
         ),
-        "o1": lambda prompt: send_prompt_o1(prompt, model="o1"),
-        "o1-mini": lambda prompt: send_prompt_o1(prompt, model="o1-mini"),
-        "o3": lambda prompt: send_prompt_o1(prompt, model="o3"),
-        "o4-mini": lambda prompt: send_prompt_o1(prompt, model="o4-mini"),
-        "gemini-1.5-pro": lambda prompt: send_prompt_gemini(
+        "gpt-5.4-mini": lambda prompt: send_prompt_oai(
             prompt=prompt,
-            model_name="gemini-1.5-pro",
+            model="gpt-5.4-mini",
+            max_tokens=16384,
+            temperature=0.7,
+            reasoning_effort="high",
+            role_description="You are an expert storyteller focused on character relationships."
+        ),
+        "gemini-3.1-pro-preview": lambda prompt: send_prompt_gemini(
+            prompt=prompt,
+            model_name="gemini-3.1-pro-preview",
             max_output_tokens=8192,
             temperature=0.7,
             top_p=1,
             top_k=40
         ),
-        "gemini-2.0-pro-exp-02-05": lambda prompt: send_prompt_gemini(
+        "gemini-3.1-flash-preview": lambda prompt: send_prompt_gemini(
             prompt=prompt,
-            model_name="gemini-2.0-pro-exp-02-05",
+            model_name="gemini-3.1-flash-preview",
             max_output_tokens=8192,
             temperature=0.7,
             top_p=1,
             top_k=40
         ),
-        "gemini-2.5-pro-exp-03-25": lambda prompt: send_prompt_gemini(
+        "claude-opus-4-6": lambda prompt: send_prompt_claude(
             prompt=prompt,
-            model_name="gemini-2.5-pro-exp-03-25",
-            max_output_tokens=8192,
-            temperature=0.7,
-            top_p=1,
-            top_k=40
-        ),
-        "gemini-2.0-flash-thinking-exp-01-21": lambda prompt: send_prompt_gemini(
-            prompt=prompt,
-            model_name="gemini-2.0-flash-thinking-exp-01-21",
-            max_output_tokens=8192,
-            temperature=0.7,
-            top_p=1,
-            top_k=40
-        ),
-        "claude-3-opus": lambda prompt: send_prompt_claude(
-            prompt=prompt,
-            model="claude-3-opus-20240229",
-            max_tokens=4096,
+            model="claude-opus-4-6",
+            max_tokens=16384,
             temperature=0.7
         ),
-        "claude-3-sonnet": lambda prompt: send_prompt_claude(
+        "claude-sonnet-4-6": lambda prompt: send_prompt_claude(
             prompt=prompt,
-            model="claude-3-sonnet-20240229",
-            max_tokens=4096,
+            model="claude-sonnet-4-6",
+            max_tokens=16384,
             temperature=0.7
         ),
-        "claude-3-haiku": lambda prompt: send_prompt_claude(
+        "claude-haiku-4-5": lambda prompt: send_prompt_claude(
             prompt=prompt,
-            model="claude-3-haiku-20240307",
-            max_tokens=4096,
-            temperature=0.7
-        ),
-        "claude-3-5-sonnet": lambda prompt: send_prompt_claude(
-            prompt=prompt,
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4096,
-            temperature=1.0
-        ),
-        "claude-3-7-sonnet": lambda prompt: send_prompt_claude(
-            prompt=prompt,
-            model="claude-3-7-sonnet-20250219",
-            max_tokens=4096,
+            model="claude-haiku-4-5",
+            max_tokens=8192,
             temperature=0.7
         ),
     }
@@ -112,10 +88,19 @@ def send_prompt(prompt, model="gpt-4o"):
     return model_config[model](prompt)
 
 
-# Send prompts with GPT4o and 4o-mini
-def send_prompt_oai(prompt, model="gpt-4o", max_tokens=1500, temperature=0.7,
+def send_prompt_oai(prompt, model="gpt-5.4", max_tokens=16384, temperature=0.7,
+                reasoning_effort="high",
                 role_description="You are a helpful fiction writing assistant. You will create original text only."):
-    # Make the chat completion request using the OpenAI client
+    """Send prompts to OpenAI GPT-5.4 family models.
+
+    Args:
+        prompt: The text prompt to send.
+        model: The model ID (e.g., "gpt-5.4", "gpt-5.4-mini").
+        max_tokens: Maximum number of tokens to generate.
+        temperature: Controls randomness of generations.
+        reasoning_effort: Reasoning effort level (none, low, medium, high, xhigh).
+        role_description: System prompt that sets the context for the model.
+    """
     response = client.chat.completions.create(
         messages=[
             {"role": "system", "content": role_description},
@@ -124,41 +109,22 @@ def send_prompt_oai(prompt, model="gpt-4o", max_tokens=1500, temperature=0.7,
         model=model,
         max_tokens=max_tokens,
         temperature=temperature,
+        reasoning_effort=reasoning_effort,
     )
 
     print("model used: ", model)
-    # Extract the generated text from the response
-    content = response.choices[0].message.content
-
-    return content
-
-# Send prompts with o1 models
-# model="o1-preview"
-# model="o1-mini",
-def send_prompt_o1(prompt, model="o1-mini"):
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-            "role": "user",
-            "content": prompt
-            }
-        ]
-    )
-
-    print("Used model: ", model)
     content = response.choices[0].message.content
 
     return content
 
 
-def send_prompt_gemini(prompt, model_name="gemini-1.5-pro", max_output_tokens=1024, temperature=0.9, top_p=1, top_k=1):
+def send_prompt_gemini(prompt, model_name="gemini-3.1-pro-preview", max_output_tokens=8192, temperature=0.7, top_p=1, top_k=40):
     """
     Sends a prompt to the Gemini API and returns the response.
 
     Args:
         prompt: The text prompt to send.
-        model_name: The name of the Gemini model to use (e.g., "gemini-pro").
+        model_name: The name of the Gemini model to use.
         max_output_tokens: The maximum number of tokens to generate.
         temperature: Controls the randomness of the output.
         top_p: Controls the diversity of the output.
@@ -192,23 +158,22 @@ def send_prompt_gemini(prompt, model_name="gemini-1.5-pro", max_output_tokens=10
         return None
 
 
-def send_prompt_claude(prompt, model="claude-3-sonnet-20240229", max_tokens=4096, temperature=0.7,
+def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temperature=0.7,
                      role_description="You are a skilled creative writer focused on producing original fiction."):
     """
     Sends a prompt to Anthropic's Claude API and returns the generated text.
-    
+
     Args:
         prompt: The text prompt to send.
-        model: The Claude model to use (e.g., "claude-3-opus-20240229").
+        model: The Claude model to use (e.g., "claude-opus-4-6").
         max_tokens: Maximum number of tokens to generate.
         temperature: Controls randomness of generations.
         role_description: System prompt that sets the context for the model.
-        
+
     Returns:
         The generated text, or None if there was an error.
     """
     try:
-        # Create a message with system and user content
         response = anthropic_client.messages.create(
             model=model,
             max_tokens=max_tokens,
@@ -218,13 +183,11 @@ def send_prompt_claude(prompt, model="claude-3-sonnet-20240229", max_tokens=4096
                 {"role": "user", "content": prompt}
             ]
         )
-        
+
         print("Used model: ", model)
-        
-        # Extract the content from the response
+
         return response.content[0].text
-        
+
     except Exception as e:
         print(f"Error generating content with Claude: {e}")
         return None
-
