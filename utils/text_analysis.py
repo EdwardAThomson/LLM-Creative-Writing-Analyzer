@@ -6,7 +6,6 @@ import statistics
 import re
 from collections import Counter, defaultdict
 import sys
-import spacy
 import numpy as np
 import argparse
 from sentence_transformers import SentenceTransformer
@@ -189,49 +188,28 @@ def calculate_advanced_metrics(
     
     # Try to calculate named entity metrics if requested and spaCy is available
     if run_entity_analysis:
-        print("DEBUG (calc_adv): Calling analyze_named_entities...") # DEBUG
         try:
             entity_metrics = analyze_named_entities(responses, run_entity_overlap_calculation)
-            print(f"DEBUG (calc_adv): Returned from analyze_named_entities. Type: {type(entity_metrics)}") # DEBUG
         except ImportError:
             entity_metrics = {"entity_error": "spaCy not installed. Run: pip install spacy && python -m spacy download en_core_web_sm"}
-            print("DEBUG (calc_adv): analyze_named_entities raised ImportError") # DEBUG
         except Exception as e:
             entity_metrics = {"entity_error": f"Error analyzing named entities: {str(e)}"}
-            print(f"DEBUG (calc_adv): analyze_named_entities raised Exception: {e}") # DEBUG
-    else:
-        print("DEBUG (calc_adv): Skipping analyze_named_entities.") # DEBUG
-    
+
     # Try to calculate semantic similarity if requested and sentence-transformers is available
     if run_semantic_analysis:
-        print("DEBUG (calc_adv): Calling calculate_semantic_similarities...") # DEBUG
         try:
             semantic_metrics = calculate_semantic_similarities(responses)
-            print(f"DEBUG (calc_adv): Returned from calculate_semantic_similarities. Type: {type(semantic_metrics)}") # DEBUG
         except ImportError:
             semantic_metrics = {"semantic_error": "sentence-transformers not installed. Run: pip install sentence-transformers"}
-            print("DEBUG (calc_adv): calculate_semantic_similarities raised ImportError") # DEBUG
         except Exception as e:
             semantic_metrics = {"semantic_error": f"Error calculating semantic similarity: {str(e)}"}
-            print(f"DEBUG (calc_adv): calculate_semantic_similarities raised Exception: {e}") # DEBUG
-    else:
-        print("DEBUG (calc_adv): Skipping calculate_semantic_similarities.") # DEBUG
-    
+
     # Calculate structure metrics if requested
     if run_structure_analysis:
-        print("DEBUG (calc_adv): Calling analyze_text_structure...") # DEBUG
-        # Add try-except block here for better debugging
         try:
             structure_metrics = analyze_text_structure(responses)
-            print(f"DEBUG (calc_adv): Returned from analyze_text_structure. Type: {type(structure_metrics)}") # DEBUG
         except Exception as e:
-            print(f"DEBUG (calc_adv): analyze_text_structure raised Exception: {e}") # DEBUG
-            # Assign an error dictionary if it fails, similar to other analyses
             structure_metrics = {"structure_error": f"Error analyzing text structure: {str(e)}"}
-    else:
-        print("DEBUG (calc_adv): Skipping analyze_text_structure.") # DEBUG
-
-    print("DEBUG (calc_adv): Combining results...") # DEBUG
     return {
         "vocabulary_diversity": vocabulary_diversity,
         "unique_word_count": len(unique_words),
@@ -252,19 +230,17 @@ def analyze_named_entities(responses, calculate_overlap=True):
         Dictionary containing named entity analysis
     """
     try:
-        
-        
-        # Load the English model
-        try:
-            nlp = spacy.load("en_core_web_sm")
-        except OSError:
-            # If model is not downloaded, try to download it
-            import subprocess
-            subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"], 
-                           check=True, capture_output=True)
-            nlp = spacy.load("en_core_web_sm")
+        import spacy
     except ImportError:
         return {"entity_error": "spaCy not installed. Run: pip install spacy && python -m spacy download en_core_web_sm"}
+
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except OSError:
+        import subprocess
+        subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"],
+                       check=True, capture_output=True)
+        nlp = spacy.load("en_core_web_sm")
     except Exception as e:
         return {"entity_error": f"Error loading spaCy model: {str(e)}"}
     
@@ -322,8 +298,7 @@ def analyze_named_entities(responses, calculate_overlap=True):
         response_entities.append(entities)
         response_name_components.append(name_components)
     
-    # Count total occurrences for all components and entities
-    entity_counts = Counter(all_entities)
+    # Count total occurrences for name components
     name_component_counts = Counter(all_name_components)
     
     # Find entities and components that appear in MULTIPLE RESPONSES

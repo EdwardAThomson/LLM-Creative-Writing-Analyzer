@@ -70,34 +70,19 @@ def run_tests(models, parameters_text, repeats=3, word_count=500,
         # Extract just the response texts for analysis
         response_texts = extract_response_texts(model_responses)
         
-        # --- DEBUGGING START ---
-        print(f"DEBUG: Analyzing {len(response_texts)} responses for model {model}...")
-        print(f"DEBUG: Type of response_texts: {type(response_texts)}")
-        if response_texts:
-            print(f"DEBUG: Type of first response: {type(response_texts[0])}")
-        # --- DEBUGGING END ---
-
         # Analyze the responses
-        print("DEBUG: Calling analyze_responses...")
         basic_analysis = analyze_responses(response_texts)
-        print(f"DEBUG: Returned from analyze_responses. Type: {type(basic_analysis)}")
-        print(f"DEBUG: Basic Analysis Keys: {list(basic_analysis.keys()) if isinstance(basic_analysis, dict) else 'Not a dict'}")
 
-        print("DEBUG: Calling calculate_advanced_metrics...")
         advanced_analysis = calculate_advanced_metrics(
             response_texts,
-            run_structure_analysis=run_structure, 
-            run_semantic_analysis=run_semantic, 
+            run_structure_analysis=run_structure,
+            run_semantic_analysis=run_semantic,
             run_entity_analysis=run_entities,
             run_entity_overlap_calculation=run_entity_overlap
         )
-        print(f"DEBUG: Returned from calculate_advanced_metrics. Type: {type(advanced_analysis)}")
-        print(f"DEBUG: Advanced Analysis Keys: {list(advanced_analysis.keys()) if isinstance(advanced_analysis, dict) else 'Not a dict'}")
-        
+
         # Combine analyses
         analysis = {**basic_analysis, **advanced_analysis}
-        print(f"DEBUG: Combined analysis created. Type: {type(analysis)}")
-        print(f"DEBUG: Combined Analysis Keys: {list(analysis.keys()) if isinstance(analysis, dict) else 'Not a dict'}")
         
         # Add to results
         results[model] = {
@@ -107,17 +92,12 @@ def run_tests(models, parameters_text, repeats=3, word_count=500,
         
         # Write model-specific results to a text file
         write_model_results(model, model_responses, analysis, prompt, timestamp, output_dir)
-        print(f"DEBUG: Finished writing results for model {model}. Proceeding...")
-    
+
     # Write overall results to a JSON file
-    print("DEBUG: Calling write_json_results...")
     write_json_results(results, timestamp, output_dir)
-    print("DEBUG: Returned from write_json_results.")
-    
+
     # Create a summary file
-    print("DEBUG: Calling write_summary...")
     summary_file = write_summary(results, models, repeats, word_count, timestamp, output_dir)
-    print("DEBUG: Returned from write_summary.")
     
     return results, timestamp
 

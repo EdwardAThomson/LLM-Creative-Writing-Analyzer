@@ -27,14 +27,19 @@ def test_model(model, prompt, repeats=3, pause_seconds=1):
             start_time = time.time()
             response = send_prompt(prompt, model=model)
             end_time = time.time()
-            
-            # Save the response
-            model_responses.append({
-                "response_text": response,
-                "time_taken": end_time - start_time
-            })
-            
-            print(f"  Test {i+1} complete - {len(response.split())} words generated in {end_time - start_time:.2f} seconds")
+
+            if response is None:
+                print(f"  Test {i+1} failed - received None response")
+                model_responses.append({
+                    "error": "API returned None"
+                })
+            else:
+                # Save the response
+                model_responses.append({
+                    "response_text": response,
+                    "time_taken": end_time - start_time
+                })
+                print(f"  Test {i+1} complete - {len(response.split())} words generated in {end_time - start_time:.2f} seconds")
             
             # Brief pause between API calls
             time.sleep(pause_seconds)

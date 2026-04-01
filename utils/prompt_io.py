@@ -196,7 +196,6 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
         # Named entity analysis if available
         if 'entity_analysis' in analysis:
             ent = analysis['entity_analysis']
-            print(f"DEBUG (write_results): Type of ent (entity_analysis): {type(ent)}") # DEBUG
             f.write("NAMED ENTITY ANALYSIS:\n")
             # Add checks before accessing potentially missing keys with default values
             f.write(f"  Total entities detected: {ent.get('total_entities', 'N/A')}\n")
@@ -204,7 +203,6 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
             
             # Entity types summary
             entity_types_data = ent.get('entity_types')
-            print(f"DEBUG (write_results): Type of entity_types_data: {type(entity_types_data)}") # DEBUG
             if isinstance(entity_types_data, dict):
                 f.write("\n  ENTITY TYPES:\n")
                 for entity_type, count in entity_types_data.items():
@@ -212,7 +210,6 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
             
             # Entity similarity
             ent_sim = ent.get('entity_similarity')
-            print(f"DEBUG (write_results): Type of ent_sim (entity_similarity): {type(ent_sim)}") # DEBUG
             if isinstance(ent_sim, dict):
                 f.write(f"\n  ENTITY SIMILARITY:\n")
                 f.write(f"    Average entity overlap: {ent_sim.get('average', 'N/A'):.4f}\n")
@@ -220,7 +217,6 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
                 
                 # If there are repeated entities, list them
                 repeated_entities_data = ent.get('repeated_entities')
-                print(f"DEBUG (write_results): Type of repeated_entities_data: {type(repeated_entities_data)}") # DEBUG
                 if isinstance(repeated_entities_data, list) and repeated_entities_data:
                     f.write("\n  REPEATED ENTITIES (appearing in multiple responses):\n")
                     # Group by entity type
@@ -229,8 +225,6 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
                     for entity in repeated_entities_data:
                         if isinstance(entity, dict) and 'type' in entity and 'text' in entity:
                             repeated_by_type[entity['type']].append(entity['text'])
-                        else:
-                            print(f"DEBUG (write_results): Skipping non-dict or malformed item in repeated_entities_data: {entity}") # DEBUG
                         
                     for entity_type, entities in repeated_by_type.items():
                         f.write(f"    {entity_type}:\n")
@@ -239,21 +233,18 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
                 
                 # Name component analysis
                 name_comp = ent.get('name_components')
-                print(f"DEBUG (write_results): Type of name_comp (name_components): {type(name_comp)}") # DEBUG
                 if isinstance(name_comp, dict):
                     f.write(f"\n  NAME COMPONENT ANALYSIS:\n")
                     f.write(f"    Total name components: {name_comp.get('total', 'N/A')}\n")
                     f.write(f"    Unique name components: {name_comp.get('unique', 'N/A')}\n")
                     
                     name_sim = name_comp.get('similarity')
-                    print(f"DEBUG (write_results): Type of name_sim (name_components[similarity]): {type(name_sim)}") # DEBUG
                     if isinstance(name_sim, dict):
                         f.write(f"    Average name component overlap: {name_sim.get('average', 'N/A'):.4f}\n")
                         f.write(f"    Max name component overlap: {name_sim.get('max', 'N/A'):.4f}\n")
                     
                     # If there are repeated name components, list them
                     repeated_name_comp_data = name_comp.get('repeated')
-                    print(f"DEBUG (write_results): Type of repeated_name_comp_data: {type(repeated_name_comp_data)}") # DEBUG
                     if isinstance(repeated_name_comp_data, list) and repeated_name_comp_data:
                         f.write("\n  REPEATED NAME COMPONENTS (appearing across multiple responses):\n")
                         # Sort by number of responses the component appears in (descending)
@@ -270,8 +261,7 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
                                 total_count = comp.get('total_count', 'N/A')
                                 text = comp.get('text', '{Missing Text}')
                                 f.write(f"    - {text} (appears in {response_count}/{len(responses)} responses, {total_count} total occurrences)\n")
-                        except TypeError as sort_err:
-                             print(f"DEBUG (write_results): TypeError during sorting/processing repeated name components: {sort_err}") # DEBUG
+                        except TypeError:
                              f.write("    Error processing repeated name components.\n")
                 
                 # Detailed entity overlap

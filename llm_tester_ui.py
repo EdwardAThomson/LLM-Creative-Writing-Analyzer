@@ -7,10 +7,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, scrolledtext, messagebox
 import threading
 import queue
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-from sentence_transformers import SentenceTransformer
-
+import subprocess
 
 from utils import (
     load_parameters,
@@ -33,11 +30,12 @@ AVAILABLE_MODELS = [
 
 class RedirectText:
     """Class to redirect stdout to a tkinter Text widget"""
-    def __init__(self, text_widget):
+    def __init__(self, text_widget, root):
         self.text_widget = text_widget
+        self.root = root
         self.queue = queue.Queue()
         self.updating = True
-        threading.Thread(target=self.update_text_widget, daemon=True).start()
+        self._schedule_update()
 
     def write(self, string):
         self.queue.put(string)
@@ -45,21 +43,23 @@ class RedirectText:
     def flush(self):
         pass
 
-    def update_text_widget(self):
-        while self.updating:
-            try:
-                while True:
-                    string = self.queue.get_nowait()
-                    self.text_widget.configure(state="normal")
-                    self.text_widget.insert(tk.END, string)
-                    self.text_widget.see(tk.END)
-                    self.text_widget.configure(state="disabled")
-                    self.queue.task_done()
-            except queue.Empty:
-                pass
-            self.text_widget.update()
-            from time import sleep
-            sleep(0.1)
+    def _schedule_update(self):
+        if not self.updating:
+            return
+        self._process_queue()
+        self.root.after(100, self._schedule_update)
+
+    def _process_queue(self):
+        try:
+            while True:
+                string = self.queue.get_nowait()
+                self.text_widget.configure(state="normal")
+                self.text_widget.insert(tk.END, string)
+                self.text_widget.see(tk.END)
+                self.text_widget.configure(state="disabled")
+                self.queue.task_done()
+        except queue.Empty:
+            pass
 
     def close(self):
         self.updating = False
@@ -124,7 +124,7 @@ class LLMTesterUI:
         # Create checkboxes for each model
         self.model_vars = {}
         for i, model in enumerate(AVAILABLE_MODELS):
-            var = tk.BooleanVar(value=model in ["gpt-4o", "gemini-1.5-pro"])
+            var = tk.BooleanVar(value=model in ["gpt-5.4", "gemini-3.1-pro-preview"])
             self.model_vars[model] = var
             ttk.Checkbutton(models_frame, text=model, variable=var).grid(row=i//2, column=i%2, sticky=tk.W, padx=(0, 10))
         
@@ -323,9 +323,9 @@ class LLMTesterUI:
             if sys.platform == 'win32':
                 os.startfile(output_dir)
             elif sys.platform == 'darwin':  # macOS
-                os.system(f'open "{output_dir}"')
+                subprocess.run(["open", output_dir])
             else:  # Linux
-                os.system(f'xdg-open "{output_dir}"')
+                subprocess.run(["xdg-open", output_dir])
         
         open_dir_button = ttk.Button(buttons_frame, text="Open Results Directory", command=open_results_dir)
         open_dir_button.pack(side=tk.LEFT)
@@ -397,7 +397,7 @@ class LLMTesterUI:
         self.output_text.delete(1.0, tk.END)
         self.output_text.configure(state="disabled")
         
-        redirect = RedirectText(self.output_text)
+        redirect = RedirectText(self.output_text, self.root)
         old_stdout = sys.stdout
         sys.stdout = redirect
         
@@ -424,7 +424,6 @@ class LLMTesterUI:
             except Exception as e:
                 # Capture the error message immediately
                 error_msg_str = f"Error running tests: {str(e)}"
-                print(f"DEBUG: Exception caught in run_tests_thread: {error_msg_str}") # Also print to console/output tab
                 # Use the captured string in the lambda for the messagebox
                 self.root.after(0, lambda msg=error_msg_str: messagebox.showerror("Error", msg))
                 self.root.after(0, lambda: self.status_var.set("Error running tests"))
@@ -442,24 +441,6 @@ class LLMTesterUI:
         else:
             self.overlap_cb.config(state=tk.DISABLED)
             self.run_overlap_var.set(False) # Uncheck if disabled
-
-# def calculate_semantic_similarity(text1, text2):
-#     """Calculate semantic similarity between texts using embeddings."""
-    
-    
-#     # Load model (first time will download it)
-#     model = SentenceTransformer('all-MiniLM-L6-v2')
-    
-#     # Create embeddings
-#     embedding1 = model.encode(text1)
-#     embedding2 = model.encode(text2)
-    
-#     # Calculate cosine similarity
-    
-#     return cosine_similarity(
-#         embedding1.reshape(1, -1),
-#         embedding2.reshape(1, -1)
-#     )[0][0]
 
 def main():
     root = tk.Tk()

@@ -10,19 +10,37 @@ from anthropic import Anthropic
 
 load_dotenv()  # This will load environment variables from the .env file
 
-# Create an OpenAI client instance
-client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
-)
+# Lazy-initialized API clients
+_openai_client = None
+_anthropic_client = None
+_gemini_configured = False
 
-# Adding the possibility of using the Gemini API
-g_api_key = os.environ.get("GEMINI_API_KEY")
-genai.configure(api_key=g_api_key)
+def get_openai_client():
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable not set")
+        _openai_client = OpenAI(api_key=api_key)
+    return _openai_client
 
-# Configure Anthropic client for Claude
-anthropic_client = Anthropic(
-    api_key=os.environ.get("ANTHROPIC_API_KEY"),
-)
+def get_gemini_configured():
+    global _gemini_configured
+    if not _gemini_configured:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable not set")
+        genai.configure(api_key=api_key)
+        _gemini_configured = True
+
+def get_anthropic_client():
+    global _anthropic_client
+    if _anthropic_client is None:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+        _anthropic_client = Anthropic(api_key=api_key)
+    return _anthropic_client
 
 def send_prompt(prompt, model="gpt-5.4"):
     # Define configurations for each model
@@ -101,6 +119,7 @@ def send_prompt_oai(prompt, model="gpt-5.4", max_tokens=16384, temperature=0.7,
         reasoning_effort: Reasoning effort level (none, low, medium, high, xhigh).
         role_description: System prompt that sets the context for the model.
     """
+    client = get_openai_client()
     response = client.chat.completions.create(
         messages=[
             {"role": "system", "content": role_description},
@@ -133,6 +152,7 @@ def send_prompt_gemini(prompt, model_name="gemini-3.1-pro-preview", max_output_t
         The generated text, or None if there was an error.
     """
 
+    get_gemini_configured()
     model = genai.GenerativeModel(model_name)
 
     generation_config = genai.types.GenerationConfig(
@@ -174,6 +194,7 @@ def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temp
         The generated text, or None if there was an error.
     """
     try:
+        anthropic_client = get_anthropic_client()
         response = anthropic_client.messages.create(
             model=model,
             max_tokens=max_tokens,
