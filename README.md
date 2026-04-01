@@ -77,7 +77,7 @@ python llm_creative_tester.py
 ```
 
 This will run the tester with default settings:
-- Models: GPT-4o and Gemini 1.5 Pro
+- Models: GPT-5.4 and Gemini 3.1 Pro Preview
 - 3 repeats per model
 - Parameters from `parameters.txt`
 - Target word count: 500 words
@@ -85,7 +85,7 @@ This will run the tester with default settings:
 ### Command Line Options
 
 ```bash
-python llm_creative_tester.py --models gpt-4o claude-3-sonnet gemini-1.5-pro --repeats 5 --word-count 300
+python llm_creative_tester.py --models gpt-5.4 claude-sonnet-4-6 gemini-3.1-pro-preview --repeats 5 --word-count 300
 ```
 
 Available options:
@@ -126,10 +126,10 @@ Example output structure:
 
 ```
 results/
-├── gpt-4o_20230601_120145.txt
-├── gemini-1.5-pro_20230601_120145.txt
-├── results_20230601_120145.json
-└── summary_20230601_120145.txt
+├── gpt-5.4_20260401_120145.txt
+├── gemini-3.1-pro-preview_20260401_120145.txt
+├── results_20260401_120145.json
+└── summary_20260401_120145.txt
 ```
 
 ## Analysis Types
@@ -159,26 +159,26 @@ The tool provides a way to re-analyze existing output files without having to re
 To re-analyze an existing output file:
 
 ```bash
-python -m utils.text_analysis results/gpt-4o_20240601_120145.txt
+python -m utils.text_analysis results/gpt-5.4_20260401_120145.txt
 ```
 
 This command analyzes the specified file. By default, it performs basic text similarity and vocabulary analysis. Use the following flags to **include** specific advanced analyses:
 
 ```bash
 # Include text structure analysis
-python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --structure
+python -m utils.text_analysis results/gpt-5.4_20260401_120145.txt --structure
 
 # Include semantic similarity analysis
-python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --semantic
+python -m utils.text_analysis results/gpt-5.4_20260401_120145.txt --semantic
 
 # Include named entity analysis (including overlap calculation)
-python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --entity
+python -m utils.text_analysis results/gpt-5.4_20260401_120145.txt --entity
 
 # Include all available advanced analyses
-python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --all
+python -m utils.text_analysis results/gpt-5.4_20260401_120145.txt --all
 
 # Save analysis results to a file
-python -m utils.text_analysis results/gpt-4o_20240601_120145.txt --all --output results/reanalysis_20240601.txt
+python -m utils.text_analysis results/gpt-5.4_20260401_120145.txt --all --output results/reanalysis_20260401.txt
 ```
 
 This allows you to apply new analysis methods to existing results without needing to regenerate the responses. 
@@ -204,9 +204,11 @@ This allows you to apply new analysis methods to existing results without needin
 ## Supported Models
 
 Currently supported models (defined in `llm_tester_ui.py`) include:
-- OpenAI: gpt-4o, o1, o1-mini, o3, o4-mini
-- Google: gemini-1.5-pro, gemini-2.0-pro-exp-02-05, gemini-2.5-pro-exp-03-25
-- Anthropic: claude-3-opus, claude-3-5-sonnet, claude-3-7-sonnet
+- OpenAI: gpt-5.4, gpt-5.4-mini
+- Google: gemini-3.1-pro-preview, gemini-3.1-flash-preview
+- Anthropic: claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5
+
+OpenAI GPT-5.4 models support a `reasoning_effort` parameter (none, low, medium, high, xhigh) which controls how much thinking the model does. This defaults to "high" for creative writing tasks.
 
 To add support for additional models, modify the `ai_helper.py` file and update the `AVAILABLE_MODELS` list in `llm_tester_ui.py`.
 
