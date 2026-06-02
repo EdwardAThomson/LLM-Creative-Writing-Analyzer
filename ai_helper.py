@@ -42,59 +42,65 @@ def get_anthropic_client():
         _anthropic_client = Anthropic(api_key=api_key)
     return _anthropic_client
 
-def send_prompt(prompt, model="gpt-5.4"):
-    # Define configurations for each model
+def send_prompt(prompt, model="gpt-5.5"):
+    # Define configurations for each model. Two families of backend:
+    #   * API backends   -> send_prompt_oai / _gemini / _claude (need API keys)
+    #   * CLI backends   -> *-cli keys route to locally-installed agent CLIs via
+    #                       cli_backends/ (no API keys; see _send_via_*_cli below)
+    def _gpt(model_name):
+        return lambda prompt: send_prompt_oai(
+            prompt=prompt,
+            model=model_name,
+            max_tokens=16384,
+            temperature=0.7,
+            reasoning_effort="high",
+            role_description="You are an expert storyteller focused on character relationships."
+        )
+
+    def _gemini(model_name):
+        return lambda prompt: send_prompt_gemini(
+            prompt=prompt,
+            model_name=model_name,
+            max_output_tokens=8192,
+            temperature=0.7,
+            top_p=1,
+            top_k=40
+        )
+
+    def _claude(model_name, max_tokens=16384):
+        return lambda prompt: send_prompt_claude(
+            prompt=prompt,
+            model=model_name,
+            max_tokens=max_tokens,
+            temperature=0.7
+        )
+
     model_config = {
-        "gpt-5.4": lambda prompt: send_prompt_oai(
-            prompt=prompt,
-            model="gpt-5.4",
-            max_tokens=16384,
-            temperature=0.7,
-            reasoning_effort="high",
-            role_description="You are an expert storyteller focused on character relationships."
-        ),
-        "gpt-5.4-mini": lambda prompt: send_prompt_oai(
-            prompt=prompt,
-            model="gpt-5.4-mini",
-            max_tokens=16384,
-            temperature=0.7,
-            reasoning_effort="high",
-            role_description="You are an expert storyteller focused on character relationships."
-        ),
-        "gemini-3.1-pro-preview": lambda prompt: send_prompt_gemini(
-            prompt=prompt,
-            model_name="gemini-3.1-pro-preview",
-            max_output_tokens=8192,
-            temperature=0.7,
-            top_p=1,
-            top_k=40
-        ),
-        "gemini-3.1-flash-preview": lambda prompt: send_prompt_gemini(
-            prompt=prompt,
-            model_name="gemini-3.1-flash-preview",
-            max_output_tokens=8192,
-            temperature=0.7,
-            top_p=1,
-            top_k=40
-        ),
-        "claude-opus-4-6": lambda prompt: send_prompt_claude(
-            prompt=prompt,
-            model="claude-opus-4-6",
-            max_tokens=16384,
-            temperature=0.7
-        ),
-        "claude-sonnet-4-6": lambda prompt: send_prompt_claude(
-            prompt=prompt,
-            model="claude-sonnet-4-6",
-            max_tokens=16384,
-            temperature=0.7
-        ),
-        "claude-haiku-4-5": lambda prompt: send_prompt_claude(
-            prompt=prompt,
-            model="claude-haiku-4-5",
-            max_tokens=8192,
-            temperature=0.7
-        ),
+        # --- OpenAI GPT-5 family (API) ---
+        "gpt-5.5": _gpt("gpt-5.5"),
+        "gpt-5.4": _gpt("gpt-5.4"),
+        "gpt-5.4-mini": _gpt("gpt-5.4-mini"),
+        "gpt-5.2": _gpt("gpt-5.2"),
+        # --- Google Gemini (API) ---
+        "gemini-3.1-pro-preview": _gemini("gemini-3.1-pro-preview"),
+        "gemini-3.1-flash-preview": _gemini("gemini-3.1-flash-preview"),
+        "gemini-3-pro-preview": _gemini("gemini-3-pro-preview"),
+        "gemini-3-flash-preview": _gemini("gemini-3-flash-preview"),
+        "gemini-2.5-pro": _gemini("gemini-2.5-pro"),
+        "gemini-2.5-flash": _gemini("gemini-2.5-flash"),
+        # --- Anthropic Claude (API) ---
+        "claude-opus-4-8": _claude("claude-opus-4-8"),
+        "claude-sonnet-4-6": _claude("claude-sonnet-4-6"),
+        "claude-haiku-4-5": _claude("claude-haiku-4-5", max_tokens=8192),
+
+        # --- Local CLI backends (no API keys; require the CLI on PATH) ---
+        "codex-cli": lambda prompt: _send_via_codex_cli(prompt),
+        "claude-cli": lambda prompt: _send_via_claude_cli(prompt, model=None),
+        "claude-cli-opus": lambda prompt: _send_via_claude_cli(prompt, model="opus"),
+        "claude-cli-sonnet": lambda prompt: _send_via_claude_cli(prompt, model="sonnet"),
+        "claude-cli-haiku": lambda prompt: _send_via_claude_cli(prompt, model="haiku"),
+        "gemini-cli-pro": lambda prompt: _send_via_gemini_cli(prompt, model="gemini-3-pro-preview"),
+        "gemini-cli-flash": lambda prompt: _send_via_gemini_cli(prompt, model="gemini-3-flash-preview"),
     }
 
     # Check if the model is supported
@@ -104,6 +110,29 @@ def send_prompt(prompt, model="gpt-5.4"):
     print(f"trying:{model}")
     # Call the corresponding function by looking up the dictionary
     return model_config[model](prompt)
+
+
+# --- Local CLI backends -----------------------------------------------------------
+# These shell out to locally-installed agent CLIs (codex / claude / gemini) in
+# headless mode. Imports are lazy so the API-only path never pays for them and a
+# missing CLI only errors when that model is actually selected.
+
+def _send_via_codex_cli(prompt):
+    """Generate text via the local `codex` CLI (GPT-5)."""
+    from cli_backends import CodexInterface
+    return CodexInterface().generate_with_retry(prompt)
+
+
+def _send_via_claude_cli(prompt, model=None):
+    """Generate text via the local `claude` CLI in headless mode."""
+    from cli_backends import ClaudeCliInterface
+    return ClaudeCliInterface(model=model).generate_with_retry(prompt)
+
+
+def _send_via_gemini_cli(prompt, model="gemini-3-flash-preview"):
+    """Generate text via the local `gemini` CLI."""
+    from cli_backends import GeminiCliInterface
+    return GeminiCliInterface(model=model).generate_with_retry(prompt)
 
 
 def send_prompt_oai(prompt, model="gpt-5.4", max_tokens=16384, temperature=0.7,
