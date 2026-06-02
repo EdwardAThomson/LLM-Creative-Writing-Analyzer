@@ -17,15 +17,33 @@ from utils import (
 from ai_helper import send_prompt
 from llm_creative_tester import run_tests, DEFAULT_OUTPUT_DIR, DEFAULT_REPEATS, DEFAULT_WORD_COUNT, DEFAULT_PAUSE
 
-# List of available models from ai_helper.py
+# List of available models from ai_helper.py.
+# API backends need the matching API key; *-cli backends need the CLI on PATH.
 AVAILABLE_MODELS = [
+    # OpenAI (API)
+    "gpt-5.5",
     "gpt-5.4",
     "gpt-5.4-mini",
+    "gpt-5.2",
+    # Gemini (API)
     "gemini-3.1-pro-preview",
     "gemini-3.1-flash-preview",
-    "claude-opus-4-6",
+    "gemini-3-pro-preview",
+    "gemini-3-flash-preview",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    # Claude (API)
+    "claude-opus-4-8",
     "claude-sonnet-4-6",
     "claude-haiku-4-5",
+    # Local CLI backends (no API key required)
+    "codex-cli",
+    "claude-cli",
+    "claude-cli-opus",
+    "claude-cli-sonnet",
+    "claude-cli-haiku",
+    "gemini-cli-pro",
+    "gemini-cli-flash",
 ]
 
 class RedirectText:
@@ -124,7 +142,7 @@ class LLMTesterUI:
         # Create checkboxes for each model
         self.model_vars = {}
         for i, model in enumerate(AVAILABLE_MODELS):
-            var = tk.BooleanVar(value=model in ["gpt-5.4", "gemini-3.1-pro-preview"])
+            var = tk.BooleanVar(value=model in ["gpt-5.5", "gemini-3.1-pro-preview"])
             self.model_vars[model] = var
             ttk.Checkbutton(models_frame, text=model, variable=var).grid(row=i//2, column=i%2, sticky=tk.W, padx=(0, 10))
         

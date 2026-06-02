@@ -10,7 +10,7 @@ outputs for consistency, variation, entity reuse, and structure to surface model
 
 ## Shipped
 
-- [x] Multi-model testing (OpenAI, Gemini, Claude) via both CLI and Tkinter GUI
+- [x] Multi-model testing (OpenAI, Gemini, Claude) via both command-line and Tkinter GUI
 - [x] Configurable runs (repeat count, target word count, inter-call pause, custom system prompt)
 - [x] Text similarity analysis (SequenceMatcher)
 - [x] Semantic similarity (sentence-transformers embeddings)
@@ -21,6 +21,8 @@ outputs for consistency, variation, entity reuse, and structure to surface model
 - [x] Standalone re-analysis of existing output (`python -m utils.text_analysis`)
 - [x] Output formats (per-model reports, JSON raw data, summary file)
 - [x] Hardening pass (thread-safe Tkinter, lazy imports, command-injection fix, API-key validation)
+- [x] Local CLI backends (codex / claude / gemini in headless mode, no API key) ported from StoryDaemon
+- [x] Refreshed model list (OpenAI GPT-5.x, Gemini 2.5/3/3.1, Claude Opus 4.8 / Sonnet 4.6 / Haiku 4.5)
 
 ## Next
 

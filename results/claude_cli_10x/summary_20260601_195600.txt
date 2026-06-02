@@ -1,0 +1,46 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20260601_195600
+Models tested: claude-cli-opus, claude-cli-sonnet
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: claude-cli-opus
+  Text Similarity (exact matches):
+    Average similarity: 0.0232
+    Median similarity: 0.0224
+  Semantic Similarity (meaning):
+    Average: 0.5552
+    Median: 0.5473
+  Text Structure:
+    Paragraphs per 1000 words: 25.37
+    Sentences per paragraph: 2.44
+    Words per sentence: 16.30
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0754
+    Repeated entities: 45
+    Repeated name components: 2
+    Shared name parts: Minds (2/10), Kepler (2/10)
+  Average word count: 1478.80
+  Successful responses: 10/10
+
+MODEL: claude-cli-sonnet
+  Text Similarity (exact matches):
+    Average similarity: 0.0196
+    Median similarity: 0.0197
+  Semantic Similarity (meaning):
+    Average: 0.5082
+    Median: 0.5050
+  Text Structure:
+    Paragraphs per 1000 words: 30.56
+    Sentences per paragraph: 2.18
+    Words per sentence: 15.30
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0722
+    Repeated entities: 52
+    Repeated name components: 4
+    Shared name parts: Voss (7/10), Kael (5/10), Veradis (3/10), Maren (3/10)
+  Average word count: 1547.10
+  Successful responses: 10/10
+

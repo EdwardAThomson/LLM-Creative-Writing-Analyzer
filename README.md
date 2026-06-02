@@ -12,9 +12,31 @@ This project allows you to test multiple LLMs with the same creative writing pro
 4. Create comprehensive output files with the results
 5. Re-analyze existing output files with new metrics as they become available
 
+## Report & Findings
+
+A written-up analysis lives in [`reports/report.md`](reports/report.md). It began
+as a 2025 study of the then-current models (GPT-4o, o1/o3, Gemini 2.0/2.5, Claude
+3.5/3.7) and now includes a **Longitudinal Update (2026)** (Section 6) that re-runs
+the same 10×1500-word benchmark against the current generation via the local CLI
+backends: Gemini 3 Flash/Pro, Claude Opus 4.8 / Sonnet, and Codex (`gpt-5.5`).
+
+Headline finding: the original report's "Elara Phenomenon" — LLMs repeatedly
+reaching for a tiny pool of character names — was a near-universal trait in 2025
+but has **split sharply by vendor** in 2026:
+
+- **Anthropic (Claude Opus 4.8)** has essentially eliminated it — a fresh cast of
+  names almost every run.
+- **Google (Gemini 3)** still draws from the same pool (Kaelen/Elara/Vance),
+  largely unchanged since Gemini 2.0.
+- **OpenAI (`gpt-5.5` via Codex)** shows the strongest name-pull of the cohort,
+  having simply *rotated* its favourites (Aster/Mara/Venn) rather than diversifying.
+
+The 2026 run outputs are under `results/gemini_cli_10x/`, `results/claude_cli_10x/`,
+and `results/codex_cli_10x/`.
+
 ## Features
 
-- Support for multiple LLM providers (OpenAI GPT models, Google Gemini models, and Anthropic Claude models)
+- Support for multiple LLM providers (OpenAI GPT, Google Gemini, and Anthropic Claude) via either hosted APIs or local agent CLIs (`codex`, `claude`, `gemini`)
 - Configurable number of test repetitions per model
 - **Configurable analysis steps:** Enable/disable text structure, semantic similarity, named entity, and detailed entity overlap analysis.
 - Advanced similarity analysis between responses:
@@ -42,13 +64,16 @@ This project allows you to test multiple LLMs with the same creative writing pro
    python -m spacy download en_core_web_sm  # For named entity detection
    ```
 
-3. Set up your API keys:
+3. Set up your API keys (only needed for the API backends):
    Create a `.env` file in the project root with the following content:
    ```
    OPENAI_API_KEY=your_openai_api_key
    GEMINI_API_KEY=your_gemini_api_key
    ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
+   The local CLI backends (`codex-cli`, `claude-cli*`, `gemini-cli-*`) don't use
+   these keys — they instead require the corresponding agent CLI (`codex`,
+   `claude`, `gemini`) installed and authenticated on your `PATH`.
 
 ## Usage
 
@@ -85,7 +110,7 @@ This will run the tester with default settings:
 ### Command Line Options
 
 ```bash
-python llm_creative_tester.py --models gpt-5.4 claude-sonnet-4-6 gemini-3.1-pro-preview --repeats 5 --word-count 300
+python llm_creative_tester.py --models gpt-5.5 claude-opus-4-8 gemini-3.1-pro-preview codex-cli --repeats 5 --word-count 300
 ```
 
 Available options:
@@ -190,9 +215,15 @@ This allows you to apply new analysis methods to existing results without needin
 .
 ├── llm_creative_tester.py     # Main script (CLI)
 ├── llm_tester_ui.py           # Graphical user interface
-├── ai_helper.py               # LLM API handling
+├── ai_helper.py               # LLM backend dispatch (API + CLI)
 ├── parameters.txt             # Example parameters
 ├── requirements.txt           # Python dependencies
+├── cli_backends/              # Local agent-CLI backends (codex/claude/gemini)
+│   ├── __init__.py            # Package initialization
+│   ├── agent_cwd.py           # Shared neutral scratch cwd for CLI agents
+│   ├── claude_cli_interface.py
+│   ├── gemini_cli_interface.py
+│   └── codex_interface.py
 ├── utils/                     # Utility modules
 │   ├── __init__.py            # Package initialization
 │   ├── llm_tester.py          # LLM testing functions
@@ -203,14 +234,29 @@ This allows you to apply new analysis methods to existing results without needin
 
 ## Supported Models
 
-Currently supported models (defined in `llm_tester_ui.py`) include:
-- OpenAI: gpt-5.4, gpt-5.4-mini
-- Google: gemini-3.1-pro-preview, gemini-3.1-flash-preview
-- Anthropic: claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5
+Currently supported models (defined in `llm_tester_ui.py`) fall into two groups.
 
-OpenAI GPT-5.4 models support a `reasoning_effort` parameter (none, low, medium, high, xhigh) which controls how much thinking the model does. This defaults to "high" for creative writing tasks.
+**API backends** (require the matching API key in `.env`):
+- OpenAI: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.2
+- Google: gemini-3.1-pro-preview, gemini-3.1-flash-preview, gemini-3-pro-preview, gemini-3-flash-preview, gemini-2.5-pro, gemini-2.5-flash
+- Anthropic: claude-opus-4-8, claude-sonnet-4-6, claude-haiku-4-5
 
-To add support for additional models, modify the `ai_helper.py` file and update the `AVAILABLE_MODELS` list in `llm_tester_ui.py`.
+**Local CLI backends** (no API key — they shell out to an agent CLI installed on your `PATH`, in headless mode, run from a neutral scratch dir so the agent generates text instead of acting on a repo):
+- `codex-cli` — GPT-5 family via the [Codex CLI](https://github.com/openai/codex); uses the Codex CLI's configured default model (e.g. `gpt-5.5` in `~/.codex/config.toml`)
+- `claude-cli`, `claude-cli-opus`, `claude-cli-sonnet`, `claude-cli-haiku` — Claude via the [Claude Code CLI](https://github.com/anthropics/claude-code) (bare `claude-cli` uses the CLI's configured default model)
+- `gemini-cli-pro`, `gemini-cli-flash` — Gemini via the [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+
+> **`codex-cli` on hardened Linux (e.g. Ubuntu 23.10+):** recent Codex sandboxes itself with a bundled bubblewrap that needs to create an unprivileged user namespace, which these distros block by default (`kernel.apparmor_restrict_unprivileged_userns=1`). Rather than weaken that host-wide, `codex_interface.py` detects the restriction and instead runs Codex inside an identity-mapped user namespace via `unshare`, using the setuid `newuidmap`/`newgidmap` helpers. Install them with `sudo apt install uidmap` (you also need `/etc/subuid` + `/etc/subgid` entries for your user, which the package sets up). The other CLI backends don't need this.
+
+### Which backend should I use?
+
+- **Prefer the API backends** (`gpt-*`, `gemini-*`, `claude-*`) for benchmarking runs: they take explicit model IDs and a fixed `temperature`, so results are the most reproducible and comparable across models.
+- **Use the CLI backends** (`*-cli`) when you don't want to manage API keys or you're billing against an existing CLI subscription — they shell out to the local `codex`/`claude`/`gemini` tools instead. Note they forward less control (e.g. `max_tokens` isn't passed through) and `claude-cli`/`gemini-cli` use whatever the CLI is configured/authenticated for, so they're better for convenience than for tightly-controlled comparisons.
+- **On hardened Linux**, `codex-cli` additionally needs `uidmap` installed (see the note above); the other CLI backends work out of the box once their CLI is on your `PATH`.
+
+OpenAI GPT-5 models support a `reasoning_effort` parameter (none, low, medium, high, xhigh) which controls how much thinking the model does. This defaults to "high" for creative writing tasks.
+
+To add support for additional models, modify the `ai_helper.py` file and update the `AVAILABLE_MODELS` list in `llm_tester_ui.py`. The CLI backends live in the `cli_backends/` package (ported from the StoryDaemon writing ecosystem).
 
 ## License
 

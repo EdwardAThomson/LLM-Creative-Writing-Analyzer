@@ -1,0 +1,27 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20260601_233230
+Models tested: codex-cli
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: codex-cli
+  Text Similarity (exact matches):
+    Average similarity: 0.0097
+    Median similarity: 0.0100
+  Semantic Similarity (meaning):
+    Average: 0.4761
+    Median: 0.4515
+  Text Structure:
+    Paragraphs per 1000 words: 48.87
+    Sentences per paragraph: 2.06
+    Words per sentence: 10.01
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0895
+    Repeated entities: 57
+    Repeated name components: 13
+    Shared name parts: Mara (7/10), Aster (7/10), Venn (6/10), Orison (4/10), Saint (4/10) and 8 more
+  Average word count: 2481.30
+  Successful responses: 10/10
+

@@ -304,3 +304,81 @@ This study opens several avenues for future research to gain a deeper understand
 6.  **Incorporate Structured Qualitative Evaluation:** Supplement quantitative metrics with formal evaluations by human readers assessing perceived creativity, originality, engagement, writing quality, and the subjective impact of any identified repetitive patterns.
 
 By addressing these areas, future research can provide further clarity on the capabilities and limitations of LLMs as creative partners, guiding the development of more effective tools and techniques for human-AI collaboration in fiction writing.
+
+
+
+## 6. Longitudinal Update (2026)
+
+The original study (Sections 1–5) captured a snapshot of the leading models in March–May 2025. This chapter revisits the same benchmark roughly fifteen months later, in June 2026, using the current generation of models. The motivation, anticipated in Section 1.1, is that *"such analysis should be ongoing to track the progress and evolution of LLM capabilities as new models are released."* The central question is whether the most prominent finding of the original report — the **"Elara Phenomenon"** of limited name randomness (Section 4.3) — persists, has worsened, or has been mitigated by newer models.
+
+### 6.1 Method Changes and Caveats
+
+The prompt, parameters, repeat count (10), and target word count (1500) are unchanged from Section 2, preserving comparability with the 2025 results.
+
+Two methodological differences should be borne in mind when comparing across years:
+
+1. **Backend (CLI vs API).** The 2026 runs were generated through **local agent CLIs** (`claude`, `gemini`) running in headless mode, rather than the provider APIs used in 2025. Unlike the API path, the CLI backends **do not forward sampling parameters** — the temperature of 0.7 used throughout the 2025 study does not apply, and each CLI uses its own default sampling configuration. The 2026 figures should therefore be read as *same-prompt, same-model-family* comparisons rather than strictly controlled replications.
+
+2. **Resolved model identities.** CLI model aliases resolve to whatever the installed CLI treats as current. At the time of this run, `claude-cli-opus` resolved to **`claude-opus-4-8`** and `claude-cli-sonnet` to the current Sonnet; the Gemini aliases map to **`gemini-3-pro-preview`** and **`gemini-3-flash-preview`**; and `codex-cli` ran **`gpt-5.5`** (the Codex CLI's configured default in `~/.codex/config.toml`, reasoning effort *medium*) through the Codex CLI agent.
+
+A third point concerns the name metric specifically and is discussed in Section 6.3: spaCy's NER produces false-positive `PERSON` tags (e.g. `Minds`, `Kepler`, `Metropolis`) that can contaminate the "repeated name components" row. This was already flagged as a limitation in Section 4.4 and proved material to interpreting the 2026 results.
+
+### 6.2 Table of Results (2026 cohort)
+
+| Metric                       | Gemini 3 Flash | Gemini 3 Pro | Claude Opus 4.8 | Claude Sonnet | Codex (GPT-5.5) |
+| :--------------------------- | :------------- | :----------- | :-------------- | :------------ | :------------ |
+| **TEXT SIMILARITY**          |                |              |                 |               |               |
+| Average similarity           | 0.0260         | 0.0187       | 0.0232          | 0.0196        | 0.0097        |
+| Average word count           | 1606.8         | 1858.3       | 1478.8          | 1547.1        | 2481.3        |
+| **VOCABULARY METRICS**       |                |              |                 |               |               |
+| Vocabulary diversity¹        | 0.2799         | 0.2898       | 0.2497          | 0.2777        | 0.2407        |
+| Unique words                 | 4498           | 5386         | 3693            | 4297          | 5973          |
+| Total words                  | 16068          | 18583        | 14788           | 15471         | 24813         |
+| **SEMANTIC SIMILARITY**      |                |              |                 |               |               |
+| Average semantic similarity² | 0.5501         | 0.6078       | 0.5552          | 0.5082        | 0.4761        |
+| **NAMED ENTITY ANALYSIS**    |                |              |                 |               |               |
+| Total entities detected      | 880            | 671          | 719             | 764           | 1120          |
+| Unique entities              | 380            | 224          | 347             | 377           | 390           |
+| **ENTITY SIMILARITY**        |                |              |                 |               |               |
+| Average entity overlap³      | 0.0721         | 0.0967       | 0.0754          | 0.0722        | 0.0895        |
+| Max entity overlap           | 0.1250         | 0.1967       | 0.1139          | 0.1250        | 0.1443        |
+| **NAME COMPONENT ANALYSIS**  |                |              |                 |               |               |
+| Total name components        | 304            | 243          | 231             | 201           | 515           |
+| Unique name components       | 48             | 41           | 71              | 46            | 90            |
+| **REPEATED NAME COMPONENTS** | Elara (6/10)<br>Vance (6/10)<br>Aethelgard (5/10)<br>Valerius (5/10)<br>Kaelen (5/10) | Kaelen (6/10)<br>Vance (5/10)<br>Elara (5/10)<br>Aethelgard (3/10)<br>Kael (2/10) | *Minds (2/10)\**<br>*Kepler (2/10)\** | Voss (7/10)<br>Kael (5/10)<br>Veradis (3/10)<br>Maren (3/10) | Aster (7/10)<br>Mara (7/10)<br>Venn (6/10)<br>Orison (4/10)<br>Vale (3/10) |
+| **TEXT STRUCTURE**           |                |              |                 |               |               |
+| Paragraphs per 1000 words    | 28.97          | 22.17        | 25.37           | 30.56         | 48.87         |
+| Words per sentence           | 11.74          | 13.65        | 16.30           | 15.30         | 10.01         |
+
+*Footnotes ¹–³ as defined in Section 3.1.*
+*\* Both of Claude Opus's "repeated" components are NER false positives (`Minds` = AI "Minds"; `Kepler` = a probe/place), not character names — see Section 6.3. Codex's list is shown after removing the false positives `Saint` (a title) and `Civic`; its remaining repeats are all genuine character names.*
+
+### 6.3 What Changed Since 2025
+
+**The "Elara Phenomenon" has split along vendor lines.** In 2025 the report concluded that limited name randomness was *"a common characteristic across the major LLMs studied"* (Section 1.1), with "Elara" prominent across both OpenAI and Anthropic outputs. That generalisation no longer holds in 2026 — the three vendors have diverged sharply, ranging from one that has essentially eliminated the behaviour to one that exhibits it more strongly than any 2025 model:
+
+* **Anthropic's flagship has effectively broken the pattern.** Claude Opus 4.8 produced the **largest pool of distinct name components of any model in either study year (71 unique)** while showing the *fewest* cross-run repeats. Critically, its only two flagged repeats — `Minds` and `Kepler` — are **NER false positives, not character names**. Manual inspection of the per-run `PERSON` extractions confirms that Opus invented a **fresh cast of named characters in every one of the ten runs** (Mira Vance, Caleb, Cassiel, Sera Voss, Khorvane, Asha Vendramin, Iris Adekanmbi, Kestrel Vahn, Sela Marsh, Mara Vesh, …), with no character first name recurring across runs. This is a marked reversal from Claude 3.7 Sonnet (2025), which reused "Elara" in 7/10 runs.
+
+* **Google's family has not changed.** Gemini 3 Pro and Flash continue to draw character names from the same small pool documented in 2025: **Kaelen** (6/10 in Pro, echoing Gemini 2.0's 7/10), **Elara**, **Aethelgard**, and notably the surname **Vance** — which also appears in the 2025 Gemini 2.0 outputs. The Gemini lineage thus shows a persistent, multi-year naming signature spanning both first names *and* surnames.
+
+* **OpenAI changed its favourites but not its behaviour.** Codex (GPT-5.5) shows the **strongest name-pull of the entire 2026 cohort**: `Aster` (7/10), `Mara` (7/10) and `Venn` (6/10), with the full name "Mara Venn" recurring across four separate runs. Notably, "Elara" — GPT-4o's signature name in 2025 (7/10) — has vanished entirely from OpenAI's output, replaced by a *new* but equally sticky pool. OpenAI therefore did not solve the limited-randomness problem; it merely rotated the preferred names. This also weakens the 2025 "shared training data" hypothesis (Section 4.3) for OpenAI specifically: its current favourites (`Aster`, `Mara`, `Venn`) are not shared with the Gemini family, whereas `Elara`/`Kaelen`/`Vance` remain a distinctly Google signature.
+
+* **Claude Sonnet and Codex both confirm that thematic and name diversity are orthogonal.** Both vary plot and wording strongly — Codex records the **lowest semantic similarity (0.4761) and lowest verbatim similarity (0.0097) of any model in either study year** — yet both still lock onto favourite names (Sonnet's "Voss" 7/10; Codex's "Aster"/"Mara"). Codex is the extreme illustration: it diversifies *everything except names*. This decisively separates the two axes of repetition that the original report treated together.
+
+**The detection caveat is decisive, not cosmetic.** The 2026 data demonstrates that the "repeated name components" metric must be cross-checked against the raw `PERSON` extractions before interpretation. Taken at face value, the metric reports Opus as having two repeated names; corrected for false positives, its true repeated-*character*-name count is **zero**. The volume of names detected (196 `PERSON` mentions for Opus, comparable to Gemini's 215) confirms the low repeat count reflects **genuine naming diversity, not a detection gap**. This strengthens, and partially automates, the recommendation in Section 5.3 to "develop and integrate detection tools" — but only if those tools filter NER noise.
+
+**Length adherence has broadly improved — with one exception.** The pronounced under-generation seen in 2025 from non-reasoning models (GPT-4o 1042 words, Claude 3.5 Sonnet 1004) has largely disappeared: the Claude and Gemini 2026 models land between 1479 and 1858 words, much closer to the 1500-word target, with Claude Opus and Sonnet the most accurate (1479, 1547). Codex is the outlier, averaging **2481 words** — a 65% overshoot reminiscent of the 2025 reasoning models (o1's 2935). It also produces by far the most fragmented prose (48.9 paragraphs per 1000 words, roughly double the cohort, at ~10 words per sentence), giving it a distinctive terse, short-paragraph signature quite unlike the longer-breathed Gemini Pro and Claude Opus.
+
+**Semantic self-similarity did not improve monotonically.** Within the cleanest single lineage — Gemini Pro — average semantic similarity moved 0.6117 (2.0) → 0.5557 (2.5) → 0.6078 (3 Pro), and entity overlap moved 0.0878 → 0.0720 → **0.0967**. Gemini 2.5 was the diversity high-water mark; Gemini 3 Pro trades some output diversity back for consistency, recording the **highest entity overlap of any model in either year**. Newer is therefore not uniformly *more varied*.
+
+### 6.4 Revised Implications
+
+The 2025 conclusion that limited naming randomness is an industry-wide trait requiring external mitigation (Section 5.3, recommendation 2) now requires qualification:
+
+1. **Mitigation is increasingly model-dependent.** For Anthropic's current flagship, external name generation may no longer be strictly necessary — the model supplies the variety on its own. For the Gemini family it remains essential, as the naming signature has persisted unchanged across two model generations.
+
+2. **Strategic model selection (recommendation 5) is now a first-order lever** for the specific problem of name repetition, not merely a secondary consideration. The gap between the best and worst 2026 models on this dimension is larger than any single model's improvement over time.
+
+3. **Detection tooling must be NER-aware.** Automated repetition checks built on off-the-shelf NER will both over-report (false-positive `PERSON` tags) and, by treating full names as atomic, under-report component reuse. A production check should split names into components *and* filter against a stop-list of common-word and all-caps false positives.
+
+With Codex (GPT-5.5) now included, the 2026 cross-vendor CLI snapshot covers all three major providers. The natural remaining step is to re-run the same models via their **APIs at a controlled temperature (0.7)**, matching the 2025 protocol exactly, so that the CLI-vs-API backend difference — the principal confound in this longitudinal comparison (Section 6.1) — can itself be quantified rather than merely caveated.
