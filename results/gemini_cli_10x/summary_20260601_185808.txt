@@ -1,0 +1,46 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20260601_185808
+Models tested: gemini-cli-flash, gemini-cli-pro
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: gemini-cli-flash
+  Text Similarity (exact matches):
+    Average similarity: 0.0260
+    Median similarity: 0.0251
+  Semantic Similarity (meaning):
+    Average: 0.5501
+    Median: 0.5437
+  Text Structure:
+    Paragraphs per 1000 words: 28.97
+    Sentences per paragraph: 2.98
+    Words per sentence: 11.74
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0721
+    Repeated entities: 58
+    Repeated name components: 11
+    Shared name parts: Elara (6/10), Vance (6/10), Aethelgard (5/10), Valerius (5/10), Kaelen (5/10) and 6 more
+  Average word count: 1606.80
+  Successful responses: 10/10
+
+MODEL: gemini-cli-pro
+  Text Similarity (exact matches):
+    Average similarity: 0.0187
+    Median similarity: 0.0182
+  Semantic Similarity (meaning):
+    Average: 0.6078
+    Median: 0.6037
+  Text Structure:
+    Paragraphs per 1000 words: 22.17
+    Sentences per paragraph: 3.40
+    Words per sentence: 13.65
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0967
+    Repeated entities: 47
+    Repeated name components: 7
+    Shared name parts: Kaelen (6/10), Elara (5/10), Vance (5/10), Aethelgard (3/10), Kael (2/10) and 2 more
+  Average word count: 1858.30
+  Successful responses: 10/10
+
