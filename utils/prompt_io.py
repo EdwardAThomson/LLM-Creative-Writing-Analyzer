@@ -183,13 +183,16 @@ def write_model_results(model, responses, analysis, prompt, timestamp, output_di
                 f.write(f"  Average words per paragraph: {words_per_para.get('mean', 'N/A'):.2f}\n\n")
         
         # Semantic similarity analysis if available
-        if 'semantic_similarity' in analysis:
-            sem = analysis['semantic_similarity']
+        sem = analysis.get('semantic_similarity')
+        if isinstance(sem, dict):
             f.write("SEMANTIC SIMILARITY (based on meaning):\n")
             f.write(f"  Average semantic similarity: {sem.get('average', 'N/A'):.4f}\n")
             f.write(f"  Median semantic similarity: {sem.get('median', 'N/A'):.4f}\n")
             f.write(f"  Min semantic similarity: {sem.get('min', 'N/A'):.4f}\n")
             f.write(f"  Max semantic similarity: {sem.get('max', 'N/A'):.4f}\n\n")
+        elif isinstance(sem, str):
+            # e.g. "Needs at least 2 responses" for a single-repeat run
+            f.write(f"SEMANTIC SIMILARITY: Not available - {sem}\n\n")
         elif 'semantic_error' in analysis:
             f.write(f"SEMANTIC SIMILARITY: Not available - {analysis['semantic_error']}\n\n")
         
@@ -379,11 +382,13 @@ def write_summary(results, models, repeats, word_count, timestamp, output_dir):
                 f.write(f"    Median similarity: {analysis['median_similarity']:.4f}\n")
                 
                 # Semantic similarity if available
-                if 'semantic_similarity' in analysis:
-                    sem = analysis['semantic_similarity']
+                sem = analysis.get('semantic_similarity')
+                if isinstance(sem, dict):
                     f.write(f"  Semantic Similarity (meaning):\n")
                     f.write(f"    Average: {sem.get('average', 'N/A'):.4f}\n")
                     f.write(f"    Median: {sem.get('median', 'N/A'):.4f}\n")
+                elif isinstance(sem, str):
+                    f.write(f"  Semantic Similarity (meaning): Not available - {sem}\n")
                 
                 # Text structure metrics if available
                 if 'structure_metrics' in analysis:

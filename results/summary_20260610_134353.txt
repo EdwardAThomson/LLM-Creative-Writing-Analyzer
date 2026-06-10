@@ -1,0 +1,25 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20260610_134353
+Models tested: claude-cli-fable
+Repeats per model: 3
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: claude-cli-fable
+  Text Similarity (exact matches):
+    Average similarity: 0.0247
+    Median similarity: 0.0277
+  Semantic Similarity (meaning):
+    Average: 0.5105
+    Median: 0.5061
+  Text Structure:
+    Paragraphs per 1000 words: 25.26
+    Sentences per paragraph: 2.30
+    Words per sentence: 17.65
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0857
+    Repeated entities: 13
+  Average word count: 1455.67
+  Successful responses: 3/3
+

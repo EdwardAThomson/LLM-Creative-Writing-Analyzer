@@ -29,9 +29,21 @@ holds a single `model -> callable` registry. Two families:
   (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`).
 - **CLI backends** (`cli_backends/`) — shell out to locally-installed agent CLIs
   (`codex`, `claude`, `gemini`) in headless mode, **no API key**. Model keys:
-  `codex-cli`, `claude-cli{,-opus,-sonnet,-haiku}`, `gemini-cli-pro`,
+  `codex-cli`, `claude-cli{,-opus,-sonnet,-haiku,-fable}`, `gemini-cli-pro`,
   `gemini-cli-flash`. Each runs from a neutral empty cwd (`agent_cwd.neutral_cwd`)
   so the agent generates text instead of acting on this repo.
+
+  **Billing gotcha:** `claude_interface.py` strips `ANTHROPIC_API_KEY` from the
+  subprocess env so `claude -p` authenticates via the subscription login
+  (`~/.claude`), not a metered API key. Without this, the key from `.env`
+  (loaded into `os.environ` by `load_dotenv()`) is inherited by the subprocess
+  and Claude Code bills *that* instead of the subscription — i.e. the "no API
+  key" CLI path silently charges the API. All three CLI backends do this:
+  `claude_interface.py` strips `ANTHROPIC_API_KEY`, `codex_interface.py` strips
+  `OPENAI_API_KEY`, and `gemini_cli_interface.py` strips `GEMINI_API_KEY` +
+  `GOOGLE_API_KEY` from their subprocess env. Keep this when editing them — an
+  env-var key outranks the CLI's configured subscription/login default, so a key
+  loaded from `.env` would otherwise shadow the subscription inside the subprocess.
 
 When adding/removing a model, keep three places in sync: the registry in
 `ai_helper.py`, `DEFAULT_MODELS` in `llm_creative_tester.py`, and
@@ -71,6 +83,13 @@ entries for your user, which the package creates). Only `codex-cli` needs this;
 - **Full names are split into components** (`text_analysis.py` `text.split()`), so
   surnames count as name-parts too (e.g. Gemini's recurring `Vance`), not just
   first names. "Repeated name components" counts parts appearing in >1 of the N runs.
+- **Some API models don't take `temperature` either.** Fable 5 and Opus 4.8
+  (like Opus 4.7) removed the sampling params — sending `temperature`/`top_p`/
+  `top_k` returns a 400. Their registry entries pass `temperature=None`, so
+  `send_prompt_claude` omits it and the model uses its own default. That means
+  `claude-fable-5` / `claude-opus-4-8` runs aren't strictly comparable to the
+  other API runs (which use temp 0.7) on the sampling axis. `claude-sonnet-4-6`
+  and `claude-haiku-4-5` still use temp 0.7.
 - **CLI backends don't forward sampling params.** `temperature`/`max_tokens` are
   *not* passed to `codex`/`claude`/`gemini` CLIs — each uses its own defaults.
   So CLI runs aren't strictly comparable to the API runs (which use temp 0.7).

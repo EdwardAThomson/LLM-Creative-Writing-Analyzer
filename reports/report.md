@@ -357,7 +357,7 @@ A third point concerns the name metric specifically and is discussed in Section 
 
 **The "Elara Phenomenon" has split along vendor lines.** In 2025 the report concluded that limited name randomness was *"a common characteristic across the major LLMs studied"* (Section 1.1), with "Elara" prominent across both OpenAI and Anthropic outputs. That generalisation no longer holds in 2026 — the three vendors have diverged sharply, ranging from one that has essentially eliminated the behaviour to one that exhibits it more strongly than any 2025 model:
 
-* **Anthropic's flagship has effectively broken the pattern.** Claude Opus 4.8 produced the **largest pool of distinct name components of any model in either study year (71 unique)** while showing the *fewest* cross-run repeats. Critically, its only two flagged repeats — `Minds` and `Kepler` — are **NER false positives, not character names**. Manual inspection of the per-run `PERSON` extractions confirms that Opus invented a **fresh cast of named characters in every one of the ten runs** (Mira Vance, Caleb, Cassiel, Sera Voss, Khorvane, Asha Vendramin, Iris Adekanmbi, Kestrel Vahn, Sela Marsh, Mara Vesh, …), with no character first name recurring across runs. This is a marked reversal from Claude 3.7 Sonnet (2025), which reused "Elara" in 7/10 runs.
+* **Anthropic's flagship has effectively broken the pattern.** Claude Opus 4.8 produced the **largest pool of distinct name components of any model in either study year (71 unique)** while showing the *fewest* cross-run repeats. Critically, its only two flagged repeats — `Minds` and `Kepler` — are **NER false positives, not character names**. Manual inspection of the per-run `PERSON` extractions confirms that Opus invented a **fresh cast of named characters in every one of the ten runs** (Mira Vance, Caleb, Cassiel, Sera Voss, Khorvane, Asha Vendramin, Iris Adekanmbi, Kestrel Vahn, Sela Marsh, Mara Vesh, …), with no character first name recurring across runs. This is a marked reversal from Claude 3.7 Sonnet (2025), which reused "Elara" in 7/10 runs. Note, however, that the *surnames* in that fresh cast are themselves dominated by a single sound — Vance, Voss, Vendramin, Vahn, Vesh — so Opus's token-level diversity coexists with a strong *phonetic* regularity. This "sound, not token" distinction is the subject of Section 6.6.
 
 * **Google's family has not changed.** Gemini 3 Pro and Flash continue to draw character names from the same small pool documented in 2025: **Kaelen** (6/10 in Pro, echoing Gemini 2.0's 7/10), **Elara**, **Aethelgard**, and notably the surname **Vance** — which also appears in the 2025 Gemini 2.0 outputs. The Gemini lineage thus shows a persistent, multi-year naming signature spanning both first names *and* surnames.
 
@@ -382,3 +382,81 @@ The 2025 conclusion that limited naming randomness is an industry-wide trait req
 3. **Detection tooling must be NER-aware.** Automated repetition checks built on off-the-shelf NER will both over-report (false-positive `PERSON` tags) and, by treating full names as atomic, under-report component reuse. A production check should split names into components *and* filter against a stop-list of common-word and all-caps false positives.
 
 With Codex (GPT-5.5) now included, the 2026 cross-vendor CLI snapshot covers all three major providers. The natural remaining step is to re-run the same models via their **APIs at a controlled temperature (0.7)**, matching the 2025 protocol exactly, so that the CLI-vs-API backend difference — the principal confound in this longitudinal comparison (Section 6.1) — can itself be quantified rather than merely caveated.
+
+### 6.5 Addendum: Claude Fable 5 (Anthropic's new top tier)
+
+Shortly after the cohort above was assembled, Anthropic released **Claude Fable 5**, a new model tier positioned above Opus. It was run through the same `claude` CLI backend (model key `claude-cli-fable`, resolving via the CLI alias `fable` to `claude-fable-5`) under identical conditions — the unchanged prompt and parameters, 10 repeats, 1500-word target — so it extends the 2026 cohort directly, subject to the same CLI-vs-API caveat of Section 6.1. That caveat applies with extra force here: Fable 5, like Opus 4.8, **does not accept sampling parameters at all**, so no temperature was — or could be — set, and the run uses the model's own default sampling.
+
+| Metric                       | Claude Fable 5 | 2026 cohort range (5 models) |
+| :--------------------------- | :------------- | :--------------------------- |
+| **TEXT SIMILARITY**          |                |                              |
+| Average similarity           | 0.0233         | 0.0097 – 0.0260              |
+| Average word count           | 1484.0         | 1478.8 – 2481.3              |
+| **VOCABULARY METRICS**       |                |                              |
+| Vocabulary diversity¹        | 0.2611         | 0.2407 – 0.2898              |
+| Unique words                 | 3874           | 3693 – 5973                  |
+| Total words                  | 14840          | 14788 – 24813                |
+| **SEMANTIC SIMILARITY**      |                |                              |
+| Average semantic similarity² | 0.5113         | 0.4761 – 0.6078              |
+| **NAMED ENTITY ANALYSIS**    |                |                              |
+| Total entities detected      | 784            | 671 – 1120                   |
+| Unique entities              | 406 ▲          | 224 – 390                    |
+| **ENTITY SIMILARITY**        |                |                              |
+| Average entity overlap³      | 0.0531 ▼       | 0.0721 – 0.0967              |
+| Max entity overlap           | 0.0842 ▼       | 0.1139 – 0.1967              |
+| **NAME COMPONENT ANALYSIS**  |                |                              |
+| Total name components        | 202            | 201 – 515                    |
+| Unique name components       | 70             | 41 – 71                      |
+| **TEXT STRUCTURE**           |                |                              |
+| Paragraphs per 1000 words    | 24.07          | 22.17 – 48.87                |
+| Words per sentence           | 17.58 ▲        | 10.01 – 16.30                |
+
+*Footnotes ¹–³ as defined in Section 3.1. ▲ / ▼ mark values that fall above / below the 5-model 2026 cohort's min–max range.*
+
+**Fable 5 belongs with Opus 4.8 in the "diversity" camp, and pushes cross-run overlap to a study low.** Its average entity overlap (0.0531) is the **lowest figure recorded in either study year** — though only fractionally below the previous low, Claude 3.7 Sonnet's 0.0539 (Section 3.1) — and its maximum overlap (0.0842) sits well under every other model's, in either year. It simultaneously detects the most *unique* entities of any model in the study (406) at a healthy PERSON-mention volume (153), so the low overlap reflects genuine per-run reinvention rather than a thin or under-detected cast. Its 70 unique name components is second only to Opus 4.8's 71 in the 2026 cohort (across both years, only 2025's o1, at 81, is higher).
+
+**The "Elara Phenomenon" is faint but not absent — weaker than any 2025 model, yet not the clean zero Opus 4.8 achieved.** Of Fable's ten flagged "repeated name components", **four are NER false positives** — `Continuum` (3/10, the most-repeated token, but a faction/cosmological concept), and `Meridian`, `Colony`, `Station` (places and common nouns). The six genuine repeats — the surnames `Venn`, `Vale`, `Okonkwo` / `Okonkwo-Reyes`, `Pell`, and the first name `Yara` — each recur in only **2/10** runs, and a single full character name, the protagonist **Yara Venn**, recurs across two runs. Fable thus sits *between* Opus 4.8 (zero true repeated character names) and the Gemini/Codex strong-pull (favourite names at 5–7/10): a faint residual naming habit, an order of magnitude weaker than the 2025 norm, but not the complete break its sibling demonstrates. As with Opus, the raw metric is actively misleading here — taken at face value it names `Continuum` as Fable's signature; corrected, Fable's most persistent *character* name is a 2/10 protagonist.
+
+**Fable's genuine repeats are dominated by short, V-initial surnames** — `Venn` and `Vale` (2/10 each), with `Voss` present in two runs (`Iyana Voss`, `Dane Okafor-Voss`) and `Veil`/`Veth` in adjacent single-run generations. This is not an Anthropic quirk, but the local instance of a striking *cross-vendor* pattern — the **V-surname cluster** — that recurs across all three providers in both study years and is analysed in its own right in Section 6.6.
+
+**Style and length.** Fable adheres to the 1500-word target almost exactly (1484 words), effectively tying Opus 4.8 (1479) as the most accurate in the cohort and far from Codex's 65% overshoot. It writes the **longest sentences of any 2026 model** (17.6 words per sentence, above the cohort's prior maximum of Opus's 16.3) with low paragraph fragmentation (24.1 per 1000 words) — a longer-breathed, less staccato register than Gemini Flash or, especially, Codex. Its semantic self-similarity (0.5113) is mid-pack, close to Sonnet (0.5082) and below both Opus 4.8 (0.5552) and Gemini 3 Pro (0.6078): like Sonnet and Codex, Fable confirms that strong thematic and verbatim variation can coexist with a faint naming habit (Section 6.3).
+
+**Summary scorecard.** Ranked against the five other 2026 models, with the arrow marking the "better" direction for each dimension:
+
+| Dimension                                | Fable          | Best in cohort       | Fable's rank      |
+| :--------------------------------------- | :------------- | :------------------- | :---------------- |
+| Length adherence (target 1500)           | 1484 (−16)     | **Fable**            | 1st               |
+| Entity / place reuse ↓ (overlap)         | 0.0531         | **Fable**            | 1st (study low)   |
+| Genuine name repetition ↓                | faint (≤2/10)  | Opus 4.8 (zero)      | 2nd               |
+| Name-pool size ↑ (unique components)     | 70             | Codex (90)\*         | 3rd (high)        |
+| Thematic variation ↑ (semantic sim ↓)    | 0.5113         | Codex (0.476)        | 3rd (mid)         |
+| Vocabulary richness ↑ (unique / total)   | 0.2611         | Gemini 3 Pro (0.290) | 4th (mid-low)     |
+
+*\* Codex's larger name pool accompanies ~1,000 more words per story (2,481 vs 1,484), so it is not richer per unit length.*
+
+In short: Fable **leads the cohort on length accuracy and entity diversity**, trails **only Opus 4.8 on name repetition**, and is **mid-pack on raw lexical variety and thematic spread** — strong at not reusing the same *world* or *names* across runs, unremarkable on sheer vocabulary range.
+
+**Implication.** Fable 5 reinforces the Section 6.4 conclusion that naming diversity is now strongly model-dependent and that Anthropic's current line has largely addressed it: across Opus 4.8 and Fable 5, external name generation is at most a light touch rather than the necessity it remains for the Gemini family. It also sharpens the detection recommendation — a token stop-list alone would not have caught the *cross-vendor* phonetic V-surname tendency (Vance/Voss/Venn/Vale), so a thorough repetition check should examine the distribution of name shapes, not just repeated exact tokens.
+
+### 6.6 The V-Surname Cluster: A Cross-Vendor Naming Signature
+
+One pattern cuts across all the per-model analyses above and deserves separate treatment, because it is the clearest *cross-vendor* form of the limited-randomness effect in either study year. All three providers — in both 2025 and 2026 — repeatedly reach for a small family of short, hard-V, roughly two-syllable surnames when naming characters for this prompt: chiefly **Vance, Voss, Venn, and Vale**. No single token dominates across vendors the way "Elara" or "Kaelen" does *within* a lineage; instead it is the *shape* of the name that recurs, across vendors that otherwise share none of their favourite first names.
+
+| V-surname | 2025 occurrences          | 2026 occurrences                                  | Vendor reading                |
+| :-------- | :------------------------ | :------------------------------------------------ | :---------------------------- |
+| **Vance** | Gemini 2.0 (present)      | Gemini 3 Flash (6/10), Gemini 3 Pro (5/10)        | Google lineage                |
+| **Voss**  | Claude 3.7 Sonnet (5/10)  | Claude Sonnet (7/10); Fable (2 runs)              | Anthropic (Sonnet) lineage    |
+| **Venn**  | —                         | Codex / GPT-5.5 (6/10); Fable (2/10)              | OpenAI **+** Anthropic (2026) |
+| **Vale**  | —                         | Codex / GPT-5.5 (3/10); Fable (2/10)              | OpenAI **+** Anthropic (2026) |
+
+**The purest case is Claude Opus 4.8 — the sound recurs even though the token never does.** Section 6.3 recorded Opus 4.8 as the cohort's diversity leader, with *zero* repeated character names, which is why it is absent from the rows above. But re-examining its ten runs by name *shape* rather than exact token shows the V-surname pull fully intact: **eight of the ten runs independently coin a distinct V-initial surname** — `Vance`, `Vael`, `Voss`, `Veymar`, `Vendramin`, `Vahn`, `Veyra`, `Vesh` — no two alike, so each appears in only 1/10 runs. Opus therefore exhibits the cleanest possible separation of the two axes: token-level repetition of **zero**, phonetic recurrence of **8/10**. The model that most thoroughly avoids reusing a *name* still cannot avoid reusing the *sound* — which is the single strongest piece of evidence that this cluster is phonetic, not lexical, and that the "broken pattern" of Section 6.3 is broken only at the level of exact tokens.
+
+The decomposition is instructive:
+
+* **Each vendor has a "home" V-surname** — `Vance` for Google (across 2.0, 3 Flash, 3 Pro), `Voss` for Anthropic's Sonnet line (3.7 → 2026), and `Venn`/`Vale` emerging together in OpenAI's Codex.
+* **But the cluster is shared at the boundaries.** `Venn` and `Vale` appear in *both* Codex and Fable in 2026 — and not trivially: the full name "Mara Venn" recurs across four Codex runs (Section 6.3), while "Yara Venn" recurs across two Fable runs (Section 6.5). Two unrelated vendors independently converging on the same coined surname is hard to explain except through overlapping training distributions.
+* **V-initial *given* names show the same pull**, if more weakly: `Valerius` (Gemini 3 Flash, 5/10), `Veradis` (Claude Sonnet 2026, 3/10), and `Vael` (Fable) all recur or surface within runs — suggesting the bias is toward the leading phoneme, not the surname slot specifically.
+
+This is the strongest surviving evidence for the **shared-training-data hypothesis** of Section 4.3. That hypothesis was weakened in Section 6.3 at the level of *exact tokens* (OpenAI's `Aster`/`Mara` are not Google's `Kaelen`/`Elara`), but it re-emerges at the level of *name shape*: across all three vendors, the same narrow phonetic neighbourhood is over-represented for a science-fiction prompt. The most economical explanation is that the SF training corpus itself over-uses such surnames — they read as crisp and "futuristic" — and every model has absorbed the same bias.
+
+**The cluster also exposes a blind spot in the metric.** `Voss` appears in two separate Fable runs (`Iyana Voss` and `Dane Okafor-Voss`) yet is *not* flagged as a repeated name component, because the component splitter (Section 4.4) treats the hyphenated `Okafor-Voss` as a single atomic token that does not match the bare `Voss`. Exact-string matching therefore *under-counts* this pattern twice over: once because no single token crosses the per-vendor repeat threshold *and* the vendor boundary together, and again because hyphenation and full-name variation hide component-level reuse. Catching the V-surname cluster reliably would require clustering names by phonetic or orthographic shape (leading consonant + syllable count) rather than counting repeated strings — a concrete extension of the NER-aware detection recommendation in Sections 5.3 and 6.4. (All counts above are drawn from the genuine `PERSON` extractions after removing NER false positives.)

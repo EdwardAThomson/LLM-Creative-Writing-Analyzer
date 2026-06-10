@@ -4,6 +4,7 @@ Provides a subprocess-based interface to the `gemini` CLI so the analyzer can
 use Gemini models via the local tool, similar to the Codex CLI backend.
 """
 
+import os
 import shutil
 import subprocess
 from typing import Optional
@@ -64,6 +65,12 @@ class GeminiCliInterface:
             subprocess.TimeoutExpired: If generation times out.
         """
         eff_timeout = timeout or self.default_timeout
+        # Strip Gemini API keys so the CLI authenticates via its login default,
+        # not a metered key. GEMINI_API_KEY (and GOOGLE_API_KEY) from .env are
+        # pulled into os.environ by load_dotenv() and would otherwise be inherited
+        # here and billed instead of the subscription. See the gotcha in CLAUDE.md.
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("GEMINI_API_KEY", "GOOGLE_API_KEY")}
         try:
             # Non-interactive call, similar to `gemini -p "..." -m <model>`
             result = subprocess.run(
@@ -82,6 +89,7 @@ class GeminiCliInterface:
                 text=True,
                 timeout=eff_timeout,
                 check=True,
+                env=env,
                 # Neutral cwd: `gemini` is also a repo-aware agent; keep it isolated.
                 cwd=neutral_cwd(),
             )

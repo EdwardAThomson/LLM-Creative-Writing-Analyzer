@@ -6,6 +6,7 @@ similar to the Codex and Gemini CLI backends.
 """
 
 import json
+import os
 import shutil
 import subprocess
 from typing import Optional
@@ -23,8 +24,9 @@ class ClaudeCliInterface:
         Args:
             claude_bin: Path to `claude` binary (default: "claude" in PATH).
             model: Model alias/ID to pass to `claude -p --model` (e.g. "haiku",
-                "sonnet", "opus"). When None, the CLI's configured default is used.
-                Non-Claude model names (e.g. an "gpt-*" default) are ignored.
+                "sonnet", "opus", "fable"). When None, the CLI's configured
+                default is used. Non-Claude model names (e.g. a "gpt-*" default)
+                are ignored.
             default_timeout: Per-call timeout in seconds. `claude -p` is a full
                 agent, so it is slower than a completion API; the default is
                 generous. Use a fast model (haiku) for multi-call workloads.
@@ -35,7 +37,7 @@ class ClaudeCliInterface:
         self.claude_bin = claude_bin
         # Only forward Claude model identifiers; ignore cross-backend defaults.
         self.model = model if (model and any(
-            tag in model.lower() for tag in ("haiku", "sonnet", "opus", "claude"))) else None
+            tag in model.lower() for tag in ("haiku", "sonnet", "opus", "fable", "claude"))) else None
         self.default_timeout = default_timeout
         self._verify_claude_installed()
 
@@ -62,6 +64,11 @@ class ClaudeCliInterface:
         cmd = [self.claude_bin, "-p", prompt, "--output-format", "json"]
         if self.model:
             cmd += ["--model", self.model]
+        # Strip ANTHROPIC_API_KEY so `claude` authenticates via the subscription
+        # login (~/.claude), not a metered API key. The key often lives in this
+        # repo's .env and is pulled into os.environ by load_dotenv(); without
+        # this, the inherited key would be billed instead of the subscription.
+        env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
         try:
             result = subprocess.run(
                 cmd,
@@ -69,6 +76,7 @@ class ClaudeCliInterface:
                 text=True,
                 timeout=eff_timeout,
                 check=True,
+                env=env,
                 # Neutral cwd so `claude -p` stays a text generator, not a repo agent.
                 cwd=neutral_cwd(),
             )

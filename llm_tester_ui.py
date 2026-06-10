@@ -33,6 +33,7 @@ AVAILABLE_MODELS = [
     "gemini-2.5-pro",
     "gemini-2.5-flash",
     # Claude (API)
+    "claude-fable-5",
     "claude-opus-4-8",
     "claude-sonnet-4-6",
     "claude-haiku-4-5",
@@ -42,6 +43,7 @@ AVAILABLE_MODELS = [
     "claude-cli-opus",
     "claude-cli-sonnet",
     "claude-cli-haiku",
+    "claude-cli-fable",
     "gemini-cli-pro",
     "gemini-cli-flash",
 ]
