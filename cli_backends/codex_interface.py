@@ -139,6 +139,11 @@ class CodexInterface:
                 sandbox_args = ['--dangerously-bypass-approvals-and-sandbox']
             else:
                 sandbox_args = ['--sandbox', CODEX_SANDBOX, '--ask-for-approval', CODEX_APPROVAL]
+            # Strip OPENAI_API_KEY so codex authenticates via its login (~/.codex),
+            # not a metered API key. The key from .env is pulled into os.environ by
+            # load_dotenv() and would otherwise be inherited here and billed instead
+            # of the subscription. See the billing gotcha in CLAUDE.md.
+            env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
             result = subprocess.run(
                 [
                     *userns_prefix,
@@ -153,6 +158,7 @@ class CodexInterface:
                 text=True,
                 timeout=eff_timeout,
                 check=True,
+                env=env,
                 cwd=neutral_cwd(),
             )
             try:

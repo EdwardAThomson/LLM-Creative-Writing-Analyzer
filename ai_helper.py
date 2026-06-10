@@ -67,12 +67,15 @@ def send_prompt(prompt, model="gpt-5.5"):
             top_k=40
         )
 
-    def _claude(model_name, max_tokens=16384):
+    def _claude(model_name, max_tokens=16384, temperature=0.7):
+        # Fable 5 / Opus 4.8 / 4.7 removed the sampling params: sending
+        # temperature/top_p/top_k returns a 400. Pass temperature=None for those
+        # so send_prompt_claude omits it (steer via prompt instead).
         return lambda prompt: send_prompt_claude(
             prompt=prompt,
             model=model_name,
             max_tokens=max_tokens,
-            temperature=0.7
+            temperature=temperature
         )
 
     model_config = {
@@ -89,7 +92,9 @@ def send_prompt(prompt, model="gpt-5.5"):
         "gemini-2.5-pro": _gemini("gemini-2.5-pro"),
         "gemini-2.5-flash": _gemini("gemini-2.5-flash"),
         # --- Anthropic Claude (API) ---
-        "claude-opus-4-8": _claude("claude-opus-4-8"),
+        # Fable 5 and Opus 4.8 reject sampling params -> temperature=None (omitted).
+        "claude-fable-5": _claude("claude-fable-5", max_tokens=8192, temperature=None),
+        "claude-opus-4-8": _claude("claude-opus-4-8", temperature=None),
         "claude-sonnet-4-6": _claude("claude-sonnet-4-6"),
         "claude-haiku-4-5": _claude("claude-haiku-4-5", max_tokens=8192),
 
@@ -99,6 +104,7 @@ def send_prompt(prompt, model="gpt-5.5"):
         "claude-cli-opus": lambda prompt: _send_via_claude_cli(prompt, model="opus"),
         "claude-cli-sonnet": lambda prompt: _send_via_claude_cli(prompt, model="sonnet"),
         "claude-cli-haiku": lambda prompt: _send_via_claude_cli(prompt, model="haiku"),
+        "claude-cli-fable": lambda prompt: _send_via_claude_cli(prompt, model="fable"),
         "gemini-cli-pro": lambda prompt: _send_via_gemini_cli(prompt, model="gemini-3-pro-preview"),
         "gemini-cli-flash": lambda prompt: _send_via_gemini_cli(prompt, model="gemini-3-flash-preview"),
     }
@@ -214,9 +220,11 @@ def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temp
 
     Args:
         prompt: The text prompt to send.
-        model: The Claude model to use (e.g., "claude-opus-4-6").
+        model: The Claude model to use (e.g., "claude-fable-5", "claude-opus-4-8").
         max_tokens: Maximum number of tokens to generate.
-        temperature: Controls randomness of generations.
+        temperature: Controls randomness of generations. Pass None to omit it
+            entirely — required for Fable 5 / Opus 4.8 / 4.7, which reject the
+            sampling params (temperature/top_p/top_k) with a 400 error.
         role_description: System prompt that sets the context for the model.
 
     Returns:
@@ -224,15 +232,17 @@ def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temp
     """
     try:
         anthropic_client = get_anthropic_client()
-        response = anthropic_client.messages.create(
+        create_kwargs = dict(
             model=model,
             max_tokens=max_tokens,
-            temperature=temperature,
             system=role_description,
             messages=[
                 {"role": "user", "content": prompt}
             ]
         )
+        if temperature is not None:
+            create_kwargs["temperature"] = temperature
+        response = anthropic_client.messages.create(**create_kwargs)
 
         print("Used model: ", model)
 

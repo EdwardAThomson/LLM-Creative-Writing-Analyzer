@@ -1,0 +1,27 @@
+CREATIVE WRITING TEST SUMMARY
+Timestamp: 20260610_140135
+Models tested: claude-cli-fable
+Repeats per model: 10
+Target word count: 1500
+
+RESULTS SUMMARY:
+
+MODEL: claude-cli-fable
+  Text Similarity (exact matches):
+    Average similarity: 0.0233
+    Median similarity: 0.0236
+  Semantic Similarity (meaning):
+    Average: 0.5113
+    Median: 0.5090
+  Text Structure:
+    Paragraphs per 1000 words: 24.07
+    Sentences per paragraph: 2.40
+    Words per sentence: 17.58
+  Entity Similarity (names, places, etc):
+    Average overlap: 0.0531
+    Repeated entities: 64
+    Repeated name components: 10
+    Shared name parts: Continuum (3/10), Yara (2/10), Venn (2/10), Okonkwo-Reyes (2/10), Pell (2/10) and 5 more
+  Average word count: 1484.00
+  Successful responses: 10/10
+
