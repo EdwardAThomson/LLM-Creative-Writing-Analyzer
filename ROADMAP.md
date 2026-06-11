@@ -28,6 +28,11 @@ outputs for consistency, variation, entity reuse, and structure to surface model
 
 - [ ] Keep the available-model list current as new LLMs ship
 - [ ] Deeper randomness / statistical analysis of output variation
+- [ ] **Metrics upgrades** — phased plan in [METRICS_ROADMAP.md](METRICS_ROADMAP.md):
+  phonetic name clustering (closes report §6.6), length-robust diversity (MTLD),
+  per-text craft metrics, prompt-adherence scoring, and an LLM-as-judge quality axis.
+  Built as a **frozen-v1 + modular metric library + cumulative version manifests**
+  (`utils/metrics/` + `benchmarks/vN.yaml`) so future v3/v4 runs stay comparable
 
 ## Backlog
 
