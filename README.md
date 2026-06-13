@@ -12,6 +12,11 @@ This project allows you to test multiple LLMs with the same creative writing pro
 4. Create comprehensive output files with the results
 5. Re-analyze existing output files with new metrics as they become available
 
+## YouTube - Findings Overviews
+
+* 2025: [First benchmark run](https://www.youtube.com/watch?v=viOgoXF4MDQ)
+* 2026: [Second benchmark run](https://www.youtube.com/watch?v=d0gkrymMI_w)
+
 ## Report & Findings
 
 A written-up analysis lives in [`reports/report.md`](reports/report.md). It began
