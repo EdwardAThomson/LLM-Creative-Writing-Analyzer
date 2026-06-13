@@ -28,11 +28,11 @@ outputs for consistency, variation, entity reuse, and structure to surface model
 
 - [ ] Keep the available-model list current as new LLMs ship
 - [ ] Deeper randomness / statistical analysis of output variation
-- [ ] **Metrics upgrades** — phased plan in [METRICS_ROADMAP.md](METRICS_ROADMAP.md):
-  phonetic name clustering (closes report §6.6), length-robust diversity (MTLD),
-  per-text craft metrics, prompt-adherence scoring, and an LLM-as-judge quality axis.
-  Built as a **frozen-v1 + modular metric library + cumulative version manifests**
-  (`utils/metrics/` + `benchmarks/vN.yaml`) so future v3/v4 runs stay comparable
+- [ ] Modular metrics framework — keep v1 frozen; add opt-in v2+ metric modules in `utils/metrics/`, cumulative version manifests (`benchmarks/vN.yaml`), and write v2+ results to a separate sidecar so v1 artifacts stay byte-identical (design: [METRICS_ROADMAP.md](METRICS_ROADMAP.md))
+- [ ] Metrics — diversity/fingerprint upgrades: phonetic name clustering (closes report §6.6), length-robust lexical diversity (MTLD), Self-BLEU / distinct-n, embedding-cloud modality, opening-line diversity, NER-aware name filtering
+- [ ] Metrics — per-text craft: sentence-length burstiness, readability spread, dialogue ratio, sensory density, intra-text repetition, cliché / "AI-slop" lexicon
+- [ ] Metrics — prompt-adherence scoring: fraction of the prompt's parameters honored (tense, POV, requested species/tech)
+- [ ] Metrics — LLM-as-judge quality axis: rubric scoring + pairwise Elo, genericness via perplexity, judge-bias controls
 
 ## Backlog
 
