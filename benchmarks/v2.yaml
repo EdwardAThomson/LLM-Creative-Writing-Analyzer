@@ -1,0 +1,12 @@
+# Benchmark v2 — cumulative: v1 ∪ the first opt-in utils/metrics modules.
+#
+# A version is a frozen SELECTION over the shared metric library, not a folder of
+# code (METRICS_ROADMAP — Architecture). Resolving v2 walks the extends chain and
+# unions the 'add' lists, so v2 = v1's metrics + these. The v1 entries are run by
+# the frozen legacy pipeline; the entries below are utils/metrics modules scored
+# into the sidecar. Once shipped this file is frozen — new work adds v3.yaml.
+version: v2
+extends: v1
+add:
+  - phonetic_names
+  - mtld

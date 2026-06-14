@@ -1,0 +1,15 @@
+# Benchmark v1 — the FROZEN baseline (the longitudinal 2025/2026 study).
+#
+# These metrics are produced by the legacy pipeline in utils/text_analysis.py, NOT
+# by the utils/metrics library. They are named here for provenance only so a vN
+# manifest can declare "extends: v1" and resolve to the full cumulative set.
+# v1.yaml is frozen: never edit it. (METRICS_ROADMAP — Hard invariants 1, 4.)
+version: v1
+extends: null
+legacy: true          # 'add' metrics are run by the v1 pipeline, not utils/metrics
+add:
+  - text_similarity
+  - vocabulary_diversity
+  - structure
+  - semantic_similarity
+  - entity_analysis
