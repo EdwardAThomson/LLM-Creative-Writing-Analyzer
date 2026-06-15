@@ -76,3 +76,18 @@ def person_surnames_by_run(responses: list[str], ctx: Optional[dict] = None) -> 
                 names.extend(_surname_candidates(ent.text))
         out.append(names)
     return out
+
+
+def sentences_by_run(responses: list[str], ctx: Optional[dict] = None) -> list[list[str]]:
+    """Per-run list of sentence strings via the shared spaCy sentence segmenter.
+
+    A generic seam (other metrics — opening-line diversity, readability — can reuse
+    it). Empty/whitespace-only sentences are dropped. Uses the same cached
+    ``ctx['_nlp']`` model as the entity helpers, so a v2 run segments once.
+    """
+    nlp = _get_nlp(ctx)
+    out: list[list[str]] = []
+    for text in responses:
+        doc = nlp(text)
+        out.append([s.text.strip() for s in doc.sents if s.text.strip()])
+    return out

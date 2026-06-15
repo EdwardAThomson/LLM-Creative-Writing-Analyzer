@@ -10,3 +10,4 @@ extends: v1
 add:
   - phonetic_names
   - mtld
+  - burstiness
