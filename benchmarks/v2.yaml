@@ -11,3 +11,5 @@ add:
   - phonetic_names
   - mtld
   - burstiness
+  - dialogue_ratio
+  - intra_text_repetition
