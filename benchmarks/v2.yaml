@@ -13,3 +13,4 @@ add:
   - burstiness
   - dialogue_ratio
   - intra_text_repetition
+  - cliche_density
