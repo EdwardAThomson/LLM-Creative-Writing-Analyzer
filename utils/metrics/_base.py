@@ -60,6 +60,23 @@ def _get_nlp(ctx: Optional[dict]):
     return nlp
 
 
+def get_sentence_model(ctx: Optional[dict] = None, name: str = "all-MiniLM-L6-v2"):
+    """Load (and cache in ctx) the sentence-embedding model. Lazy import.
+
+    Mirrors the model v1 uses (``all-MiniLM-L6-v2``) so semantic numbers here are
+    comparable to the v1 semantic-similarity metric. Cached under
+    ``ctx['_sentence_model']`` so a v2 run loads it once across metrics.
+    """
+    model = (ctx or {}).get("_sentence_model")
+    if model is None:
+        from sentence_transformers import SentenceTransformer  # lazy (heavy)
+
+        model = SentenceTransformer(name)
+        if ctx is not None:
+            ctx["_sentence_model"] = model
+    return model
+
+
 def person_surnames_by_run(responses: list[str], ctx: Optional[dict] = None) -> list[list[str]]:
     """Per-run list of character surnames extracted from spaCy PERSON entities.
 

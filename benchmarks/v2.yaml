@@ -15,3 +15,4 @@ add:
   - intra_text_repetition
   - cliche_density
   - ngram_diversity
+  - opening_lines
