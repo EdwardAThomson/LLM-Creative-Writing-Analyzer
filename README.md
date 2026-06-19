@@ -213,6 +213,47 @@ python -m utils.text_analysis results/gpt-5.4_20260401_120145.txt --all --output
 
 This allows you to apply new analysis methods to existing results without needing to regenerate the responses. 
 
+### Extended Metrics (v2)
+
+The analyses above are the **v1** metric set — kept frozen so the longitudinal
+2025/2026 study stays comparable over time. Newer metrics live in an opt-in,
+modular library under `utils/metrics/` and are scored **without ever touching the
+v1 results**: they write to a parallel *sidecar* file, leaving the original
+`results_*.json` byte-identical. The current v2 set:
+
+| Metric | What it measures |
+|---|---|
+| `phonetic_names` | character-name recurrence by *sound* (closes the "V-surname" finding exact matching misses) |
+| `mtld` | length-robust lexical diversity (replaces length-sensitive TTR) |
+| `ngram_diversity` | corpus-level distinct-n + Self-BLEU across the N runs |
+| `opening_lines` | first-sentence similarity, lexical + semantic — the formulaic-opening tell |
+| `burstiness` | sentence-length variation (rhythm); humans vary it, models flatten it |
+| `dialogue_ratio` | share of text inside quotes (dialogue vs narration pacing) |
+| `intra_text_repetition` | word/phrase overuse *within* a single story |
+| `cliche_density` | cliché / stock-phrase + em-dash density (a generic-prose signal) |
+
+Score them over any saved `results_*.json` — no regeneration or API calls needed:
+
+```bash
+# List available metrics
+python -m utils.metrics --list
+
+# Score one results file with the full v2 set -> writes <file>.metrics.json
+python -m utils.metrics results/results_20250326_185105.json --benchmark v2
+
+# Score a single metric or a comma-separated subset
+python -m utils.metrics results/<file>.json --metrics mtld,burstiness
+
+# (Re)score an entire directory — every results_*.json gets its own sidecar,
+# sharing one model load. Use this whenever a metric or lexicon version changes.
+python -m utils.metrics results/ --benchmark v2
+```
+
+Each run writes a **self-describing sidecar** (`<file>.metrics.json`) recording the
+schema, benchmark version, and exact metric set. Benchmark "versions" are
+cumulative, frozen manifests in `benchmarks/vN.yaml` (e.g. `v2` = the eight metrics
+above); see [METRICS_ROADMAP.md](METRICS_ROADMAP.md) for the design rationale.
+
 
 ## Project Structure
 
@@ -233,8 +274,14 @@ This allows you to apply new analysis methods to existing results without needin
 │   ├── __init__.py            # Package initialization
 │   ├── llm_tester.py          # LLM testing functions
 │   ├── prompt_io.py           # Prompt and I/O handling
-│   └── text_analysis.py       # Text analysis functions
-└── results/                   # Default output directory
+│   ├── text_analysis.py       # v1 text analysis (frozen)
+│   └── metrics/               # v2+ opt-in metric library (see "Extended Metrics")
+│       ├── _base.py           # shared compute() contract + spaCy/embedding helpers
+│       ├── _manifests.py      # benchmark version (vN.yaml) resolver
+│       ├── __main__.py        # retroactive scorer CLI (file or directory)
+│       └── <metric>.py        # one module per metric
+├── benchmarks/                # frozen, cumulative metric manifests (v1.yaml, v2.yaml)
+└── results/                   # Output: v1 JSON + v2 .metrics.json sidecars
 ```
 
 ## Supported Models

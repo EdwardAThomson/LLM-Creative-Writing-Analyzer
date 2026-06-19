@@ -1,6 +1,6 @@
 # Metrics Roadmap — Creative-Writing Analysis Upgrades
 
-_Status: proposed · updated 2026-06-11 · companion to [ROADMAP.md](ROADMAP.md)_
+_Status: partially implemented — v2 ships 8 metrics (Phases 1–2) · updated 2026-06-19 · companion to [ROADMAP.md](ROADMAP.md)_
 
 ## Context
 
@@ -107,18 +107,18 @@ Each item below is tagged **What · Why · How · Done-when.**
 
 ## Phase 1 — Diversity & fingerprint upgrades (cheap; extends the current study)
 
-- [ ] **Phonetic name clustering** — *What:* cluster character names by Double
+- [x] **Phonetic name clustering** (`phonetic_names`) — *What:* cluster character names by Double
   Metaphone (or `leading-consonant + syllable-count`) and report repetition of the
   *sound*, not the token. *Why:* directly closes the §6.6 V-surname finding — the
   one effect the current metric provably misses. *How:* `jellyfish`/`metaphone`
   (tiny dep) over the filtered PERSON list. *Done-when:* a "phonetic name overlap"
   figure + per-cluster breakdown appear alongside the existing name-component row.
-- [ ] **Length-robust lexical diversity (MTLD / MATTR)** — *What:* replace/augment
+- [x] **Length-robust lexical diversity (MTLD / MATTR)** (`mtld`) — *What:* replace/augment
   raw TTR with MTLD. *Why:* TTR falls automatically as texts lengthen, forcing the
   current equal-length-pair workaround; MTLD is length-stable so Codex/Opus become
   directly comparable. *How:* `lexical-diversity` pkg or ~30 lines. *Done-when:*
   MTLD reported per run + aggregate; longitudinal doc can drop the length caveat.
-- [ ] **Self-BLEU + distinct-n** — *What:* corpus-level diversity of the N runs
+- [x] **Self-BLEU + distinct-n** (`ngram_diversity`) — *What:* corpus-level diversity of the N runs
   (Self-BLEU; lower = more distinct) and unique-n-gram ratios (distinct-1/2).
   *Why:* well-understood NLG diversity layer between exact and semantic similarity.
   *How:* `sacrebleu`/NLTK or hand-rolled. *Done-when:* both reported per model.
@@ -127,7 +127,7 @@ Each item below is tagged **What · Why · How · Done-when.**
   silhouette). *Why:* detects "model rotates among 2–3 stock plots," which a mean
   can't show. *How:* scikit-learn over embeddings already computed. *Done-when:*
   spread + estimated mode count reported.
-- [ ] **Opening-line diversity** — *What:* similarity metrics computed on the first
+- [x] **Opening-line diversity** (`opening_lines`) — *What:* similarity metrics computed on the first
   sentence only. *Why:* identical openings are a notorious tell that whole-text
   similarity dilutes. *How:* reuse existing similarity fns on sentence[0].
 - [ ] **NER-aware name metric (formalize)** — *What:* ship the false-positive
@@ -139,19 +139,19 @@ Each item below is tagged **What · Why · How · Done-when.**
 
 ## Phase 2 — Per-text craft metrics (the missing quality axis; still automated)
 
-- [ ] **Sentence-length burstiness** — *What:* variance/std of sentence length, not
+- [x] **Sentence-length burstiness** (`burstiness`) — *What:* variance/std of sentence length, not
   just the mean already tracked. *Why:* humans vary rhythm; models flatten it — a
   robust human-vs-AI signal. *How:* free from existing spaCy sentence segmentation.
 - [ ] **Readability spread** — *What:* Flesch-Kincaid / Gunning-Fog per run + variance.
   *Why:* cheap register/complexity proxy. *How:* `textstat` (tiny dep).
-- [ ] **Dialogue-to-narration ratio** — *What:* share of text inside quotation marks.
+- [x] **Dialogue-to-narration ratio** (`dialogue_ratio`) — *What:* share of text inside quotation marks.
   *Why:* pacing signal; varies by model. *How:* regex/quote parsing.
 - [ ] **Concrete/sensory-word density** — *What:* "show vs tell" proxy. *How:*
   Brysbaert concreteness norms (CSV lookup).
-- [ ] **Intra-text repetition** — *What:* word/n-gram overuse *within* one story
+- [x] **Intra-text repetition** (`intra_text_repetition`) — *What:* word/n-gram overuse *within* one story
   (we only measure across runs today). *Why:* genuine quality defect ("word
   obsession"). *How:* per-document n-gram frequency.
-- [ ] **Cliché / "AI-slop" lexicon hits** — *What:* frequency of stock markers
+- [x] **Cliché / "AI-slop" lexicon hits** (`cliche_density`, lexicon v1) — *What:* frequency of stock markers
   ("a testament to", "in a world where", em-dash density, "couldn't help but").
   *Why:* crude but diagnostic of generic prose. *How:* curated lexicon + counts.
 
@@ -185,10 +185,15 @@ Each item below is tagged **What · Why · How · Done-when.**
 
 The four that are cheap *and* either fix a known weakness or extend a published finding:
 
-1. **Phonetic name clustering** — closes the §6.6 loop.
-2. **MTLD** — removes the TTR length-sensitivity the longitudinal doc keeps caveating.
-3. **Sentence-length burstiness** — the first real craft metric, ~free from existing parsing.
-4. **LLM-judge rubric pass** — adds the quality axis the whole study currently lacks.
+1. **Phonetic name clustering** — ✅ shipped (`phonetic_names`). Closes the §6.6 loop.
+2. **MTLD** — ✅ shipped (`mtld`). Removes the TTR length-sensitivity the longitudinal doc keeps caveating.
+3. **Sentence-length burstiness** — ✅ shipped (`burstiness`). The first real craft metric, ~free from existing parsing.
+4. **LLM-judge rubric pass** — ⬜ still open. Adds the quality axis the whole study currently lacks.
+
+**Status (2026-06-19):** v2 ships **8** metrics — all of Phase 1 except embedding-cloud
+shape and the NER-aware name formalization, and all of Phase 2 except readability spread
+and concrete/sensory density. Phase 3 (adherence) and Phase 4 (LLM-judge) are not started.
+Scored over the full 13-model / 140-run corpus; sidecars committed under `results/`.
 
 ## Open questions / risks
 

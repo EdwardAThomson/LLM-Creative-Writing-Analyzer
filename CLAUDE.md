@@ -18,7 +18,32 @@ python llm_creative_tester.py --models gpt-5.5 claude-opus-4-8 codex-cli --repea
 python llm_tester_ui.py
 # Re-analyse an existing output file (no API calls)
 python -m utils.text_analysis results/<file>.txt --all
+# Score saved runs with the v2 metric set -> sidecar (no API calls); dir = whole corpus
+python -m utils.metrics results/<file>.json --benchmark v2
+python -m utils.metrics results/ --benchmark v2
 ```
+
+## v2 metrics library (`utils/metrics/`)
+
+Opt-in metrics added *after* the frozen v1 set in `text_analysis.py`. Design lives
+in `METRICS_ROADMAP.md`; the rules that protect the longitudinal series:
+
+- **v1 is never touched.** v2 reads `results_*.json` and writes a **separate
+  sidecar** `results_*.metrics.json` — the source file stays byte-identical. Don't
+  merge v2 output into the v1 `analysis` dict.
+- **One module per metric**, filename == metric name, exposing
+  `compute(responses, ctx) -> dict` (contract + shared spaCy/embedding helpers in
+  `_base.py`). Heavy deps are lazy-imported *inside* `compute`. Underscore-prefixed
+  files (`_base`, `_manifests`) are helpers, not metrics (excluded from `available()`).
+- **Benchmark versions** are frozen, cumulative manifests `benchmarks/vN.yaml`
+  (`extends:` + `add:`), resolved by `_manifests.py`. `v2` = the 8 shipped metrics.
+  Once a vN ships it isn't edited; new work adds `vN+1`.
+- **`ctx`** is a scratch dict shared across metrics in one run — caches the spaCy
+  model (`ctx['_nlp']`) and embedding model (`ctx['_sentence_model']`) so a batch
+  loads each once. Directory mode reuses one `ctx` across all files.
+- When a metric or a frozen lexicon (e.g. `cliche_density` `LEXICON_VERSION`)
+  changes, re-score the corpus with `python -m utils.metrics results/ --benchmark v2`
+  to refresh every sidecar.
 
 ## Backends (the important part)
 
