@@ -1,0 +1,3439 @@
+{
+  "schema": "metrics/1",
+  "source": "results_20260601_185808.json",
+  "benchmark": "v2",
+  "metrics_run": [
+    "phonetic_names",
+    "mtld",
+    "burstiness",
+    "dialogue_ratio",
+    "intra_text_repetition",
+    "cliche_density",
+    "ngram_diversity",
+    "opening_lines"
+  ],
+  "models": {
+    "gemini-cli-flash": {
+      "phonetic_names": {
+        "schema": "phonetic_names/1",
+        "method": "leading_sound/1",
+        "runs": 10,
+        "total_names": 257,
+        "distinct_sounds": 17,
+        "max_sound_recurrence": "9/10",
+        "repeated_sounds": [
+          {
+            "sound": "V",
+            "runs": 9,
+            "of": 10,
+            "distinct_names": [
+              "Vaelen",
+              "Valerius",
+              "Vance",
+              "Vane",
+              "Vora",
+              "Vox"
+            ]
+          },
+          {
+            "sound": "A",
+            "runs": 8,
+            "of": 10,
+            "distinct_names": [
+              "Abundance",
+              "Aethelgard",
+              "Aether",
+              "Alien",
+              "Aliens",
+              "Andromeda",
+              "Ark"
+            ]
+          },
+          {
+            "sound": "E",
+            "runs": 7,
+            "of": 10,
+            "distinct_names": [
+              "Editing",
+              "Elara",
+              "Elian"
+            ]
+          },
+          {
+            "sound": "K",
+            "runs": 7,
+            "of": 10,
+            "distinct_names": [
+              "Kael",
+              "Kaelen",
+              "Kshatri"
+            ]
+          },
+          {
+            "sound": "H",
+            "runs": 3,
+            "of": 10,
+            "distinct_names": [
+              "Harvester",
+              "Herald",
+              "Heresy"
+            ]
+          },
+          {
+            "sound": "P",
+            "runs": 3,
+            "of": 10,
+            "distinct_names": [
+              "Peacekeepers",
+              "Prime",
+              "Protocol",
+              "Pulse"
+            ]
+          },
+          {
+            "sound": "S",
+            "runs": 3,
+            "of": 10,
+            "distinct_names": [
+              "Silas",
+              "Singers",
+              "Slip",
+              "Sol"
+            ]
+          },
+          {
+            "sound": "C",
+            "runs": 2,
+            "of": 10,
+            "distinct_names": [
+              "Carbon",
+              "code"
+            ]
+          },
+          {
+            "sound": "R",
+            "runs": 2,
+            "of": 10,
+            "distinct_names": [
+              "Remnant",
+              "Reset"
+            ]
+          },
+          {
+            "sound": "TH",
+            "runs": 2,
+            "of": 10,
+            "distinct_names": [
+              "Thorne"
+            ]
+          }
+        ],
+        "note": "Recurrence of a character name's leading SOUND across runs, not the exact token; complements the v1 name-component metric (report \u00a76.6). Counts each PERSON span's final token and may include spaCy NER false positives (e.g. a place mislabeled PERSON) \u2014 verify before quoting."
+      },
+      "mtld": {
+        "schema": "mtld/1",
+        "method": "bidirectional MTLD, threshold=0.72",
+        "runs": 10,
+        "per_run": [
+          {
+            "tokens": 1325,
+            "types": 572,
+            "ttr": 0.43,
+            "mtld": 79.53,
+            "reliable": true
+          },
+          {
+            "tokens": 1724,
+            "types": 724,
+            "ttr": 0.42,
+            "mtld": 80.06,
+            "reliable": true
+          },
+          {
+            "tokens": 1408,
+            "types": 626,
+            "ttr": 0.44,
+            "mtld": 89.51,
+            "reliable": true
+          },
+          {
+            "tokens": 1687,
+            "types": 735,
+            "ttr": 0.44,
+            "mtld": 113.38,
+            "reliable": true
+          },
+          {
+            "tokens": 1878,
+            "types": 740,
+            "ttr": 0.39,
+            "mtld": 92.6,
+            "reliable": true
+          },
+          {
+            "tokens": 1757,
+            "types": 772,
+            "ttr": 0.44,
+            "mtld": 105.13,
+            "reliable": true
+          },
+          {
+            "tokens": 1795,
+            "types": 700,
+            "ttr": 0.39,
+            "mtld": 69.83,
+            "reliable": true
+          },
+          {
+            "tokens": 1776,
+            "types": 711,
+            "ttr": 0.4,
+            "mtld": 89.55,
+            "reliable": true
+          },
+          {
+            "tokens": 1621,
+            "types": 694,
+            "ttr": 0.43,
+            "mtld": 107.67,
+            "reliable": true
+          },
+          {
+            "tokens": 1610,
+            "types": 702,
+            "ttr": 0.44,
+            "mtld": 104.47,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "n": 10,
+          "mean": 93.17,
+          "min": 69.83,
+          "max": 113.38,
+          "std": 13.49
+        },
+        "aggregate_reliable_only": {
+          "n": 10,
+          "mean": 93.17,
+          "min": 69.83,
+          "max": 113.38,
+          "std": 13.49
+        },
+        "unreliable_runs": 0,
+        "note": "Length-robust lexical diversity (MTLD, McCarthy & Jarvis 2010); higher = more varied vocabulary. Unlike v1 TTR it does not fall merely because a text is longer. Runs under 50 tokens are flagged reliable=false; prefer aggregate_reliable_only when comparing models."
+      },
+      "burstiness": {
+        "schema": "burstiness/1",
+        "method": "per-run sentence-length CV and Goh-Barabasi B (spaCy segmentation)",
+        "runs": 10,
+        "per_run": [
+          {
+            "sentences": 112,
+            "words": 1325,
+            "mean": 11.83,
+            "std": 7.161,
+            "cv": 0.605,
+            "burstiness": -0.246,
+            "reliable": true
+          },
+          {
+            "sentences": 143,
+            "words": 1724,
+            "mean": 12.056,
+            "std": 7.67,
+            "cv": 0.636,
+            "burstiness": -0.222,
+            "reliable": true
+          },
+          {
+            "sentences": 121,
+            "words": 1408,
+            "mean": 11.636,
+            "std": 8.241,
+            "cv": 0.708,
+            "burstiness": -0.171,
+            "reliable": true
+          },
+          {
+            "sentences": 141,
+            "words": 1687,
+            "mean": 11.965,
+            "std": 8.64,
+            "cv": 0.722,
+            "burstiness": -0.161,
+            "reliable": true
+          },
+          {
+            "sentences": 150,
+            "words": 1878,
+            "mean": 12.52,
+            "std": 7.391,
+            "cv": 0.59,
+            "burstiness": -0.258,
+            "reliable": true
+          },
+          {
+            "sentences": 149,
+            "words": 1757,
+            "mean": 11.792,
+            "std": 7.556,
+            "cv": 0.641,
+            "burstiness": -0.219,
+            "reliable": true
+          },
+          {
+            "sentences": 146,
+            "words": 1795,
+            "mean": 12.295,
+            "std": 8.476,
+            "cv": 0.689,
+            "burstiness": -0.184,
+            "reliable": true
+          },
+          {
+            "sentences": 141,
+            "words": 1776,
+            "mean": 12.596,
+            "std": 7.926,
+            "cv": 0.629,
+            "burstiness": -0.228,
+            "reliable": true
+          },
+          {
+            "sentences": 116,
+            "words": 1621,
+            "mean": 13.974,
+            "std": 8.556,
+            "cv": 0.612,
+            "burstiness": -0.241,
+            "reliable": true
+          },
+          {
+            "sentences": 120,
+            "words": 1610,
+            "mean": 13.417,
+            "std": 8.896,
+            "cv": 0.663,
+            "burstiness": -0.203,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "cv": {
+            "n": 10,
+            "mean": 0.649,
+            "min": 0.59,
+            "max": 0.722,
+            "std": 0.042
+          },
+          "burstiness": {
+            "n": 10,
+            "mean": -0.213,
+            "min": -0.258,
+            "max": -0.161,
+            "std": 0.031
+          },
+          "mean": {
+            "n": 10,
+            "mean": 12.408,
+            "min": 11.636,
+            "max": 13.974,
+            "std": 0.718
+          },
+          "std": {
+            "n": 10,
+            "mean": 8.051,
+            "min": 7.161,
+            "max": 8.896,
+            "std": 0.563
+          }
+        },
+        "aggregate_reliable_only": {
+          "cv": {
+            "n": 10,
+            "mean": 0.649,
+            "min": 0.59,
+            "max": 0.722,
+            "std": 0.042
+          },
+          "burstiness": {
+            "n": 10,
+            "mean": -0.213,
+            "min": -0.258,
+            "max": -0.161,
+            "std": 0.031
+          },
+          "mean": {
+            "n": 10,
+            "mean": 12.408,
+            "min": 11.636,
+            "max": 13.974,
+            "std": 0.718
+          },
+          "std": {
+            "n": 10,
+            "mean": 8.051,
+            "min": 7.161,
+            "max": 8.896,
+            "std": 0.563
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Variation in sentence length (rhythm). cv = std/mean is the length-robust headline; burstiness = (std-mean)/(std+mean) in [-1,1] is the Goh-Barabasi coefficient (>0 bursty/human-like, <0 metronomic). Higher = more varied rhythm. Runs under 3 sentences are flagged reliable=false."
+      },
+      "dialogue_ratio": {
+        "schema": "dialogue_ratio/1",
+        "method": "words inside paired double quotes / total words",
+        "runs": 10,
+        "per_run": [
+          {
+            "total_words": 1325,
+            "dialogue_words": 182,
+            "dialogue_ratio": 0.137,
+            "quoted_passages": 30
+          },
+          {
+            "total_words": 1724,
+            "dialogue_words": 268,
+            "dialogue_ratio": 0.155,
+            "quoted_passages": 21
+          },
+          {
+            "total_words": 1408,
+            "dialogue_words": 273,
+            "dialogue_ratio": 0.194,
+            "quoted_passages": 34
+          },
+          {
+            "total_words": 1687,
+            "dialogue_words": 205,
+            "dialogue_ratio": 0.122,
+            "quoted_passages": 37
+          },
+          {
+            "total_words": 1878,
+            "dialogue_words": 113,
+            "dialogue_ratio": 0.06,
+            "quoted_passages": 31
+          },
+          {
+            "total_words": 1757,
+            "dialogue_words": 249,
+            "dialogue_ratio": 0.142,
+            "quoted_passages": 36
+          },
+          {
+            "total_words": 1795,
+            "dialogue_words": 120,
+            "dialogue_ratio": 0.067,
+            "quoted_passages": 26
+          },
+          {
+            "total_words": 1776,
+            "dialogue_words": 109,
+            "dialogue_ratio": 0.061,
+            "quoted_passages": 24
+          },
+          {
+            "total_words": 1621,
+            "dialogue_words": 125,
+            "dialogue_ratio": 0.077,
+            "quoted_passages": 24
+          },
+          {
+            "total_words": 1610,
+            "dialogue_words": 207,
+            "dialogue_ratio": 0.129,
+            "quoted_passages": 29
+          }
+        ],
+        "aggregate": {
+          "n": 10,
+          "mean": 0.114,
+          "min": 0.06,
+          "max": 0.194,
+          "std": 0.044
+        },
+        "note": "Fraction of words inside double quotes (dialogue) vs narration; a pacing fingerprint. Straight and curly double quotes are paired; single quotes are ignored (apostrophe collision). quoted_passages counts distinct quoted spans."
+      },
+      "intra_text_repetition": {
+        "schema": "intra_text_repetition/1",
+        "method": "per-text n-gram repeat rate (1 - distinct/total); unigram=content words",
+        "runs": 10,
+        "per_run": [
+          {
+            "word_tokens": 1325,
+            "content_tokens": 695,
+            "unigram": {
+              "rep_rate": 0.292,
+              "top": [
+                [
+                  "elara",
+                  16
+                ],
+                [
+                  "voice",
+                  9
+                ],
+                [
+                  "machine",
+                  9
+                ],
+                [
+                  "consensus",
+                  8
+                ],
+                [
+                  "world",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.149,
+              "top": [
+                [
+                  "of the",
+                  19
+                ],
+                [
+                  "in the",
+                  15
+                ],
+                [
+                  "is a",
+                  11
+                ],
+                [
+                  "the machine",
+                  7
+                ],
+                [
+                  "it is",
+                  7
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.022,
+              "top": [
+                [
+                  "it is a",
+                  5
+                ],
+                [
+                  "a r i",
+                  4
+                ],
+                [
+                  "r i a",
+                  4
+                ],
+                [
+                  "the solar consensus",
+                  3
+                ],
+                [
+                  "the dust belt",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1724,
+            "content_tokens": 907,
+            "unigram": {
+              "rep_rate": 0.295,
+              "top": [
+                [
+                  "elara",
+                  18
+                ],
+                [
+                  "like",
+                  9
+                ],
+                [
+                  "ship",
+                  7
+                ],
+                [
+                  "sees",
+                  7
+                ],
+                [
+                  "machine",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.174,
+              "top": [
+                [
+                  "of the",
+                  23
+                ],
+                [
+                  "it is",
+                  15
+                ],
+                [
+                  "is a",
+                  14
+                ],
+                [
+                  "in the",
+                  11
+                ],
+                [
+                  "of a",
+                  8
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.034,
+              "top": [
+                [
+                  "it is a",
+                  7
+                ],
+                [
+                  "she sees the",
+                  5
+                ],
+                [
+                  "the center of",
+                  3
+                ],
+                [
+                  "of new byzantium",
+                  3
+                ],
+                [
+                  "of the concordance",
+                  3
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1408,
+            "content_tokens": 752,
+            "unigram": {
+              "rep_rate": 0.266,
+              "top": [
+                [
+                  "kaelen",
+                  17
+                ],
+                [
+                  "oros",
+                  8
+                ],
+                [
+                  "thorne",
+                  8
+                ],
+                [
+                  "architects",
+                  6
+                ],
+                [
+                  "sub",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.131,
+              "top": [
+                [
+                  "of the",
+                  19
+                ],
+                [
+                  "in the",
+                  10
+                ],
+                [
+                  "is a",
+                  9
+                ],
+                [
+                  "in a",
+                  7
+                ],
+                [
+                  "the sub",
+                  6
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.016,
+              "top": [
+                [
+                  "the sub vent",
+                  6
+                ],
+                [
+                  "it is a",
+                  3
+                ],
+                [
+                  "his neural link",
+                  3
+                ],
+                [
+                  "the red dust",
+                  2
+                ],
+                [
+                  "sentient machines that",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1687,
+            "content_tokens": 947,
+            "unigram": {
+              "rep_rate": 0.308,
+              "top": [
+                [
+                  "elara",
+                  21
+                ],
+                [
+                  "zenith",
+                  8
+                ],
+                [
+                  "seven",
+                  8
+                ],
+                [
+                  "concordat",
+                  7
+                ],
+                [
+                  "voice",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.141,
+              "top": [
+                [
+                  "of the",
+                  19
+                ],
+                [
+                  "in the",
+                  13
+                ],
+                [
+                  "of a",
+                  9
+                ],
+                [
+                  "from the",
+                  9
+                ],
+                [
+                  "is a",
+                  7
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.018,
+              "top": [
+                [
+                  "it is a",
+                  4
+                ],
+                [
+                  "she sees the",
+                  3
+                ],
+                [
+                  "the twin suns",
+                  2
+                ],
+                [
+                  "suns of aethelgard",
+                  2
+                ],
+                [
+                  "stands in the",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1878,
+            "content_tokens": 1004,
+            "unigram": {
+              "rep_rate": 0.343,
+              "top": [
+                [
+                  "elara",
+                  21
+                ],
+                [
+                  "loom",
+                  10
+                ],
+                [
+                  "sky",
+                  9
+                ],
+                [
+                  "assembly",
+                  9
+                ],
+                [
+                  "great",
+                  9
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.184,
+              "top": [
+                [
+                  "of the",
+                  25
+                ],
+                [
+                  "in the",
+                  20
+                ],
+                [
+                  "is a",
+                  12
+                ],
+                [
+                  "the great",
+                  9
+                ],
+                [
+                  "the sky",
+                  8
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.036,
+              "top": [
+                [
+                  "the great loom",
+                  8
+                ],
+                [
+                  "it s a",
+                  5
+                ],
+                [
+                  "the caelum plains",
+                  4
+                ],
+                [
+                  "the assembly s",
+                  4
+                ],
+                [
+                  "great loom is",
+                  3
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1757,
+            "content_tokens": 979,
+            "unigram": {
+              "rep_rate": 0.298,
+              "top": [
+                [
+                  "kaelen",
+                  22
+                ],
+                [
+                  "scribes",
+                  9
+                ],
+                [
+                  "ship",
+                  8
+                ],
+                [
+                  "like",
+                  7
+                ],
+                [
+                  "concordance",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.144,
+              "top": [
+                [
+                  "of the",
+                  26
+                ],
+                [
+                  "is a",
+                  16
+                ],
+                [
+                  "from the",
+                  10
+                ],
+                [
+                  "it is",
+                  10
+                ],
+                [
+                  "in the",
+                  8
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.019,
+              "top": [
+                [
+                  "it is a",
+                  6
+                ],
+                [
+                  "he sees the",
+                  4
+                ],
+                [
+                  "it is the",
+                  3
+                ],
+                [
+                  "of the terraforming",
+                  2
+                ],
+                [
+                  "a low aug",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1795,
+            "content_tokens": 956,
+            "unigram": {
+              "rep_rate": 0.343,
+              "top": [
+                [
+                  "kaelen",
+                  25
+                ],
+                [
+                  "light",
+                  9
+                ],
+                [
+                  "scrubber",
+                  8
+                ],
+                [
+                  "mind",
+                  8
+                ],
+                [
+                  "aethelgard",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.178,
+              "top": [
+                [
+                  "of the",
+                  29
+                ],
+                [
+                  "is a",
+                  20
+                ],
+                [
+                  "in the",
+                  14
+                ],
+                [
+                  "it is",
+                  11
+                ],
+                [
+                  "of a",
+                  11
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.031,
+              "top": [
+                [
+                  "it is a",
+                  7
+                ],
+                [
+                  "the omni mind",
+                  6
+                ],
+                [
+                  "he is a",
+                  4
+                ],
+                [
+                  "he sees the",
+                  3
+                ],
+                [
+                  "he feels the",
+                  3
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1776,
+            "content_tokens": 940,
+            "unigram": {
+              "rep_rate": 0.326,
+              "top": [
+                [
+                  "kaelen",
+                  24
+                ],
+                [
+                  "ship",
+                  13
+                ],
+                [
+                  "democracy",
+                  11
+                ],
+                [
+                  "silt",
+                  8
+                ],
+                [
+                  "looks",
+                  8
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.172,
+              "top": [
+                [
+                  "of the",
+                  23
+                ],
+                [
+                  "in the",
+                  18
+                ],
+                [
+                  "the democracy",
+                  11
+                ],
+                [
+                  "is a",
+                  10
+                ],
+                [
+                  "it is",
+                  10
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.034,
+              "top": [
+                [
+                  "the silt fields",
+                  5
+                ],
+                [
+                  "the shadow ship",
+                  5
+                ],
+                [
+                  "the gilded spire",
+                  4
+                ],
+                [
+                  "of the democracy",
+                  4
+                ],
+                [
+                  "in the air",
+                  4
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1621,
+            "content_tokens": 903,
+            "unigram": {
+              "rep_rate": 0.32,
+              "top": [
+                [
+                  "kaelen",
+                  20
+                ],
+                [
+                  "oros",
+                  12
+                ],
+                [
+                  "ship",
+                  8
+                ],
+                [
+                  "sky",
+                  7
+                ],
+                [
+                  "democracy",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.14,
+              "top": [
+                [
+                  "of the",
+                  18
+                ],
+                [
+                  "in the",
+                  15
+                ],
+                [
+                  "is a",
+                  10
+                ],
+                [
+                  "it is",
+                  10
+                ],
+                [
+                  "of oros",
+                  8
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.02,
+              "top": [
+                [
+                  "the unity of",
+                  3
+                ],
+                [
+                  "unity of worlds",
+                  3
+                ],
+                [
+                  "it is a",
+                  3
+                ],
+                [
+                  "the obsidian ship",
+                  3
+                ],
+                [
+                  "a masterpiece of",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1610,
+            "content_tokens": 879,
+            "unigram": {
+              "rep_rate": 0.295,
+              "top": [
+                [
+                  "elian",
+                  26
+                ],
+                [
+                  "federation",
+                  8
+                ],
+                [
+                  "sees",
+                  7
+                ],
+                [
+                  "isn't",
+                  6
+                ],
+                [
+                  "aethelgard",
+                  5
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.127,
+              "top": [
+                [
+                  "of the",
+                  15
+                ],
+                [
+                  "is a",
+                  13
+                ],
+                [
+                  "in the",
+                  11
+                ],
+                [
+                  "and the",
+                  7
+                ],
+                [
+                  "he sees",
+                  7
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.021,
+              "top": [
+                [
+                  "he sees the",
+                  6
+                ],
+                [
+                  "in the roots",
+                  3
+                ],
+                [
+                  "the ai collective",
+                  3
+                ],
+                [
+                  "it is a",
+                  2
+                ],
+                [
+                  "a shimmering iridescent",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "unigram": {
+            "n": 10,
+            "mean": 0.309,
+            "min": 0.266,
+            "max": 0.343
+          },
+          "bigram": {
+            "n": 10,
+            "mean": 0.154,
+            "min": 0.127,
+            "max": 0.184
+          },
+          "trigram": {
+            "n": 10,
+            "mean": 0.025,
+            "min": 0.016,
+            "max": 0.036
+          }
+        },
+        "aggregate_reliable_only": {
+          "unigram": {
+            "n": 10,
+            "mean": 0.309,
+            "min": 0.266,
+            "max": 0.343
+          },
+          "bigram": {
+            "n": 10,
+            "mean": 0.154,
+            "min": 0.127,
+            "max": 0.184
+          },
+          "trigram": {
+            "n": 10,
+            "mean": 0.025,
+            "min": 0.016,
+            "max": 0.036
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Repetition WITHIN each story (complements the across-run diversity metrics). rep_rate = 1 - distinct/total n-grams; higher = more repetitive. unigram is over content words only (the 'word obsession' defect); bigram/trigram over all tokens. Runs under 30 tokens flagged reliable=false."
+      },
+      "cliche_density": {
+        "schema": "cliche_density/1",
+        "lexicon_version": "1",
+        "lexicon_size": 38,
+        "method": "stock-phrase / register-word / em-dash hits per 1000 words",
+        "runs": 10,
+        "per_run": [
+          {
+            "words": 1325,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 3,
+              "per_1k": 2.26,
+              "distinct": 3,
+              "word_hits": {
+                "shimmering": 1,
+                "symphony": 1,
+                "nestled": 1
+              }
+            },
+            "em_dash": {
+              "count": 10,
+              "per_1k": 7.55
+            }
+          },
+          {
+            "words": 1724,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 3,
+              "per_1k": 1.74,
+              "distinct": 2,
+              "word_hits": {
+                "shimmering": 2,
+                "symphony": 1
+              }
+            },
+            "em_dash": {
+              "count": 13,
+              "per_1k": 7.54
+            }
+          },
+          {
+            "words": 1408,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 1,
+              "per_1k": 0.71,
+              "distinct": 1,
+              "word_hits": {
+                "gleaming": 1
+              }
+            },
+            "em_dash": {
+              "count": 7,
+              "per_1k": 4.97
+            }
+          },
+          {
+            "words": 1687,
+            "cliche": {
+              "hits": 1,
+              "per_1k": 0.59,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 1,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "as_if_time_itself": 1
+              }
+            },
+            "slop_words": {
+              "hits": 2,
+              "per_1k": 1.19,
+              "distinct": 1,
+              "word_hits": {
+                "shimmering": 2
+              }
+            },
+            "em_dash": {
+              "count": 7,
+              "per_1k": 4.15
+            }
+          },
+          {
+            "words": 1878,
+            "cliche": {
+              "hits": 2,
+              "per_1k": 1.06,
+              "distinct": 2,
+              "by_category": {
+                "A_opener": 1,
+                "B_epithet": 1,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "in_a_world_where": 1,
+                "testament_to": 1
+              }
+            },
+            "slop_words": {
+              "hits": 5,
+              "per_1k": 2.66,
+              "distinct": 4,
+              "word_hits": {
+                "tapestry": 1,
+                "bustling": 1,
+                "shimmering": 2,
+                "symphony": 1
+              }
+            },
+            "em_dash": {
+              "count": 16,
+              "per_1k": 8.52
+            }
+          },
+          {
+            "words": 1757,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 3,
+              "per_1k": 1.71,
+              "distinct": 2,
+              "word_hits": {
+                "gleaming": 2,
+                "shimmering": 1
+              }
+            },
+            "em_dash": {
+              "count": 18,
+              "per_1k": 10.24
+            }
+          },
+          {
+            "words": 1795,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 1,
+              "per_1k": 0.56,
+              "distinct": 1,
+              "word_hits": {
+                "shimmering": 1
+              }
+            },
+            "em_dash": {
+              "count": 19,
+              "per_1k": 10.58
+            }
+          },
+          {
+            "words": 1776,
+            "cliche": {
+              "hits": 1,
+              "per_1k": 0.56,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 1,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "beginning_of_the_end": 1
+              }
+            },
+            "slop_words": {
+              "hits": 4,
+              "per_1k": 2.25,
+              "distinct": 3,
+              "word_hits": {
+                "shimmering": 2,
+                "intricate": 1,
+                "symphony": 1
+              }
+            },
+            "em_dash": {
+              "count": 9,
+              "per_1k": 5.07
+            }
+          },
+          {
+            "words": 1621,
+            "cliche": {
+              "hits": 2,
+              "per_1k": 1.23,
+              "distinct": 2,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 1,
+                "D_time": 1,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "pang_of": 1,
+                "in_that_moment": 1
+              }
+            },
+            "slop_words": {
+              "hits": 3,
+              "per_1k": 1.85,
+              "distinct": 2,
+              "word_hits": {
+                "shimmering": 2,
+                "tapestry": 1
+              }
+            },
+            "em_dash": {
+              "count": 14,
+              "per_1k": 8.64
+            }
+          },
+          {
+            "words": 1610,
+            "cliche": {
+              "hits": 3,
+              "per_1k": 1.86,
+              "distinct": 3,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 1,
+                "D_time": 0,
+                "E_closer": 1,
+                "F_struct": 1
+              },
+              "phrase_hits": {
+                "knuckles_white": 1,
+                "never_be_the_same": 1,
+                "more_than_just": 1
+              }
+            },
+            "slop_words": {
+              "hits": 4,
+              "per_1k": 2.48,
+              "distinct": 2,
+              "word_hits": {
+                "shimmering": 3,
+                "gleaming": 1
+              }
+            },
+            "em_dash": {
+              "count": 8,
+              "per_1k": 4.97
+            }
+          }
+        ],
+        "aggregate": {
+          "cliche_per_1k": 0.53,
+          "slop_words_per_1k": 1.74,
+          "em_dash_per_1k": 7.22
+        },
+        "note": "Clich\u00e9 / stock-phrase density (per 1000 words) \u2014 a GENERIC-PROSE signal, not an AI detector: most phrases are overused human clich\u00e9s. 'cliche' is the trustworthy multi-word headline; 'slop_words' (single register words) is high-FP and kept separate; 'em_dash' is a structural cadence tell."
+      },
+      "ngram_diversity": {
+        "schema": "ngram_diversity/1",
+        "method": "distinct-n (n=1,2,3) + Self-BLEU-4",
+        "runs": 10,
+        "tokens": {
+          "total": 16581,
+          "mean_per_run": 1658.1,
+          "min": 1325,
+          "max": 1878,
+          "length_spread": 0.3335
+        },
+        "distinct": {
+          "distinct_1": {
+            "distinct": 3075,
+            "total": 16581,
+            "ratio": 0.1855
+          },
+          "distinct_2": {
+            "distinct": 10572,
+            "total": 16571,
+            "ratio": 0.638
+          },
+          "distinct_3": {
+            "distinct": 14772,
+            "total": 16561,
+            "ratio": 0.892
+          }
+        },
+        "self_bleu": {
+          "mean": 0.2231,
+          "min": 0.2042,
+          "max": 0.2595,
+          "per_run": [
+            0.2204,
+            0.2595,
+            0.2269,
+            0.2162,
+            0.2042,
+            0.218,
+            0.2112,
+            0.2367,
+            0.211,
+            0.2264
+          ]
+        },
+        "note": "Corpus-level diversity of the N runs. distinct_n (distinct/total n-grams) is HIGHER for more diverse sets; self_bleu is HIGHER for more SIMILAR (less diverse) sets \u2014 they move in opposite directions. Both are length-sensitive: compare across run sets of similar size (see tokens.length_spread; a large spread weakens comparability)."
+      },
+      "opening_lines": {
+        "schema": "opening_lines/1",
+        "method": "first-sentence similarity: Jaccard + difflib + semantic cosine (all-MiniLM-L6-v2)",
+        "runs": 10,
+        "usable_openings": 10,
+        "title_blocks_stripped": 2,
+        "suspected_title_openings": 0,
+        "openings": [
+          "The sky over Aethelgard does not merely hold the sun; it filters it through a shimmering lattice of orbital mirrors, a celestial web that en",
+          "The sky over Aethelgard is not blue, nor is it black.",
+          "The galaxy does not breathe; it vibrates.",
+          "The twin suns of Aethelgard, Solis and Luna-Prime, hang like heavy gold coins over the horizon of the Oakhaven Farmlands.",
+          "The sky over Aethelgard is not a single color, but a shifting tapestry of bruised violets and oxygen-rich teals, a testament to three centur",
+          "The sky over Aethelgard is never truly dark.",
+          "The stars above Aethelgard do not twinkle; they thrum.",
+          "The sky over Oros does not merely hold the sun; it filters it through a veil of shimmering nanites, a golden haze that tastes of ozone and a",
+          "The sky over the Orosian Frontier is a masterpiece of synthetic engineering, a vaulted ceiling of shimmering cobalt that pulses with the rhy",
+          "The sky over Aethelgard is not blue, nor has it been for three centuries."
+        ],
+        "lexical": {
+          "jaccard": {
+            "mean": 0.1564,
+            "max": 0.6
+          },
+          "sequence_ratio": {
+            "mean": 0.3874,
+            "max": 0.7742
+          },
+          "distinct_openings": 10,
+          "shared_prefix": {
+            "top": [
+              [
+                "the sky over",
+                7
+              ],
+              [
+                "the galaxy does",
+                1
+              ],
+              [
+                "the twin suns",
+                1
+              ]
+            ],
+            "max_share": "7/10"
+          }
+        },
+        "semantic": {
+          "model": "all-MiniLM-L6-v2",
+          "mean": 0.4083,
+          "median": 0.3736,
+          "min": 0.0177,
+          "max": 0.8607
+        },
+        "note": "Similarity of the FIRST SENTENCE across runs (a tell whole-text similarity dilutes). High jaccard/sequence_ratio/semantic or low distinct_openings = formulaic openings; shared_prefix.max_share shows how many runs share the same opening words. Leading title/heading scaffolding is stripped before segmentation (title_blocks_stripped counts it); suspected_title_openings flags any short title-like opening that survived stripping."
+      }
+    },
+    "gemini-cli-pro": {
+      "phonetic_names": {
+        "schema": "phonetic_names/1",
+        "method": "leading_sound/1",
+        "runs": 10,
+        "total_names": 210,
+        "distinct_sounds": 16,
+        "max_sound_recurrence": "6/10",
+        "repeated_sounds": [
+          {
+            "sound": "K",
+            "runs": 6,
+            "of": 10,
+            "distinct_names": [
+              "Kael",
+              "Kaelen"
+            ]
+          },
+          {
+            "sound": "V",
+            "runs": 6,
+            "of": 10,
+            "distinct_names": [
+              "Vance",
+              "Voss",
+              "Vrellan"
+            ]
+          },
+          {
+            "sound": "E",
+            "runs": 5,
+            "of": 10,
+            "distinct_names": [
+              "Elara",
+              "Enforcers",
+              "empire"
+            ]
+          },
+          {
+            "sound": "A",
+            "runs": 4,
+            "of": 10,
+            "distinct_names": [
+              "Aethelgard",
+              "Aliens",
+              "Aria",
+              "Ascendant"
+            ]
+          },
+          {
+            "sound": "D",
+            "runs": 2,
+            "of": 10,
+            "distinct_names": [
+              "Dyson",
+              "dart"
+            ]
+          },
+          {
+            "sound": "O",
+            "runs": 2,
+            "of": 10,
+            "distinct_names": [
+              "Oakhaven",
+              "Omega"
+            ]
+          },
+          {
+            "sound": "T",
+            "runs": 2,
+            "of": 10,
+            "distinct_names": [
+              "Toris",
+              "tang"
+            ]
+          }
+        ],
+        "note": "Recurrence of a character name's leading SOUND across runs, not the exact token; complements the v1 name-component metric (report \u00a76.6). Counts each PERSON span's final token and may include spaCy NER false positives (e.g. a place mislabeled PERSON) \u2014 verify before quoting."
+      },
+      "mtld": {
+        "schema": "mtld/1",
+        "method": "bidirectional MTLD, threshold=0.72",
+        "runs": 10,
+        "per_run": [
+          {
+            "tokens": 2240,
+            "types": 989,
+            "ttr": 0.44,
+            "mtld": 156.99,
+            "reliable": true
+          },
+          {
+            "tokens": 1510,
+            "types": 721,
+            "ttr": 0.48,
+            "mtld": 128.45,
+            "reliable": true
+          },
+          {
+            "tokens": 2346,
+            "types": 1014,
+            "ttr": 0.43,
+            "mtld": 147.61,
+            "reliable": true
+          },
+          {
+            "tokens": 1897,
+            "types": 901,
+            "ttr": 0.47,
+            "mtld": 128.39,
+            "reliable": true
+          },
+          {
+            "tokens": 1847,
+            "types": 865,
+            "ttr": 0.47,
+            "mtld": 132.75,
+            "reliable": true
+          },
+          {
+            "tokens": 1803,
+            "types": 821,
+            "ttr": 0.46,
+            "mtld": 120.45,
+            "reliable": true
+          },
+          {
+            "tokens": 1765,
+            "types": 845,
+            "ttr": 0.48,
+            "mtld": 126.75,
+            "reliable": true
+          },
+          {
+            "tokens": 2097,
+            "types": 955,
+            "ttr": 0.46,
+            "mtld": 117.41,
+            "reliable": true
+          },
+          {
+            "tokens": 1920,
+            "types": 902,
+            "ttr": 0.47,
+            "mtld": 150.99,
+            "reliable": true
+          },
+          {
+            "tokens": 1588,
+            "types": 736,
+            "ttr": 0.46,
+            "mtld": 128.66,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "n": 10,
+          "mean": 133.84,
+          "min": 117.41,
+          "max": 156.99,
+          "std": 12.67
+        },
+        "aggregate_reliable_only": {
+          "n": 10,
+          "mean": 133.84,
+          "min": 117.41,
+          "max": 156.99,
+          "std": 12.67
+        },
+        "unreliable_runs": 0,
+        "note": "Length-robust lexical diversity (MTLD, McCarthy & Jarvis 2010); higher = more varied vocabulary. Unlike v1 TTR it does not fall merely because a text is longer. Runs under 50 tokens are flagged reliable=false; prefer aggregate_reliable_only when comparing models."
+      },
+      "burstiness": {
+        "schema": "burstiness/1",
+        "method": "per-run sentence-length CV and Goh-Barabasi B (spaCy segmentation)",
+        "runs": 10,
+        "per_run": [
+          {
+            "sentences": 148,
+            "words": 2240,
+            "mean": 15.135,
+            "std": 8.407,
+            "cv": 0.555,
+            "burstiness": -0.286,
+            "reliable": true
+          },
+          {
+            "sentences": 136,
+            "words": 1510,
+            "mean": 11.103,
+            "std": 7.296,
+            "cv": 0.657,
+            "burstiness": -0.207,
+            "reliable": true
+          },
+          {
+            "sentences": 159,
+            "words": 2346,
+            "mean": 14.755,
+            "std": 7.992,
+            "cv": 0.542,
+            "burstiness": -0.297,
+            "reliable": true
+          },
+          {
+            "sentences": 118,
+            "words": 1897,
+            "mean": 16.076,
+            "std": 10.118,
+            "cv": 0.629,
+            "burstiness": -0.227,
+            "reliable": true
+          },
+          {
+            "sentences": 148,
+            "words": 1847,
+            "mean": 12.48,
+            "std": 7.181,
+            "cv": 0.575,
+            "burstiness": -0.269,
+            "reliable": true
+          },
+          {
+            "sentences": 116,
+            "words": 1803,
+            "mean": 15.543,
+            "std": 9.159,
+            "cv": 0.589,
+            "burstiness": -0.258,
+            "reliable": true
+          },
+          {
+            "sentences": 136,
+            "words": 1765,
+            "mean": 12.978,
+            "std": 8.098,
+            "cv": 0.624,
+            "burstiness": -0.232,
+            "reliable": true
+          },
+          {
+            "sentences": 166,
+            "words": 2097,
+            "mean": 12.633,
+            "std": 7.587,
+            "cv": 0.601,
+            "burstiness": -0.25,
+            "reliable": true
+          },
+          {
+            "sentences": 123,
+            "words": 1920,
+            "mean": 15.61,
+            "std": 8.304,
+            "cv": 0.532,
+            "burstiness": -0.306,
+            "reliable": true
+          },
+          {
+            "sentences": 110,
+            "words": 1588,
+            "mean": 14.436,
+            "std": 7.934,
+            "cv": 0.55,
+            "burstiness": -0.291,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "cv": {
+            "n": 10,
+            "mean": 0.585,
+            "min": 0.532,
+            "max": 0.657,
+            "std": 0.04
+          },
+          "burstiness": {
+            "n": 10,
+            "mean": -0.262,
+            "min": -0.306,
+            "max": -0.207,
+            "std": 0.032
+          },
+          "mean": {
+            "n": 10,
+            "mean": 14.075,
+            "min": 11.103,
+            "max": 16.076,
+            "std": 1.578
+          },
+          "std": {
+            "n": 10,
+            "mean": 8.208,
+            "min": 7.181,
+            "max": 10.118,
+            "std": 0.837
+          }
+        },
+        "aggregate_reliable_only": {
+          "cv": {
+            "n": 10,
+            "mean": 0.585,
+            "min": 0.532,
+            "max": 0.657,
+            "std": 0.04
+          },
+          "burstiness": {
+            "n": 10,
+            "mean": -0.262,
+            "min": -0.306,
+            "max": -0.207,
+            "std": 0.032
+          },
+          "mean": {
+            "n": 10,
+            "mean": 14.075,
+            "min": 11.103,
+            "max": 16.076,
+            "std": 1.578
+          },
+          "std": {
+            "n": 10,
+            "mean": 8.208,
+            "min": 7.181,
+            "max": 10.118,
+            "std": 0.837
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Variation in sentence length (rhythm). cv = std/mean is the length-robust headline; burstiness = (std-mean)/(std+mean) in [-1,1] is the Goh-Barabasi coefficient (>0 bursty/human-like, <0 metronomic). Higher = more varied rhythm. Runs under 3 sentences are flagged reliable=false."
+      },
+      "dialogue_ratio": {
+        "schema": "dialogue_ratio/1",
+        "method": "words inside paired double quotes / total words",
+        "runs": 10,
+        "per_run": [
+          {
+            "total_words": 2240,
+            "dialogue_words": 244,
+            "dialogue_ratio": 0.109,
+            "quoted_passages": 22
+          },
+          {
+            "total_words": 1510,
+            "dialogue_words": 232,
+            "dialogue_ratio": 0.154,
+            "quoted_passages": 34
+          },
+          {
+            "total_words": 2346,
+            "dialogue_words": 90,
+            "dialogue_ratio": 0.038,
+            "quoted_passages": 13
+          },
+          {
+            "total_words": 1897,
+            "dialogue_words": 18,
+            "dialogue_ratio": 0.009,
+            "quoted_passages": 3
+          },
+          {
+            "total_words": 1847,
+            "dialogue_words": 101,
+            "dialogue_ratio": 0.055,
+            "quoted_passages": 11
+          },
+          {
+            "total_words": 1803,
+            "dialogue_words": 19,
+            "dialogue_ratio": 0.011,
+            "quoted_passages": 4
+          },
+          {
+            "total_words": 1765,
+            "dialogue_words": 90,
+            "dialogue_ratio": 0.051,
+            "quoted_passages": 12
+          },
+          {
+            "total_words": 2097,
+            "dialogue_words": 153,
+            "dialogue_ratio": 0.073,
+            "quoted_passages": 15
+          },
+          {
+            "total_words": 1920,
+            "dialogue_words": 87,
+            "dialogue_ratio": 0.045,
+            "quoted_passages": 12
+          },
+          {
+            "total_words": 1588,
+            "dialogue_words": 2,
+            "dialogue_ratio": 0.001,
+            "quoted_passages": 1
+          }
+        ],
+        "aggregate": {
+          "n": 10,
+          "mean": 0.055,
+          "min": 0.001,
+          "max": 0.154,
+          "std": 0.045
+        },
+        "note": "Fraction of words inside double quotes (dialogue) vs narration; a pacing fingerprint. Straight and curly double quotes are paired; single quotes are ignored (apostrophe collision). quoted_passages counts distinct quoted spans."
+      },
+      "intra_text_repetition": {
+        "schema": "intra_text_repetition/1",
+        "method": "per-text n-gram repeat rate (1 - distinct/total); unigram=content words",
+        "runs": 10,
+        "per_run": [
+          {
+            "word_tokens": 2240,
+            "content_tokens": 1312,
+            "unigram": {
+              "rep_rate": 0.315,
+              "top": [
+                [
+                  "elara",
+                  26
+                ],
+                [
+                  "pax",
+                  14
+                ],
+                [
+                  "alien",
+                  11
+                ],
+                [
+                  "democracy",
+                  10
+                ],
+                [
+                  "light",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.137,
+              "top": [
+                [
+                  "of the",
+                  21
+                ],
+                [
+                  "in the",
+                  20
+                ],
+                [
+                  "it is",
+                  11
+                ],
+                [
+                  "is a",
+                  9
+                ],
+                [
+                  "she is",
+                  8
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.022,
+              "top": [
+                [
+                  "it is a",
+                  5
+                ],
+                [
+                  "the ash belt",
+                  4
+                ],
+                [
+                  "ash belt the",
+                  4
+                ],
+                [
+                  "the anthropos path",
+                  4
+                ],
+                [
+                  "pan terran democracy",
+                  3
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1510,
+            "content_tokens": 879,
+            "unigram": {
+              "rep_rate": 0.267,
+              "top": [
+                [
+                  "kaelen",
+                  26
+                ],
+                [
+                  "it's",
+                  11
+                ],
+                [
+                  "elara",
+                  11
+                ],
+                [
+                  "aria",
+                  8
+                ],
+                [
+                  "aethelgard",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.109,
+              "top": [
+                [
+                  "of the",
+                  16
+                ],
+                [
+                  "and the",
+                  10
+                ],
+                [
+                  "to the",
+                  6
+                ],
+                [
+                  "from the",
+                  6
+                ],
+                [
+                  "is a",
+                  6
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.015,
+              "top": [
+                [
+                  "the air is",
+                  3
+                ],
+                [
+                  "kaelen says his",
+                  3
+                ],
+                [
+                  "a stark contrast",
+                  2
+                ],
+                [
+                  "stark contrast to",
+                  2
+                ],
+                [
+                  "contrast to the",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 2346,
+            "content_tokens": 1347,
+            "unigram": {
+              "rep_rate": 0.304,
+              "top": [
+                [
+                  "kaelen",
+                  21
+                ],
+                [
+                  "republic",
+                  8
+                ],
+                [
+                  "like",
+                  8
+                ],
+                [
+                  "human",
+                  7
+                ],
+                [
+                  "mind",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.131,
+              "top": [
+                [
+                  "of the",
+                  31
+                ],
+                [
+                  "is a",
+                  13
+                ],
+                [
+                  "in the",
+                  12
+                ],
+                [
+                  "it is",
+                  10
+                ],
+                [
+                  "from the",
+                  10
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.02,
+              "top": [
+                [
+                  "it is a",
+                  4
+                ],
+                [
+                  "the synthetic being",
+                  4
+                ],
+                [
+                  "the edge of",
+                  3
+                ],
+                [
+                  "edge of the",
+                  3
+                ],
+                [
+                  "it is not",
+                  3
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1897,
+            "content_tokens": 1111,
+            "unigram": {
+              "rep_rate": 0.252,
+              "top": [
+                [
+                  "kaelen",
+                  16
+                ],
+                [
+                  "aegis",
+                  9
+                ],
+                [
+                  "assembly",
+                  7
+                ],
+                [
+                  "prime",
+                  7
+                ],
+                [
+                  "terrifying",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.123,
+              "top": [
+                [
+                  "of the",
+                  22
+                ],
+                [
+                  "in the",
+                  15
+                ],
+                [
+                  "it is",
+                  14
+                ],
+                [
+                  "from the",
+                  11
+                ],
+                [
+                  "of his",
+                  8
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.01,
+              "top": [
+                [
+                  "edge of the",
+                  3
+                ],
+                [
+                  "it is a",
+                  3
+                ],
+                [
+                  "illicit gene edits",
+                  2
+                ],
+                [
+                  "plating on his",
+                  2
+                ],
+                [
+                  "his neural interface",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1847,
+            "content_tokens": 1058,
+            "unigram": {
+              "rep_rate": 0.258,
+              "top": [
+                [
+                  "kaelen",
+                  22
+                ],
+                [
+                  "senate",
+                  11
+                ],
+                [
+                  "light",
+                  8
+                ],
+                [
+                  "arbiters",
+                  6
+                ],
+                [
+                  "ships",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.124,
+              "top": [
+                [
+                  "of the",
+                  24
+                ],
+                [
+                  "in the",
+                  17
+                ],
+                [
+                  "from the",
+                  8
+                ],
+                [
+                  "is a",
+                  7
+                ],
+                [
+                  "does not",
+                  6
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.016,
+              "top": [
+                [
+                  "of the terran",
+                  3
+                ],
+                [
+                  "in the mud",
+                  3
+                ],
+                [
+                  "the prime intellect",
+                  3
+                ],
+                [
+                  "he sees the",
+                  3
+                ],
+                [
+                  "of the orbital",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1803,
+            "content_tokens": 1030,
+            "unigram": {
+              "rep_rate": 0.267,
+              "top": [
+                [
+                  "elara",
+                  21
+                ],
+                [
+                  "concordat",
+                  8
+                ],
+                [
+                  "machine",
+                  7
+                ],
+                [
+                  "light",
+                  6
+                ],
+                [
+                  "skin",
+                  5
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.127,
+              "top": [
+                [
+                  "in the",
+                  15
+                ],
+                [
+                  "of the",
+                  14
+                ],
+                [
+                  "is a",
+                  13
+                ],
+                [
+                  "it is",
+                  10
+                ],
+                [
+                  "to the",
+                  9
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.018,
+              "top": [
+                [
+                  "it is a",
+                  5
+                ],
+                [
+                  "she sees the",
+                  3
+                ],
+                [
+                  "the terraforming engines",
+                  2
+                ],
+                [
+                  "it is the",
+                  2
+                ],
+                [
+                  "of the new",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1765,
+            "content_tokens": 1041,
+            "unigram": {
+              "rep_rate": 0.259,
+              "top": [
+                [
+                  "kaelen",
+                  28
+                ],
+                [
+                  "machine",
+                  11
+                ],
+                [
+                  "democracy",
+                  8
+                ],
+                [
+                  "terraforming",
+                  8
+                ],
+                [
+                  "light",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.112,
+              "top": [
+                [
+                  "of the",
+                  23
+                ],
+                [
+                  "is a",
+                  13
+                ],
+                [
+                  "it is",
+                  11
+                ],
+                [
+                  "the machine",
+                  8
+                ],
+                [
+                  "the terraforming",
+                  7
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.012,
+              "top": [
+                [
+                  "of the terraforming",
+                  4
+                ],
+                [
+                  "the terraforming zone",
+                  4
+                ],
+                [
+                  "it is not",
+                  3
+                ],
+                [
+                  "it is a",
+                  3
+                ],
+                [
+                  "the pan terran",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 2097,
+            "content_tokens": 1210,
+            "unigram": {
+              "rep_rate": 0.268,
+              "top": [
+                [
+                  "elara",
+                  18
+                ],
+                [
+                  "mind",
+                  7
+                ],
+                [
+                  "voice",
+                  7
+                ],
+                [
+                  "dirt",
+                  6
+                ],
+                [
+                  "machine",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.141,
+              "top": [
+                [
+                  "of the",
+                  29
+                ],
+                [
+                  "in the",
+                  14
+                ],
+                [
+                  "it is",
+                  12
+                ],
+                [
+                  "by the",
+                  9
+                ],
+                [
+                  "is a",
+                  9
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.011,
+              "top": [
+                [
+                  "it is a",
+                  5
+                ],
+                [
+                  "she feels the",
+                  3
+                ],
+                [
+                  "it is not",
+                  3
+                ],
+                [
+                  "of the core",
+                  2
+                ],
+                [
+                  "beneath her skin",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1920,
+            "content_tokens": 1151,
+            "unigram": {
+              "rep_rate": 0.281,
+              "top": [
+                [
+                  "elara",
+                  17
+                ],
+                [
+                  "republic",
+                  10
+                ],
+                [
+                  "biological",
+                  10
+                ],
+                [
+                  "machine",
+                  7
+                ],
+                [
+                  "like",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.12,
+              "top": [
+                [
+                  "of the",
+                  22
+                ],
+                [
+                  "it is",
+                  15
+                ],
+                [
+                  "in the",
+                  12
+                ],
+                [
+                  "is a",
+                  11
+                ],
+                [
+                  "to the",
+                  9
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.022,
+              "top": [
+                [
+                  "the republic s",
+                  6
+                ],
+                [
+                  "of caelum ascendant",
+                  4
+                ],
+                [
+                  "it is not",
+                  4
+                ],
+                [
+                  "neuro conductive gold",
+                  3
+                ],
+                [
+                  "gold in her",
+                  3
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1588,
+            "content_tokens": 911,
+            "unigram": {
+              "rep_rate": 0.272,
+              "top": [
+                [
+                  "kaelen",
+                  19
+                ],
+                [
+                  "assembly",
+                  10
+                ],
+                [
+                  "mind",
+                  8
+                ],
+                [
+                  "power",
+                  6
+                ],
+                [
+                  "ship",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.122,
+              "top": [
+                [
+                  "of the",
+                  26
+                ],
+                [
+                  "it is",
+                  15
+                ],
+                [
+                  "is a",
+                  12
+                ],
+                [
+                  "in the",
+                  8
+                ],
+                [
+                  "from the",
+                  7
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.021,
+              "top": [
+                [
+                  "it is a",
+                  8
+                ],
+                [
+                  "of nova kyiv",
+                  3
+                ],
+                [
+                  "the edge of",
+                  3
+                ],
+                [
+                  "edge of the",
+                  3
+                ],
+                [
+                  "of the universe",
+                  3
+                ]
+              ]
+            },
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "unigram": {
+            "n": 10,
+            "mean": 0.274,
+            "min": 0.252,
+            "max": 0.315
+          },
+          "bigram": {
+            "n": 10,
+            "mean": 0.125,
+            "min": 0.109,
+            "max": 0.141
+          },
+          "trigram": {
+            "n": 10,
+            "mean": 0.017,
+            "min": 0.01,
+            "max": 0.022
+          }
+        },
+        "aggregate_reliable_only": {
+          "unigram": {
+            "n": 10,
+            "mean": 0.274,
+            "min": 0.252,
+            "max": 0.315
+          },
+          "bigram": {
+            "n": 10,
+            "mean": 0.125,
+            "min": 0.109,
+            "max": 0.141
+          },
+          "trigram": {
+            "n": 10,
+            "mean": 0.017,
+            "min": 0.01,
+            "max": 0.022
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Repetition WITHIN each story (complements the across-run diversity metrics). rep_rate = 1 - distinct/total n-grams; higher = more repetitive. unigram is over content words only (the 'word obsession' defect); bigram/trigram over all tokens. Runs under 30 tokens flagged reliable=false."
+      },
+      "cliche_density": {
+        "schema": "cliche_density/1",
+        "lexicon_version": "1",
+        "lexicon_size": 38,
+        "method": "stock-phrase / register-word / em-dash hits per 1000 words",
+        "runs": 10,
+        "per_run": [
+          {
+            "words": 2240,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 6,
+              "per_1k": 2.68,
+              "distinct": 5,
+              "word_hits": {
+                "intricate": 1,
+                "tapestry": 1,
+                "shimmering": 1,
+                "labyrinthine": 2,
+                "symphony": 1
+              }
+            },
+            "em_dash": {
+              "count": 17,
+              "per_1k": 7.59
+            }
+          },
+          {
+            "words": 1510,
+            "cliche": {
+              "hits": 2,
+              "per_1k": 1.32,
+              "distinct": 2,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 1,
+                "C_emotion": 1,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "testament_to": 1,
+                "mix_of_and": 1
+              }
+            },
+            "slop_words": {
+              "hits": 3,
+              "per_1k": 1.99,
+              "distinct": 3,
+              "word_hits": {
+                "gleaming": 1,
+                "bustling": 1,
+                "labyrinthine": 1
+              }
+            },
+            "em_dash": {
+              "count": 8,
+              "per_1k": 5.3
+            }
+          },
+          {
+            "words": 2346,
+            "cliche": {
+              "hits": 1,
+              "per_1k": 0.43,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 1,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "stark_reminder": 1
+              }
+            },
+            "slop_words": {
+              "hits": 5,
+              "per_1k": 2.13,
+              "distinct": 5,
+              "word_hits": {
+                "gleaming": 1,
+                "beacon": 1,
+                "shimmering": 1,
+                "tapestry": 1,
+                "symphony": 1
+              }
+            },
+            "em_dash": {
+              "count": 9,
+              "per_1k": 3.84
+            }
+          },
+          {
+            "words": 1897,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 4,
+              "per_1k": 2.11,
+              "distinct": 4,
+              "word_hits": {
+                "tapestry": 1,
+                "gleaming": 1,
+                "nestled": 1,
+                "intricate": 1
+              }
+            },
+            "em_dash": {
+              "count": 10,
+              "per_1k": 5.27
+            }
+          },
+          {
+            "words": 1847,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 1,
+              "per_1k": 0.54,
+              "distinct": 1,
+              "word_hits": {
+                "labyrinthine": 1
+              }
+            },
+            "em_dash": {
+              "count": 7,
+              "per_1k": 3.79
+            }
+          },
+          {
+            "words": 1803,
+            "cliche": {
+              "hits": 1,
+              "per_1k": 0.55,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 1,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "unbeknownst": 1
+              }
+            },
+            "slop_words": {
+              "hits": 4,
+              "per_1k": 2.22,
+              "distinct": 3,
+              "word_hits": {
+                "gleaming": 1,
+                "intricate": 1,
+                "shimmering": 2
+              }
+            },
+            "em_dash": {
+              "count": 6,
+              "per_1k": 3.33
+            }
+          },
+          {
+            "words": 1765,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 2,
+              "per_1k": 1.13,
+              "distinct": 2,
+              "word_hits": {
+                "tapestry": 1,
+                "symphony": 1
+              }
+            },
+            "em_dash": {
+              "count": 11,
+              "per_1k": 6.23
+            }
+          },
+          {
+            "words": 2097,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 1,
+              "per_1k": 0.48,
+              "distinct": 1,
+              "word_hits": {
+                "tapestry": 1
+              }
+            },
+            "em_dash": {
+              "count": 7,
+              "per_1k": 3.34
+            }
+          },
+          {
+            "words": 1920,
+            "cliche": {
+              "hits": 1,
+              "per_1k": 0.52,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 1,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "testament_to": 1
+              }
+            },
+            "slop_words": {
+              "hits": 5,
+              "per_1k": 2.6,
+              "distinct": 5,
+              "word_hits": {
+                "myriad": 1,
+                "gleaming": 1,
+                "intricate": 1,
+                "realm": 1,
+                "ethereal": 1
+              }
+            },
+            "em_dash": {
+              "count": 9,
+              "per_1k": 4.69
+            }
+          },
+          {
+            "words": 1588,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 3,
+              "per_1k": 1.89,
+              "distinct": 3,
+              "word_hits": {
+                "symphony": 1,
+                "realm": 1,
+                "shimmering": 1
+              }
+            },
+            "em_dash": {
+              "count": 9,
+              "per_1k": 5.67
+            }
+          }
+        ],
+        "aggregate": {
+          "cliche_per_1k": 0.28,
+          "slop_words_per_1k": 1.78,
+          "em_dash_per_1k": 4.9
+        },
+        "note": "Clich\u00e9 / stock-phrase density (per 1000 words) \u2014 a GENERIC-PROSE signal, not an AI detector: most phrases are overused human clich\u00e9s. 'cliche' is the trustworthy multi-word headline; 'slop_words' (single register words) is high-FP and kept separate; 'em_dash' is a structural cadence tell."
+      },
+      "ngram_diversity": {
+        "schema": "ngram_diversity/1",
+        "method": "distinct-n (n=1,2,3) + Self-BLEU-4",
+        "runs": 10,
+        "tokens": {
+          "total": 19013,
+          "mean_per_run": 1901.3,
+          "min": 1510,
+          "max": 2346,
+          "length_spread": 0.4397
+        },
+        "distinct": {
+          "distinct_1": {
+            "distinct": 3887,
+            "total": 19013,
+            "ratio": 0.2044
+          },
+          "distinct_2": {
+            "distinct": 13003,
+            "total": 19003,
+            "ratio": 0.6843
+          },
+          "distinct_3": {
+            "distinct": 17437,
+            "total": 18993,
+            "ratio": 0.9181
+          }
+        },
+        "self_bleu": {
+          "mean": 0.1871,
+          "min": 0.1464,
+          "max": 0.2252,
+          "per_run": [
+            0.1621,
+            0.1464,
+            0.2095,
+            0.1881,
+            0.1839,
+            0.1879,
+            0.2252,
+            0.1704,
+            0.1903,
+            0.2075
+          ]
+        },
+        "note": "Corpus-level diversity of the N runs. distinct_n (distinct/total n-grams) is HIGHER for more diverse sets; self_bleu is HIGHER for more SIMILAR (less diverse) sets \u2014 they move in opposite directions. Both are length-sensitive: compare across run sets of similar size (see tokens.length_spread; a large spread weakens comparability)."
+      },
+      "opening_lines": {
+        "schema": "opening_lines/1",
+        "method": "first-sentence similarity: Jaccard + difflib + semantic cosine (all-MiniLM-L6-v2)",
+        "runs": 10,
+        "usable_openings": 10,
+        "title_blocks_stripped": 0,
+        "suspected_title_openings": 0,
+        "openings": [
+          "The galaxy is a fractured mosaic, held together by the fragile glue of the Pan-Terran Democracy.",
+          "The rust-red dust of Aethelgard swirls around Kaelen\u2019s boots, a stark contrast to the gleaming, sterile white of the habitation dome looming",
+          "The rust-red dust of Aethelgard swirls around the ankles of the harvesters, a stark reminder that this world is not yet fully tamed.",
+          "The red dust of Aethelgard does not forgive.",
+          "The rain on the colony world of Aethelgard does not fall; it is engineered.",
+          "The terraforming engines of Aethelgard prime pulse with a rhythm that has long since synchronized with the heartbeats of its inhabitants.",
+          "The galaxy breathes in cycles of feast and famine, a sprawling tapestry woven together by the silver threads of faster-than-light transit.",
+          "The galaxy breathes in a rhythm of light and void, a vast, indifferent ocean where empires rise like sea foam and vanish just as swiftly.",
+          "The galaxy of the Alternate Timeline spins on a delicate axis of fragile, bureaucratic democracy.",
+          "The wind across the rust-colored plains of Aethelgard does not merely blow; it calculates."
+        ],
+        "lexical": {
+          "jaccard": {
+            "mean": 0.1328,
+            "max": 0.3125
+          },
+          "sequence_ratio": {
+            "mean": 0.3465,
+            "max": 0.5983
+          },
+          "distinct_openings": 10,
+          "shared_prefix": {
+            "top": [
+              [
+                "the rust red",
+                2
+              ],
+              [
+                "the galaxy breathes",
+                2
+              ],
+              [
+                "the galaxy is",
+                1
+              ]
+            ],
+            "max_share": "2/10"
+          }
+        },
+        "semantic": {
+          "model": "all-MiniLM-L6-v2",
+          "mean": 0.2914,
+          "median": 0.2888,
+          "min": 0.0379,
+          "max": 0.5894
+        },
+        "note": "Similarity of the FIRST SENTENCE across runs (a tell whole-text similarity dilutes). High jaccard/sequence_ratio/semantic or low distinct_openings = formulaic openings; shared_prefix.max_share shows how many runs share the same opening words. Leading title/heading scaffolding is stripped before segmentation (title_blocks_stripped counts it); suspected_title_openings flags any short title-like opening that survived stripping."
+      }
+    }
+  }
+}

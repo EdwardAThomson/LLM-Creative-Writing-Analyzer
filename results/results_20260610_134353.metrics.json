@@ -1,0 +1,687 @@
+{
+  "schema": "metrics/1",
+  "source": "results_20260610_134353.json",
+  "benchmark": "v2",
+  "metrics_run": [
+    "phonetic_names",
+    "mtld",
+    "burstiness",
+    "dialogue_ratio",
+    "intra_text_repetition",
+    "cliche_density",
+    "ngram_diversity",
+    "opening_lines"
+  ],
+  "models": {
+    "claude-cli-fable": {
+      "phonetic_names": {
+        "schema": "phonetic_names/1",
+        "method": "leading_sound/1",
+        "runs": 3,
+        "total_names": 27,
+        "distinct_sounds": 9,
+        "max_sound_recurrence": "2/3",
+        "repeated_sounds": [
+          {
+            "sound": "C",
+            "runs": 2,
+            "of": 3,
+            "distinct_names": [
+              "Calder",
+              "Cartagena",
+              "Crane"
+            ]
+          }
+        ],
+        "note": "Recurrence of a character name's leading SOUND across runs, not the exact token; complements the v1 name-component metric (report \u00a76.6). Counts each PERSON span's final token and may include spaCy NER false positives (e.g. a place mislabeled PERSON) \u2014 verify before quoting."
+      },
+      "mtld": {
+        "schema": "mtld/1",
+        "method": "bidirectional MTLD, threshold=0.72",
+        "runs": 3,
+        "per_run": [
+          {
+            "tokens": 1422,
+            "types": 585,
+            "ttr": 0.41,
+            "mtld": 104.97,
+            "reliable": true
+          },
+          {
+            "tokens": 1457,
+            "types": 615,
+            "ttr": 0.42,
+            "mtld": 107.9,
+            "reliable": true
+          },
+          {
+            "tokens": 1485,
+            "types": 589,
+            "ttr": 0.4,
+            "mtld": 105.39,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "n": 3,
+          "mean": 106.09,
+          "min": 104.97,
+          "max": 107.9,
+          "std": 1.29
+        },
+        "aggregate_reliable_only": {
+          "n": 3,
+          "mean": 106.09,
+          "min": 104.97,
+          "max": 107.9,
+          "std": 1.29
+        },
+        "unreliable_runs": 0,
+        "note": "Length-robust lexical diversity (MTLD, McCarthy & Jarvis 2010); higher = more varied vocabulary. Unlike v1 TTR it does not fall merely because a text is longer. Runs under 50 tokens are flagged reliable=false; prefer aggregate_reliable_only when comparing models."
+      },
+      "burstiness": {
+        "schema": "burstiness/1",
+        "method": "per-run sentence-length CV and Goh-Barabasi B (spaCy segmentation)",
+        "runs": 3,
+        "per_run": [
+          {
+            "sentences": 71,
+            "words": 1422,
+            "mean": 20.028,
+            "std": 16.335,
+            "cv": 0.816,
+            "burstiness": -0.102,
+            "reliable": true
+          },
+          {
+            "sentences": 84,
+            "words": 1457,
+            "mean": 17.345,
+            "std": 15.754,
+            "cv": 0.908,
+            "burstiness": -0.048,
+            "reliable": true
+          },
+          {
+            "sentences": 83,
+            "words": 1485,
+            "mean": 17.892,
+            "std": 16.559,
+            "cv": 0.926,
+            "burstiness": -0.039,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "cv": {
+            "n": 3,
+            "mean": 0.883,
+            "min": 0.816,
+            "max": 0.926,
+            "std": 0.048
+          },
+          "burstiness": {
+            "n": 3,
+            "mean": -0.063,
+            "min": -0.102,
+            "max": -0.039,
+            "std": 0.028
+          },
+          "mean": {
+            "n": 3,
+            "mean": 18.422,
+            "min": 17.345,
+            "max": 20.028,
+            "std": 1.158
+          },
+          "std": {
+            "n": 3,
+            "mean": 16.216,
+            "min": 15.754,
+            "max": 16.559,
+            "std": 0.339
+          }
+        },
+        "aggregate_reliable_only": {
+          "cv": {
+            "n": 3,
+            "mean": 0.883,
+            "min": 0.816,
+            "max": 0.926,
+            "std": 0.048
+          },
+          "burstiness": {
+            "n": 3,
+            "mean": -0.063,
+            "min": -0.102,
+            "max": -0.039,
+            "std": 0.028
+          },
+          "mean": {
+            "n": 3,
+            "mean": 18.422,
+            "min": 17.345,
+            "max": 20.028,
+            "std": 1.158
+          },
+          "std": {
+            "n": 3,
+            "mean": 16.216,
+            "min": 15.754,
+            "max": 16.559,
+            "std": 0.339
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Variation in sentence length (rhythm). cv = std/mean is the length-robust headline; burstiness = (std-mean)/(std+mean) in [-1,1] is the Goh-Barabasi coefficient (>0 bursty/human-like, <0 metronomic). Higher = more varied rhythm. Runs under 3 sentences are flagged reliable=false."
+      },
+      "dialogue_ratio": {
+        "schema": "dialogue_ratio/1",
+        "method": "words inside paired double quotes / total words",
+        "runs": 3,
+        "per_run": [
+          {
+            "total_words": 1422,
+            "dialogue_words": 72,
+            "dialogue_ratio": 0.051,
+            "quoted_passages": 9
+          },
+          {
+            "total_words": 1457,
+            "dialogue_words": 259,
+            "dialogue_ratio": 0.178,
+            "quoted_passages": 16
+          },
+          {
+            "total_words": 1485,
+            "dialogue_words": 212,
+            "dialogue_ratio": 0.143,
+            "quoted_passages": 24
+          }
+        ],
+        "aggregate": {
+          "n": 3,
+          "mean": 0.124,
+          "min": 0.051,
+          "max": 0.178,
+          "std": 0.054
+        },
+        "note": "Fraction of words inside double quotes (dialogue) vs narration; a pacing fingerprint. Straight and curly double quotes are paired; single quotes are ignored (apostrophe collision). quoted_passages counts distinct quoted spans."
+      },
+      "intra_text_repetition": {
+        "schema": "intra_text_repetition/1",
+        "method": "per-text n-gram repeat rate (1 - distinct/total); unigram=content words",
+        "runs": 3,
+        "per_run": [
+          {
+            "word_tokens": 1422,
+            "content_tokens": 770,
+            "unigram": {
+              "rep_rate": 0.348,
+              "top": [
+                [
+                  "one",
+                  12
+                ],
+                [
+                  "dav",
+                  9
+                ],
+                [
+                  "years",
+                  7
+                ],
+                [
+                  "like",
+                  7
+                ],
+                [
+                  "first",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.142,
+              "top": [
+                [
+                  "in the",
+                  15
+                ],
+                [
+                  "of the",
+                  8
+                ],
+                [
+                  "it is",
+                  7
+                ],
+                [
+                  "the first",
+                  6
+                ],
+                [
+                  "on the",
+                  5
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.031,
+              "top": [
+                [
+                  "dav okonkwo reyes",
+                  4
+                ],
+                [
+                  "in the sky",
+                  3
+                ],
+                [
+                  "the eastern terraces",
+                  2
+                ],
+                [
+                  "of kestra's veil",
+                  2
+                ],
+                [
+                  "ten thousand hectares",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1457,
+            "content_tokens": 803,
+            "unigram": {
+              "rep_rate": 0.331,
+              "top": [
+                [
+                  "like",
+                  11
+                ],
+                [
+                  "one",
+                  10
+                ],
+                [
+                  "worlds",
+                  8
+                ],
+                [
+                  "asa",
+                  7
+                ],
+                [
+                  "years",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.117,
+              "top": [
+                [
+                  "in the",
+                  18
+                ],
+                [
+                  "and the",
+                  10
+                ],
+                [
+                  "of the",
+                  6
+                ],
+                [
+                  "is a",
+                  5
+                ],
+                [
+                  "he is",
+                  5
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.017,
+              "top": [
+                [
+                  "behind his ears",
+                  3
+                ],
+                [
+                  "in the dark",
+                  3
+                ],
+                [
+                  "you trust the",
+                  3
+                ],
+                [
+                  "before you trust",
+                  3
+                ],
+                [
+                  "and the wheat",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1485,
+            "content_tokens": 833,
+            "unigram": {
+              "rep_rate": 0.391,
+              "top": [
+                [
+                  "says",
+                  10
+                ],
+                [
+                  "years",
+                  10
+                ],
+                [
+                  "way",
+                  10
+                ],
+                [
+                  "ilo",
+                  9
+                ],
+                [
+                  "because",
+                  8
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.138,
+              "top": [
+                [
+                  "in the",
+                  9
+                ],
+                [
+                  "the way",
+                  9
+                ],
+                [
+                  "in a",
+                  8
+                ],
+                [
+                  "and the",
+                  6
+                ],
+                [
+                  "the voss",
+                  6
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.024,
+              "top": [
+                [
+                  "the way a",
+                  4
+                ],
+                [
+                  "the fence line",
+                  4
+                ],
+                [
+                  "out past the",
+                  3
+                ],
+                [
+                  "past the fence",
+                  3
+                ],
+                [
+                  "and it is",
+                  3
+                ]
+              ]
+            },
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "unigram": {
+            "n": 3,
+            "mean": 0.357,
+            "min": 0.331,
+            "max": 0.391
+          },
+          "bigram": {
+            "n": 3,
+            "mean": 0.132,
+            "min": 0.117,
+            "max": 0.142
+          },
+          "trigram": {
+            "n": 3,
+            "mean": 0.024,
+            "min": 0.017,
+            "max": 0.031
+          }
+        },
+        "aggregate_reliable_only": {
+          "unigram": {
+            "n": 3,
+            "mean": 0.357,
+            "min": 0.331,
+            "max": 0.391
+          },
+          "bigram": {
+            "n": 3,
+            "mean": 0.132,
+            "min": 0.117,
+            "max": 0.142
+          },
+          "trigram": {
+            "n": 3,
+            "mean": 0.024,
+            "min": 0.017,
+            "max": 0.031
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Repetition WITHIN each story (complements the across-run diversity metrics). rep_rate = 1 - distinct/total n-grams; higher = more repetitive. unigram is over content words only (the 'word obsession' defect); bigram/trigram over all tokens. Runs under 30 tokens flagged reliable=false."
+      },
+      "cliche_density": {
+        "schema": "cliche_density/1",
+        "lexicon_version": "1",
+        "lexicon_size": 38,
+        "method": "stock-phrase / register-word / em-dash hits per 1000 words",
+        "runs": 3,
+        "per_run": [
+          {
+            "words": 1422,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "word_hits": {}
+            },
+            "em_dash": {
+              "count": 17,
+              "per_1k": 11.95
+            }
+          },
+          {
+            "words": 1457,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "word_hits": {}
+            },
+            "em_dash": {
+              "count": 22,
+              "per_1k": 15.1
+            }
+          },
+          {
+            "words": 1485,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "word_hits": {}
+            },
+            "em_dash": {
+              "count": 13,
+              "per_1k": 8.75
+            }
+          }
+        ],
+        "aggregate": {
+          "cliche_per_1k": 0.0,
+          "slop_words_per_1k": 0.0,
+          "em_dash_per_1k": 11.93
+        },
+        "note": "Clich\u00e9 / stock-phrase density (per 1000 words) \u2014 a GENERIC-PROSE signal, not an AI detector: most phrases are overused human clich\u00e9s. 'cliche' is the trustworthy multi-word headline; 'slop_words' (single register words) is high-FP and kept separate; 'em_dash' is a structural cadence tell."
+      },
+      "ngram_diversity": {
+        "schema": "ngram_diversity/1",
+        "method": "distinct-n (n=1,2,3) + Self-BLEU-4",
+        "runs": 3,
+        "tokens": {
+          "total": 4364,
+          "mean_per_run": 1454.7,
+          "min": 1422,
+          "max": 1485,
+          "length_spread": 0.0433
+        },
+        "distinct": {
+          "distinct_1": {
+            "distinct": 1274,
+            "total": 4364,
+            "ratio": 0.2919
+          },
+          "distinct_2": {
+            "distinct": 3495,
+            "total": 4361,
+            "ratio": 0.8014
+          },
+          "distinct_3": {
+            "distinct": 4216,
+            "total": 4358,
+            "ratio": 0.9674
+          }
+        },
+        "self_bleu": {
+          "mean": 0.0376,
+          "min": 0.0319,
+          "max": 0.0446,
+          "per_run": [
+            0.0362,
+            0.0319,
+            0.0446
+          ]
+        },
+        "note": "Corpus-level diversity of the N runs. distinct_n (distinct/total n-grams) is HIGHER for more diverse sets; self_bleu is HIGHER for more SIMILAR (less diverse) sets \u2014 they move in opposite directions. Both are length-sensitive: compare across run sets of similar size (see tokens.length_spread; a large spread weakens comparability)."
+      },
+      "opening_lines": {
+        "schema": "opening_lines/1",
+        "method": "first-sentence similarity: Jaccard + difflib + semantic cosine (all-MiniLM-L6-v2)",
+        "runs": 3,
+        "usable_openings": 3,
+        "title_blocks_stripped": 3,
+        "suspected_title_openings": 0,
+        "openings": [
+          "The grain knows before anyone else does.",
+          "The harvest moons rise in tandem over Caldera Province, and the wheat \u2014 gene-spliced gold, eleven feet tall, engineered to drink the thin ai",
+          "The harvest moon over Kettle Province is not a moon at all, and everyone on Veshara Prime knows it, though no one says so anymore."
+        ],
+        "lexical": {
+          "jaccard": {
+            "mean": 0.0626,
+            "max": 0.0984
+          },
+          "sequence_ratio": {
+            "mean": 0.2043,
+            "max": 0.2954
+          },
+          "distinct_openings": 3,
+          "shared_prefix": {
+            "top": [
+              [
+                "the grain knows",
+                1
+              ],
+              [
+                "the harvest moons",
+                1
+              ],
+              [
+                "the harvest moon",
+                1
+              ]
+            ],
+            "max_share": "1/3"
+          }
+        },
+        "semantic": {
+          "model": "all-MiniLM-L6-v2",
+          "mean": 0.3576,
+          "median": 0.261,
+          "min": 0.2551,
+          "max": 0.5567
+        },
+        "note": "Similarity of the FIRST SENTENCE across runs (a tell whole-text similarity dilutes). High jaccard/sequence_ratio/semantic or low distinct_openings = formulaic openings; shared_prefix.max_share shows how many runs share the same opening words. Leading title/heading scaffolding is stripped before segmentation (title_blocks_stripped counts it); suspected_title_openings flags any short title-like opening that survived stripping."
+      }
+    }
+  }
+}

@@ -1,0 +1,401 @@
+{
+  "schema": "metrics/1",
+  "source": "results_20260610_183156.json",
+  "benchmark": "v2",
+  "metrics_run": [
+    "phonetic_names",
+    "mtld",
+    "burstiness",
+    "dialogue_ratio",
+    "intra_text_repetition",
+    "cliche_density",
+    "ngram_diversity",
+    "opening_lines"
+  ],
+  "models": {
+    "claude-cli-fable": {
+      "phonetic_names": {
+        "schema": "phonetic_names/1",
+        "method": "leading_sound/1",
+        "runs": 1,
+        "total_names": 15,
+        "distinct_sounds": 6,
+        "max_sound_recurrence": "0/1",
+        "repeated_sounds": [],
+        "note": "Recurrence of a character name's leading SOUND across runs, not the exact token; complements the v1 name-component metric (report \u00a76.6). Counts each PERSON span's final token and may include spaCy NER false positives (e.g. a place mislabeled PERSON) \u2014 verify before quoting."
+      },
+      "mtld": {
+        "schema": "mtld/1",
+        "method": "bidirectional MTLD, threshold=0.72",
+        "runs": 1,
+        "per_run": [
+          {
+            "tokens": 1494,
+            "types": 640,
+            "ttr": 0.43,
+            "mtld": 138.86,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "n": 1,
+          "mean": 138.86,
+          "min": 138.86,
+          "max": 138.86,
+          "std": 0.0
+        },
+        "aggregate_reliable_only": {
+          "n": 1,
+          "mean": 138.86,
+          "min": 138.86,
+          "max": 138.86,
+          "std": 0.0
+        },
+        "unreliable_runs": 0,
+        "note": "Length-robust lexical diversity (MTLD, McCarthy & Jarvis 2010); higher = more varied vocabulary. Unlike v1 TTR it does not fall merely because a text is longer. Runs under 50 tokens are flagged reliable=false; prefer aggregate_reliable_only when comparing models."
+      },
+      "burstiness": {
+        "schema": "burstiness/1",
+        "method": "per-run sentence-length CV and Goh-Barabasi B (spaCy segmentation)",
+        "runs": 1,
+        "per_run": [
+          {
+            "sentences": 67,
+            "words": 1494,
+            "mean": 22.299,
+            "std": 19.15,
+            "cv": 0.859,
+            "burstiness": -0.076,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "cv": {
+            "n": 1,
+            "mean": 0.859,
+            "min": 0.859,
+            "max": 0.859,
+            "std": 0.0
+          },
+          "burstiness": {
+            "n": 1,
+            "mean": -0.076,
+            "min": -0.076,
+            "max": -0.076,
+            "std": 0.0
+          },
+          "mean": {
+            "n": 1,
+            "mean": 22.299,
+            "min": 22.299,
+            "max": 22.299,
+            "std": 0.0
+          },
+          "std": {
+            "n": 1,
+            "mean": 19.15,
+            "min": 19.15,
+            "max": 19.15,
+            "std": 0.0
+          }
+        },
+        "aggregate_reliable_only": {
+          "cv": {
+            "n": 1,
+            "mean": 0.859,
+            "min": 0.859,
+            "max": 0.859,
+            "std": 0.0
+          },
+          "burstiness": {
+            "n": 1,
+            "mean": -0.076,
+            "min": -0.076,
+            "max": -0.076,
+            "std": 0.0
+          },
+          "mean": {
+            "n": 1,
+            "mean": 22.299,
+            "min": 22.299,
+            "max": 22.299,
+            "std": 0.0
+          },
+          "std": {
+            "n": 1,
+            "mean": 19.15,
+            "min": 19.15,
+            "max": 19.15,
+            "std": 0.0
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Variation in sentence length (rhythm). cv = std/mean is the length-robust headline; burstiness = (std-mean)/(std+mean) in [-1,1] is the Goh-Barabasi coefficient (>0 bursty/human-like, <0 metronomic). Higher = more varied rhythm. Runs under 3 sentences are flagged reliable=false."
+      },
+      "dialogue_ratio": {
+        "schema": "dialogue_ratio/1",
+        "method": "words inside paired double quotes / total words",
+        "runs": 1,
+        "per_run": [
+          {
+            "total_words": 1494,
+            "dialogue_words": 83,
+            "dialogue_ratio": 0.056,
+            "quoted_passages": 18
+          }
+        ],
+        "aggregate": {
+          "n": 1,
+          "mean": 0.056,
+          "min": 0.056,
+          "max": 0.056,
+          "std": 0.0
+        },
+        "note": "Fraction of words inside double quotes (dialogue) vs narration; a pacing fingerprint. Straight and curly double quotes are paired; single quotes are ignored (apostrophe collision). quoted_passages counts distinct quoted spans."
+      },
+      "intra_text_repetition": {
+        "schema": "intra_text_repetition/1",
+        "method": "per-text n-gram repeat rate (1 - distinct/total); unigram=content words",
+        "runs": 1,
+        "per_run": [
+          {
+            "word_tokens": 1494,
+            "content_tokens": 843,
+            "unigram": {
+              "rep_rate": 0.337,
+              "top": [
+                [
+                  "says",
+                  10
+                ],
+                [
+                  "asha",
+                  9
+                ],
+                [
+                  "years",
+                  8
+                ],
+                [
+                  "like",
+                  8
+                ],
+                [
+                  "concord",
+                  8
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.104,
+              "top": [
+                [
+                  "in the",
+                  18
+                ],
+                [
+                  "the concord",
+                  6
+                ],
+                [
+                  "of the",
+                  5
+                ],
+                [
+                  "she is",
+                  5
+                ],
+                [
+                  "the way",
+                  5
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.013,
+              "top": [
+                [
+                  "the south aquifer",
+                  3
+                ],
+                [
+                  "the dust hangs",
+                  2
+                ],
+                [
+                  "nothing in the",
+                  2
+                ],
+                [
+                  "in the logs",
+                  2
+                ],
+                [
+                  "that is what",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "unigram": {
+            "n": 1,
+            "mean": 0.337,
+            "min": 0.337,
+            "max": 0.337
+          },
+          "bigram": {
+            "n": 1,
+            "mean": 0.104,
+            "min": 0.104,
+            "max": 0.104
+          },
+          "trigram": {
+            "n": 1,
+            "mean": 0.013,
+            "min": 0.013,
+            "max": 0.013
+          }
+        },
+        "aggregate_reliable_only": {
+          "unigram": {
+            "n": 1,
+            "mean": 0.337,
+            "min": 0.337,
+            "max": 0.337
+          },
+          "bigram": {
+            "n": 1,
+            "mean": 0.104,
+            "min": 0.104,
+            "max": 0.104
+          },
+          "trigram": {
+            "n": 1,
+            "mean": 0.013,
+            "min": 0.013,
+            "max": 0.013
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Repetition WITHIN each story (complements the across-run diversity metrics). rep_rate = 1 - distinct/total n-grams; higher = more repetitive. unigram is over content words only (the 'word obsession' defect); bigram/trigram over all tokens. Runs under 30 tokens flagged reliable=false."
+      },
+      "cliche_density": {
+        "schema": "cliche_density/1",
+        "lexicon_version": "1",
+        "lexicon_size": 38,
+        "method": "stock-phrase / register-word / em-dash hits per 1000 words",
+        "runs": 1,
+        "per_run": [
+          {
+            "words": 1494,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "word_hits": {}
+            },
+            "em_dash": {
+              "count": 13,
+              "per_1k": 8.7
+            }
+          }
+        ],
+        "aggregate": {
+          "cliche_per_1k": 0.0,
+          "slop_words_per_1k": 0.0,
+          "em_dash_per_1k": 8.7
+        },
+        "note": "Clich\u00e9 / stock-phrase density (per 1000 words) \u2014 a GENERIC-PROSE signal, not an AI detector: most phrases are overused human clich\u00e9s. 'cliche' is the trustworthy multi-word headline; 'slop_words' (single register words) is high-FP and kept separate; 'em_dash' is a structural cadence tell."
+      },
+      "ngram_diversity": {
+        "schema": "ngram_diversity/1",
+        "method": "distinct-n (n=1,2,3) + Self-BLEU-4",
+        "runs": 1,
+        "tokens": {
+          "total": 1494,
+          "mean_per_run": 1494.0,
+          "min": 1494,
+          "max": 1494,
+          "length_spread": 0.0
+        },
+        "distinct": {
+          "distinct_1": {
+            "distinct": 640,
+            "total": 1494,
+            "ratio": 0.4284
+          },
+          "distinct_2": {
+            "distinct": 1337,
+            "total": 1493,
+            "ratio": 0.8955
+          },
+          "distinct_3": {
+            "distinct": 1472,
+            "total": 1492,
+            "ratio": 0.9866
+          }
+        },
+        "self_bleu": {
+          "mean": null,
+          "min": null,
+          "max": null,
+          "per_run": [],
+          "note": "Self-BLEU needs >=2 runs"
+        },
+        "note": "Corpus-level diversity of the N runs. distinct_n (distinct/total n-grams) is HIGHER for more diverse sets; self_bleu is HIGHER for more SIMILAR (less diverse) sets \u2014 they move in opposite directions. Both are length-sensitive: compare across run sets of similar size (see tokens.length_spread; a large spread weakens comparability)."
+      },
+      "opening_lines": {
+        "schema": "opening_lines/1",
+        "method": "first-sentence similarity: Jaccard + difflib + semantic cosine (all-MiniLM-L6-v2)",
+        "runs": 1,
+        "usable_openings": 1,
+        "title_blocks_stripped": 0,
+        "suspected_title_openings": 0,
+        "openings": [
+          "The dust over Kethry Province has a color no one on Old Earth ever named\u2014a gold that leans toward violet at dusk, when the second moon drags"
+        ],
+        "lexical": {
+          "jaccard": {
+            "mean": null,
+            "max": null
+          },
+          "sequence_ratio": {
+            "mean": null,
+            "max": null
+          },
+          "distinct_openings": 1,
+          "shared_prefix": {
+            "top": [
+              [
+                "the dust over",
+                1
+              ]
+            ],
+            "max_share": "1/1"
+          }
+        },
+        "semantic": {
+          "note": "needs >=2 usable openings"
+        },
+        "note": "Similarity of the FIRST SENTENCE across runs (a tell whole-text similarity dilutes). High jaccard/sequence_ratio/semantic or low distinct_openings = formulaic openings; shared_prefix.max_share shows how many runs share the same opening words. Leading title/heading scaffolding is stripped before segmentation (title_blocks_stripped counts it); suspected_title_openings flags any short title-like opening that survived stripping."
+      }
+    }
+  }
+}
