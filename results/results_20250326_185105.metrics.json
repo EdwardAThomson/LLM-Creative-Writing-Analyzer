@@ -1,0 +1,1675 @@
+{
+  "schema": "metrics/1",
+  "source": "results_20250326_185105.json",
+  "benchmark": "v2",
+  "metrics_run": [
+    "phonetic_names",
+    "mtld",
+    "burstiness",
+    "dialogue_ratio",
+    "intra_text_repetition",
+    "cliche_density",
+    "ngram_diversity",
+    "opening_lines"
+  ],
+  "models": {
+    "claude-3-5-sonnet": {
+      "phonetic_names": {
+        "schema": "phonetic_names/1",
+        "method": "leading_sound/1",
+        "runs": 10,
+        "total_names": 130,
+        "distinct_sounds": 10,
+        "max_sound_recurrence": "9/10",
+        "repeated_sounds": [
+          {
+            "sound": "M",
+            "runs": 9,
+            "of": 10,
+            "distinct_names": [
+              "Marcus",
+              "Matsuda",
+              "Maya",
+              "Mira",
+              "Mom"
+            ]
+          },
+          {
+            "sound": "CH",
+            "runs": 8,
+            "of": 10,
+            "distinct_names": [
+              "Chen"
+            ]
+          },
+          {
+            "sound": "A",
+            "runs": 3,
+            "of": 10,
+            "distinct_names": [
+              "Alpha",
+              "Aria"
+            ]
+          },
+          {
+            "sound": "S",
+            "runs": 3,
+            "of": 10,
+            "distinct_names": [
+              "Santos",
+              "Seven",
+              "Swarm"
+            ]
+          },
+          {
+            "sound": "H",
+            "runs": 2,
+            "of": 10,
+            "distinct_names": [
+              "Hayes",
+              "Hector"
+            ]
+          },
+          {
+            "sound": "P",
+            "runs": 2,
+            "of": 10,
+            "distinct_names": [
+              "Patel"
+            ]
+          }
+        ],
+        "note": "Recurrence of a character name's leading SOUND across runs, not the exact token; complements the v1 name-component metric (report \u00a76.6). Counts each PERSON span's final token and may include spaCy NER false positives (e.g. a place mislabeled PERSON) \u2014 verify before quoting."
+      },
+      "mtld": {
+        "schema": "mtld/1",
+        "method": "bidirectional MTLD, threshold=0.72",
+        "runs": 10,
+        "per_run": [
+          {
+            "tokens": 968,
+            "types": 509,
+            "ttr": 0.53,
+            "mtld": 198.49,
+            "reliable": true
+          },
+          {
+            "tokens": 989,
+            "types": 521,
+            "ttr": 0.53,
+            "mtld": 209.56,
+            "reliable": true
+          },
+          {
+            "tokens": 1178,
+            "types": 592,
+            "ttr": 0.5,
+            "mtld": 202.72,
+            "reliable": true
+          },
+          {
+            "tokens": 1140,
+            "types": 565,
+            "ttr": 0.5,
+            "mtld": 201.36,
+            "reliable": true
+          },
+          {
+            "tokens": 965,
+            "types": 516,
+            "ttr": 0.53,
+            "mtld": 197.42,
+            "reliable": true
+          },
+          {
+            "tokens": 1027,
+            "types": 545,
+            "ttr": 0.53,
+            "mtld": 216.65,
+            "reliable": true
+          },
+          {
+            "tokens": 964,
+            "types": 507,
+            "ttr": 0.53,
+            "mtld": 216.54,
+            "reliable": true
+          },
+          {
+            "tokens": 947,
+            "types": 489,
+            "ttr": 0.52,
+            "mtld": 199.41,
+            "reliable": true
+          },
+          {
+            "tokens": 977,
+            "types": 476,
+            "ttr": 0.49,
+            "mtld": 169.84,
+            "reliable": true
+          },
+          {
+            "tokens": 910,
+            "types": 510,
+            "ttr": 0.56,
+            "mtld": 237.34,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "n": 10,
+          "mean": 204.93,
+          "min": 169.84,
+          "max": 237.34,
+          "std": 16.5
+        },
+        "aggregate_reliable_only": {
+          "n": 10,
+          "mean": 204.93,
+          "min": 169.84,
+          "max": 237.34,
+          "std": 16.5
+        },
+        "unreliable_runs": 0,
+        "note": "Length-robust lexical diversity (MTLD, McCarthy & Jarvis 2010); higher = more varied vocabulary. Unlike v1 TTR it does not fall merely because a text is longer. Runs under 50 tokens are flagged reliable=false; prefer aggregate_reliable_only when comparing models."
+      },
+      "burstiness": {
+        "schema": "burstiness/1",
+        "method": "per-run sentence-length CV and Goh-Barabasi B (spaCy segmentation)",
+        "runs": 10,
+        "per_run": [
+          {
+            "sentences": 77,
+            "words": 968,
+            "mean": 12.571,
+            "std": 8.3,
+            "cv": 0.66,
+            "burstiness": -0.205,
+            "reliable": true
+          },
+          {
+            "sentences": 67,
+            "words": 989,
+            "mean": 14.761,
+            "std": 8.909,
+            "cv": 0.604,
+            "burstiness": -0.247,
+            "reliable": true
+          },
+          {
+            "sentences": 87,
+            "words": 1178,
+            "mean": 13.54,
+            "std": 9.165,
+            "cv": 0.677,
+            "burstiness": -0.193,
+            "reliable": true
+          },
+          {
+            "sentences": 88,
+            "words": 1140,
+            "mean": 12.955,
+            "std": 8.832,
+            "cv": 0.682,
+            "burstiness": -0.189,
+            "reliable": true
+          },
+          {
+            "sentences": 66,
+            "words": 965,
+            "mean": 14.621,
+            "std": 7.166,
+            "cv": 0.49,
+            "burstiness": -0.342,
+            "reliable": true
+          },
+          {
+            "sentences": 73,
+            "words": 1027,
+            "mean": 14.068,
+            "std": 7.597,
+            "cv": 0.54,
+            "burstiness": -0.299,
+            "reliable": true
+          },
+          {
+            "sentences": 73,
+            "words": 964,
+            "mean": 13.205,
+            "std": 8.188,
+            "cv": 0.62,
+            "burstiness": -0.235,
+            "reliable": true
+          },
+          {
+            "sentences": 63,
+            "words": 947,
+            "mean": 15.032,
+            "std": 8.118,
+            "cv": 0.54,
+            "burstiness": -0.299,
+            "reliable": true
+          },
+          {
+            "sentences": 63,
+            "words": 977,
+            "mean": 15.508,
+            "std": 8.282,
+            "cv": 0.534,
+            "burstiness": -0.304,
+            "reliable": true
+          },
+          {
+            "sentences": 78,
+            "words": 910,
+            "mean": 11.667,
+            "std": 7.701,
+            "cv": 0.66,
+            "burstiness": -0.205,
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "cv": {
+            "n": 10,
+            "mean": 0.601,
+            "min": 0.49,
+            "max": 0.682,
+            "std": 0.066
+          },
+          "burstiness": {
+            "n": 10,
+            "mean": -0.252,
+            "min": -0.342,
+            "max": -0.189,
+            "std": 0.052
+          },
+          "mean": {
+            "n": 10,
+            "mean": 13.793,
+            "min": 11.667,
+            "max": 15.508,
+            "std": 1.153
+          },
+          "std": {
+            "n": 10,
+            "mean": 8.226,
+            "min": 7.166,
+            "max": 9.165,
+            "std": 0.594
+          }
+        },
+        "aggregate_reliable_only": {
+          "cv": {
+            "n": 10,
+            "mean": 0.601,
+            "min": 0.49,
+            "max": 0.682,
+            "std": 0.066
+          },
+          "burstiness": {
+            "n": 10,
+            "mean": -0.252,
+            "min": -0.342,
+            "max": -0.189,
+            "std": 0.052
+          },
+          "mean": {
+            "n": 10,
+            "mean": 13.793,
+            "min": 11.667,
+            "max": 15.508,
+            "std": 1.153
+          },
+          "std": {
+            "n": 10,
+            "mean": 8.226,
+            "min": 7.166,
+            "max": 9.165,
+            "std": 0.594
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Variation in sentence length (rhythm). cv = std/mean is the length-robust headline; burstiness = (std-mean)/(std+mean) in [-1,1] is the Goh-Barabasi coefficient (>0 bursty/human-like, <0 metronomic). Higher = more varied rhythm. Runs under 3 sentences are flagged reliable=false."
+      },
+      "dialogue_ratio": {
+        "schema": "dialogue_ratio/1",
+        "method": "words inside paired double quotes / total words",
+        "runs": 10,
+        "per_run": [
+          {
+            "total_words": 968,
+            "dialogue_words": 241,
+            "dialogue_ratio": 0.249,
+            "quoted_passages": 23
+          },
+          {
+            "total_words": 989,
+            "dialogue_words": 320,
+            "dialogue_ratio": 0.324,
+            "quoted_passages": 29
+          },
+          {
+            "total_words": 1178,
+            "dialogue_words": 272,
+            "dialogue_ratio": 0.231,
+            "quoted_passages": 28
+          },
+          {
+            "total_words": 1140,
+            "dialogue_words": 347,
+            "dialogue_ratio": 0.304,
+            "quoted_passages": 35
+          },
+          {
+            "total_words": 965,
+            "dialogue_words": 95,
+            "dialogue_ratio": 0.098,
+            "quoted_passages": 15
+          },
+          {
+            "total_words": 1027,
+            "dialogue_words": 157,
+            "dialogue_ratio": 0.153,
+            "quoted_passages": 23
+          },
+          {
+            "total_words": 964,
+            "dialogue_words": 191,
+            "dialogue_ratio": 0.198,
+            "quoted_passages": 25
+          },
+          {
+            "total_words": 947,
+            "dialogue_words": 64,
+            "dialogue_ratio": 0.068,
+            "quoted_passages": 15
+          },
+          {
+            "total_words": 977,
+            "dialogue_words": 99,
+            "dialogue_ratio": 0.101,
+            "quoted_passages": 17
+          },
+          {
+            "total_words": 910,
+            "dialogue_words": 185,
+            "dialogue_ratio": 0.203,
+            "quoted_passages": 18
+          }
+        ],
+        "aggregate": {
+          "n": 10,
+          "mean": 0.193,
+          "min": 0.068,
+          "max": 0.324,
+          "std": 0.083
+        },
+        "note": "Fraction of words inside double quotes (dialogue) vs narration; a pacing fingerprint. Straight and curly double quotes are paired; single quotes are ignored (apostrophe collision). quoted_passages counts distinct quoted spans."
+      },
+      "intra_text_repetition": {
+        "schema": "intra_text_repetition/1",
+        "method": "per-text n-gram repeat rate (1 - distinct/total); unigram=content words",
+        "runs": 10,
+        "per_run": [
+          {
+            "word_tokens": 968,
+            "content_tokens": 602,
+            "unigram": {
+              "rep_rate": 0.267,
+              "top": [
+                [
+                  "maya",
+                  14
+                ],
+                [
+                  "hector",
+                  9
+                ],
+                [
+                  "neural",
+                  7
+                ],
+                [
+                  "across",
+                  6
+                ],
+                [
+                  "interface",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.08,
+              "top": [
+                [
+                  "in the",
+                  8
+                ],
+                [
+                  "neural interface",
+                  6
+                ],
+                [
+                  "new alexandria",
+                  4
+                ],
+                [
+                  "the neural",
+                  4
+                ],
+                [
+                  "at the",
+                  4
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.017,
+              "top": [
+                [
+                  "the neural interface",
+                  4
+                ],
+                [
+                  "the harvest drones",
+                  2
+                ],
+                [
+                  "of new alexandria",
+                  2
+                ],
+                [
+                  "in the distance",
+                  2
+                ],
+                [
+                  "neural interface at",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 989,
+            "content_tokens": 617,
+            "unigram": {
+              "rep_rate": 0.279,
+              "top": [
+                [
+                  "quantum",
+                  10
+                ],
+                [
+                  "like",
+                  8
+                ],
+                [
+                  "aria",
+                  8
+                ],
+                [
+                  "pythia",
+                  8
+                ],
+                [
+                  "three",
+                  5
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.07,
+              "top": [
+                [
+                  "the quantum",
+                  4
+                ],
+                [
+                  "the ai",
+                  4
+                ],
+                [
+                  "of the",
+                  4
+                ],
+                [
+                  "the window",
+                  4
+                ],
+                [
+                  "aria's augmented",
+                  3
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.01,
+              "top": [
+                [
+                  "aria's augmented reflexes",
+                  2
+                ],
+                [
+                  "announces its voice",
+                  2
+                ],
+                [
+                  "leaving trails of",
+                  2
+                ],
+                [
+                  "away from the",
+                  2
+                ],
+                [
+                  "and aria's augmented",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1178,
+            "content_tokens": 718,
+            "unigram": {
+              "rep_rate": 0.287,
+              "top": [
+                [
+                  "mira",
+                  12
+                ],
+                [
+                  "like",
+                  9
+                ],
+                [
+                  "mother",
+                  9
+                ],
+                [
+                  "augment",
+                  8
+                ],
+                [
+                  "voice",
+                  7
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.09,
+              "top": [
+                [
+                  "her mother",
+                  8
+                ],
+                [
+                  "the harvest",
+                  4
+                ],
+                [
+                  "harvest drones",
+                  4
+                ],
+                [
+                  "new eden",
+                  4
+                ],
+                [
+                  "in the",
+                  4
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.018,
+              "top": [
+                [
+                  "the harvest drones",
+                  4
+                ],
+                [
+                  "colonial defense force",
+                  3
+                ],
+                [
+                  "her mother says",
+                  3
+                ],
+                [
+                  "harvest drones buzz",
+                  2
+                ],
+                [
+                  "her neural augment",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1140,
+            "content_tokens": 692,
+            "unigram": {
+              "rep_rate": 0.296,
+              "top": [
+                [
+                  "maya",
+                  15
+                ],
+                [
+                  "like",
+                  9
+                ],
+                [
+                  "storm",
+                  7
+                ],
+                [
+                  "chen",
+                  6
+                ],
+                [
+                  "house",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.095,
+              "top": [
+                [
+                  "the house",
+                  6
+                ],
+                [
+                  "the storm",
+                  5
+                ],
+                [
+                  "in the",
+                  4
+                ],
+                [
+                  "and the",
+                  4
+                ],
+                [
+                  "from the",
+                  4
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.014,
+              "top": [
+                [
+                  "the house ai",
+                  4
+                ],
+                [
+                  "why i can",
+                  3
+                ],
+                [
+                  "the harvest drones",
+                  2
+                ],
+                [
+                  "sees the massive",
+                  2
+                ],
+                [
+                  "the storm is",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 965,
+            "content_tokens": 599,
+            "unigram": {
+              "rep_rate": 0.254,
+              "top": [
+                [
+                  "something",
+                  10
+                ],
+                [
+                  "maya",
+                  8
+                ],
+                [
+                  "like",
+                  7
+                ],
+                [
+                  "it's",
+                  6
+                ],
+                [
+                  "new",
+                  5
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.07,
+              "top": [
+                [
+                  "in the",
+                  7
+                ],
+                [
+                  "for the",
+                  4
+                ],
+                [
+                  "at the",
+                  4
+                ],
+                [
+                  "trying to",
+                  4
+                ],
+                [
+                  "the stars",
+                  3
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.01,
+              "top": [
+                [
+                  "the direction of",
+                  3
+                ],
+                [
+                  "the harvest drones",
+                  2
+                ],
+                [
+                  "her augmented eyes",
+                  2
+                ],
+                [
+                  "the darkening sky",
+                  2
+                ],
+                [
+                  "direction of unity",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 1027,
+            "content_tokens": 640,
+            "unigram": {
+              "rep_rate": 0.259,
+              "top": [
+                [
+                  "mira",
+                  14
+                ],
+                [
+                  "colony",
+                  6
+                ],
+                [
+                  "something",
+                  6
+                ],
+                [
+                  "neural",
+                  6
+                ],
+                [
+                  "like",
+                  5
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.092,
+              "top": [
+                [
+                  "in the",
+                  10
+                ],
+                [
+                  "of the",
+                  8
+                ],
+                [
+                  "from the",
+                  5
+                ],
+                [
+                  "across the",
+                  4
+                ],
+                [
+                  "as the",
+                  4
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.011,
+              "top": [
+                [
+                  "the harvest drones",
+                  2
+                ],
+                [
+                  "at the edges",
+                  2
+                ],
+                [
+                  "the edges of",
+                  2
+                ],
+                [
+                  "the second sun",
+                  2
+                ],
+                [
+                  "of new alexandria",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 964,
+            "content_tokens": 602,
+            "unigram": {
+              "rep_rate": 0.271,
+              "top": [
+                [
+                  "mira",
+                  10
+                ],
+                [
+                  "failed",
+                  8
+                ],
+                [
+                  "something",
+                  8
+                ],
+                [
+                  "meridian",
+                  6
+                ],
+                [
+                  "like",
+                  5
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.081,
+              "top": [
+                [
+                  "for the",
+                  5
+                ],
+                [
+                  "with the",
+                  4
+                ],
+                [
+                  "neural interface",
+                  4
+                ],
+                [
+                  "from the",
+                  4
+                ],
+                [
+                  "through the",
+                  4
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.012,
+              "top": [
+                [
+                  "her neural interface",
+                  3
+                ],
+                [
+                  "the procedure that",
+                  2
+                ],
+                [
+                  "the meridian site",
+                  2
+                ],
+                [
+                  "the cloud layer",
+                  2
+                ],
+                [
+                  "who carry their",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 947,
+            "content_tokens": 592,
+            "unigram": {
+              "rep_rate": 0.289,
+              "top": [
+                [
+                  "maya",
+                  15
+                ],
+                [
+                  "something",
+                  8
+                ],
+                [
+                  "grain",
+                  7
+                ],
+                [
+                  "centauri",
+                  6
+                ],
+                [
+                  "power",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.09,
+              "top": [
+                [
+                  "from the",
+                  5
+                ],
+                [
+                  "in the",
+                  5
+                ],
+                [
+                  "the purple",
+                  4
+                ],
+                [
+                  "purple grain",
+                  4
+                ],
+                [
+                  "around her",
+                  4
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.013,
+              "top": [
+                [
+                  "the purple grain",
+                  4
+                ],
+                [
+                  "the harvest drones",
+                  2
+                ],
+                [
+                  "across the settlement",
+                  2
+                ],
+                [
+                  "the night sky",
+                  2
+                ],
+                [
+                  "grandfather insisted on",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 977,
+            "content_tokens": 589,
+            "unigram": {
+              "rep_rate": 0.311,
+              "top": [
+                [
+                  "aria",
+                  12
+                ],
+                [
+                  "neural",
+                  7
+                ],
+                [
+                  "interface",
+                  7
+                ],
+                [
+                  "she's",
+                  7
+                ],
+                [
+                  "human",
+                  6
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.114,
+              "top": [
+                [
+                  "in the",
+                  7
+                ],
+                [
+                  "neural interface",
+                  7
+                ],
+                [
+                  "in her",
+                  6
+                ],
+                [
+                  "the harvest",
+                  5
+                ],
+                [
+                  "harvest drones",
+                  5
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.026,
+              "top": [
+                [
+                  "the harvest drones",
+                  5
+                ],
+                [
+                  "her neural interface",
+                  4
+                ],
+                [
+                  "in her mind",
+                  4
+                ],
+                [
+                  "the purple fields",
+                  2
+                ],
+                [
+                  "purple fields of",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          },
+          {
+            "word_tokens": 910,
+            "content_tokens": 556,
+            "unigram": {
+              "rep_rate": 0.212,
+              "top": [
+                [
+                  "like",
+                  10
+                ],
+                [
+                  "mira",
+                  10
+                ],
+                [
+                  "new",
+                  5
+                ],
+                [
+                  "choosing",
+                  5
+                ],
+                [
+                  "drones",
+                  4
+                ]
+              ]
+            },
+            "bigram": {
+              "rep_rate": 0.064,
+              "top": [
+                [
+                  "in the",
+                  4
+                ],
+                [
+                  "of new",
+                  3
+                ],
+                [
+                  "between the",
+                  3
+                ],
+                [
+                  "in her",
+                  3
+                ],
+                [
+                  "as she",
+                  3
+                ]
+              ]
+            },
+            "trigram": {
+              "rep_rate": 0.011,
+              "top": [
+                [
+                  "the harvest drones",
+                  2
+                ],
+                [
+                  "the purple wheat",
+                  2
+                ],
+                [
+                  "purple wheat fields",
+                  2
+                ],
+                [
+                  "for the first",
+                  2
+                ],
+                [
+                  "the first time",
+                  2
+                ]
+              ]
+            },
+            "reliable": true
+          }
+        ],
+        "aggregate": {
+          "unigram": {
+            "n": 10,
+            "mean": 0.273,
+            "min": 0.212,
+            "max": 0.311
+          },
+          "bigram": {
+            "n": 10,
+            "mean": 0.085,
+            "min": 0.064,
+            "max": 0.114
+          },
+          "trigram": {
+            "n": 10,
+            "mean": 0.014,
+            "min": 0.01,
+            "max": 0.026
+          }
+        },
+        "aggregate_reliable_only": {
+          "unigram": {
+            "n": 10,
+            "mean": 0.273,
+            "min": 0.212,
+            "max": 0.311
+          },
+          "bigram": {
+            "n": 10,
+            "mean": 0.085,
+            "min": 0.064,
+            "max": 0.114
+          },
+          "trigram": {
+            "n": 10,
+            "mean": 0.014,
+            "min": 0.01,
+            "max": 0.026
+          }
+        },
+        "unreliable_runs": 0,
+        "note": "Repetition WITHIN each story (complements the across-run diversity metrics). rep_rate = 1 - distinct/total n-grams; higher = more repetitive. unigram is over content words only (the 'word obsession' defect); bigram/trigram over all tokens. Runs under 30 tokens flagged reliable=false."
+      },
+      "cliche_density": {
+        "schema": "cliche_density/1",
+        "lexicon_version": "1",
+        "lexicon_size": 38,
+        "method": "stock-phrase / register-word / em-dash hits per 1000 words",
+        "runs": 10,
+        "per_run": [
+          {
+            "words": 968,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "word_hits": {}
+            },
+            "em_dash": {
+              "count": 0,
+              "per_1k": 0.0
+            }
+          },
+          {
+            "words": 989,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 2,
+              "per_1k": 2.02,
+              "distinct": 2,
+              "word_hits": {
+                "kaleidoscope": 1,
+                "ethereal": 1
+              }
+            },
+            "em_dash": {
+              "count": 0,
+              "per_1k": 0.0
+            }
+          },
+          {
+            "words": 1178,
+            "cliche": {
+              "hits": 2,
+              "per_1k": 1.7,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 2,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "in_that_moment": 2
+              }
+            },
+            "slop_words": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "word_hits": {}
+            },
+            "em_dash": {
+              "count": 0,
+              "per_1k": 0.0
+            }
+          },
+          {
+            "words": 1140,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 1,
+              "per_1k": 0.88,
+              "distinct": 1,
+              "word_hits": {
+                "gleaming": 1
+              }
+            },
+            "em_dash": {
+              "count": 12,
+              "per_1k": 10.53
+            }
+          },
+          {
+            "words": 965,
+            "cliche": {
+              "hits": 1,
+              "per_1k": 1.04,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 1,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "beacon_of": 1
+              }
+            },
+            "slop_words": {
+              "hits": 2,
+              "per_1k": 2.07,
+              "distinct": 2,
+              "word_hits": {
+                "beacon": 1,
+                "gleaming": 1
+              }
+            },
+            "em_dash": {
+              "count": 9,
+              "per_1k": 9.33
+            }
+          },
+          {
+            "words": 1027,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 1,
+              "per_1k": 0.97,
+              "distinct": 1,
+              "word_hits": {
+                "gleaming": 1
+              }
+            },
+            "em_dash": {
+              "count": 1,
+              "per_1k": 0.97
+            }
+          },
+          {
+            "words": 964,
+            "cliche": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 0,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {}
+            },
+            "slop_words": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "word_hits": {}
+            },
+            "em_dash": {
+              "count": 12,
+              "per_1k": 12.45
+            }
+          },
+          {
+            "words": 947,
+            "cliche": {
+              "hits": 1,
+              "per_1k": 1.06,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 1,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "in_that_moment": 1
+              }
+            },
+            "slop_words": {
+              "hits": 0,
+              "per_1k": 0.0,
+              "distinct": 0,
+              "word_hits": {}
+            },
+            "em_dash": {
+              "count": 0,
+              "per_1k": 0.0
+            }
+          },
+          {
+            "words": 977,
+            "cliche": {
+              "hits": 2,
+              "per_1k": 2.05,
+              "distinct": 2,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 1,
+                "C_emotion": 0,
+                "D_time": 1,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "testament_to": 1,
+                "in_that_moment": 1
+              }
+            },
+            "slop_words": {
+              "hits": 1,
+              "per_1k": 1.02,
+              "distinct": 1,
+              "word_hits": {
+                "cacophony": 1
+              }
+            },
+            "em_dash": {
+              "count": 0,
+              "per_1k": 0.0
+            }
+          },
+          {
+            "words": 910,
+            "cliche": {
+              "hits": 1,
+              "per_1k": 1.1,
+              "distinct": 1,
+              "by_category": {
+                "A_opener": 0,
+                "B_epithet": 0,
+                "C_emotion": 0,
+                "D_time": 1,
+                "E_closer": 0,
+                "F_struct": 0
+              },
+              "phrase_hits": {
+                "in_that_moment": 1
+              }
+            },
+            "slop_words": {
+              "hits": 1,
+              "per_1k": 1.1,
+              "distinct": 1,
+              "word_hits": {
+                "gleaming": 1
+              }
+            },
+            "em_dash": {
+              "count": 1,
+              "per_1k": 1.1
+            }
+          }
+        ],
+        "aggregate": {
+          "cliche_per_1k": 0.7,
+          "slop_words_per_1k": 0.81,
+          "em_dash_per_1k": 3.44
+        },
+        "note": "Clich\u00e9 / stock-phrase density (per 1000 words) \u2014 a GENERIC-PROSE signal, not an AI detector: most phrases are overused human clich\u00e9s. 'cliche' is the trustworthy multi-word headline; 'slop_words' (single register words) is high-FP and kept separate; 'em_dash' is a structural cadence tell."
+      },
+      "ngram_diversity": {
+        "schema": "ngram_diversity/1",
+        "method": "distinct-n (n=1,2,3) + Self-BLEU-4",
+        "runs": 10,
+        "tokens": {
+          "total": 10065,
+          "mean_per_run": 1006.5,
+          "min": 910,
+          "max": 1178,
+          "length_spread": 0.2663
+        },
+        "distinct": {
+          "distinct_1": {
+            "distinct": 2455,
+            "total": 10065,
+            "ratio": 0.2439
+          },
+          "distinct_2": {
+            "distinct": 7631,
+            "total": 10055,
+            "ratio": 0.7589
+          },
+          "distinct_3": {
+            "distinct": 9435,
+            "total": 10045,
+            "ratio": 0.9393
+          }
+        },
+        "self_bleu": {
+          "mean": 0.1567,
+          "min": 0.0949,
+          "max": 0.2066,
+          "per_run": [
+            0.1512,
+            0.0949,
+            0.149,
+            0.1173,
+            0.1521,
+            0.2066,
+            0.1628,
+            0.1798,
+            0.1833,
+            0.1699
+          ]
+        },
+        "note": "Corpus-level diversity of the N runs. distinct_n (distinct/total n-grams) is HIGHER for more diverse sets; self_bleu is HIGHER for more SIMILAR (less diverse) sets \u2014 they move in opposite directions. Both are length-sensitive: compare across run sets of similar size (see tokens.length_spread; a large spread weakens comparability)."
+      },
+      "opening_lines": {
+        "schema": "opening_lines/1",
+        "method": "first-sentence similarity: Jaccard + difflib + semantic cosine (all-MiniLM-L6-v2)",
+        "runs": 10,
+        "usable_openings": 10,
+        "title_blocks_stripped": 10,
+        "suspected_title_openings": 0,
+        "openings": [
+          "The harvest drones dance across Nova Terra's purple wheat fields like fireflies in the twilight, their antigrav units humming a familiar lul",
+          "The crystalline spires of New Alexandria pierce the lavender sky like ancient swords, their surfaces reflecting the light of three setting s",
+          "The harvest drones buzz lazily through purple-stalked grain fields on New Eden, their metallic carapaces reflecting twin suns that never qui",
+          "The harvest drones hover like metallic fireflies over the purple grain fields of New Montana, their quantum processors calculating the preci",
+          "The harvest drones buzz lazily through amber fields of modified wheat on Kepler-742b, their metallic bodies catching the light of three sett",
+          "The harvest drones hover like metallic fireflies over the purple grain fields of New Arcadia, their soft hum mixing with the alien wind that",
+          "The terraforming towers of New Arcadia pierce the lavender sky like silver needles, their quantum processors humming in harmony with the art",
+          "The harvest drones hover like metallic fireflies over the purple grain fields of New Arcadia, their soft hum mixing with the alien wind that",
+          "The harvest drones drift like metallic dandelion seeds across the purple fields of Novus Prime, their crystalline sensors glinting in the li",
+          "The harvest drones drift like metallic seeds across the purple wheat fields of New Eden, their crystalline bodies refracting the light of th"
+        ],
+        "lexical": {
+          "jaccard": {
+            "mean": 0.2321,
+            "max": 0.963
+          },
+          "sequence_ratio": {
+            "mean": 0.4832,
+            "max": 0.9672
+          },
+          "distinct_openings": 10,
+          "shared_prefix": {
+            "top": [
+              [
+                "the harvest drones",
+                8
+              ],
+              [
+                "the crystalline spires",
+                1
+              ],
+              [
+                "the terraforming towers",
+                1
+              ]
+            ],
+            "max_share": "8/10"
+          }
+        },
+        "semantic": {
+          "model": "all-MiniLM-L6-v2",
+          "mean": 0.5818,
+          "median": 0.5775,
+          "min": 0.3013,
+          "max": 0.9978
+        },
+        "note": "Similarity of the FIRST SENTENCE across runs (a tell whole-text similarity dilutes). High jaccard/sequence_ratio/semantic or low distinct_openings = formulaic openings; shared_prefix.max_share shows how many runs share the same opening words. Leading title/heading scaffolding is stripped before segmentation (title_blocks_stripped counts it); suspected_title_openings flags any short title-like opening that survived stripping."
+      }
+    }
+  }
+}
