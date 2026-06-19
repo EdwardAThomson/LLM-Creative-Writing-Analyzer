@@ -119,3 +119,41 @@ re-run of the newest models** (GPT-5.5, Claude Opus 4.8 / Fable 5, current Gemin
 Pro/Flash): scoring those with v2 alongside the 2025 API cohort would remove the
 CLI/sampling confound and turn the generational and vendor comparisons here into
 properly controlled ones.
+
+## 7. Practical pick: best of the *currently available* models
+
+The two strongest models in the wider study (o3 and Fable 5) are not currently
+usable — o3 is no longer in the selectable API list, and Fable 5 is access-blocked.
+Excluding those leaves five candidates, all in this CLI cohort — which means the
+comparison below is **apples-to-apples** (same CLI-default condition), the cleanest
+ranking in the study, free of the API↔CLI confound that hedges §3–5.
+
+Decision-relevant metrics (↑ = higher better, ↓ = lower better):
+
+| Rank | Model | MTLD ↑ | rhythm cv ↑ | clich ↓ | slop ↓ | em | sBLEU ↓ | opPfx ↓ |
+| :-- | :-- | --: | --: | --: | --: | --: | --: | --: |
+| **1=** | **GPT-5.5** (codex-cli) | **162** | 0.77 | 0.04 | **0.00** | 0.08 | **0.13** | 3/10 |
+| **1=** | **Sonnet 4.6** (claude-cli) | 126 | **0.92** | 0.13 | 0.00 | 13.5 | 0.14 | **1/10** |
+| 3 | Opus 4.8 (claude-cli) | 96 | 0.89 | 0.00 | 0.07 | 12.9 | 0.18 | 2/10 |
+| 4 | Gemini 3.x pro (cli) | 134 | 0.59 | 0.28 | 1.78 | 4.9 | 0.19 | 2/10 |
+| 5 | Gemini 3.x flash (cli) | 93 | 0.65 | 0.53 | 1.74 | 7.2 | 0.22 | 7/10 |
+
+**Verdict.** It is a two-horse race between **GPT-5.5** and **Sonnet 4.6**:
+
+- **GPT-5.5** — richest vocabulary of the five *and* the cleanest prose (lowest
+  cliché + zero slop-words + near-zero em-dashes), with good cross-run variety. Its
+  weaknesses are a flatter rhythm and long outputs.
+- **Sonnet 4.6** — the most natural sentence **rhythm** (rhythm being one of the
+  harder-to-fake human-vs-AI signals) and the most varied openings, but mid
+  vocabulary and a heavy em-dash habit.
+
+For a general creative-writing pipeline the safer all-rounder is **GPT-5.5** (rich
+*and* clean, no em-dash tic); pick **Sonnet 4.6** if you specifically want Anthropic's
+varied cadence and don't mind the em-dashes. **Opus 4.8** is a solid third (its only
+real weakness is the lowest lexical diversity of the group). The **Gemini CLI models
+are the clear avoid** for craft — flat rhythm and the classic "AI words" (flash
+worst: most formulaic, "shimmering" ×16, 7/10 identical openings).
+
+These remain craft *proxies*, not a quality verdict; the GPT-5.5-vs-Sonnet-4.6 tie
+is exactly what the planned LLM-judge (rubric + pairwise Elo) would settle, and both
+being available means fresh head-to-head runs are feasible.
