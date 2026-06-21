@@ -33,6 +33,7 @@ outputs for consistency, variation, entity reuse, and structure to surface model
 - [ ] Metrics — remaining diversity/craft: embedding-cloud modality, NER-aware name filtering (formalize the stop-list + hyphen handling), readability spread, concrete/sensory-word density
 - [ ] Metrics — prompt-adherence scoring: fraction of the prompt's parameters honored (tense, POV, requested species/tech)
 - [ ] Metrics — LLM-as-judge quality axis: rubric scoring + pairwise Elo, genericness via perplexity, judge-bias controls
+- [ ] Dev infra — make `utils/__init__.py` lazy: it eagerly imports `utils.text_analysis` (→ `sentence_transformers`), so `import utils.metrics.<name>` pulls heavy deps and fails in a minimal env. This defeats the metrics package's deliberate stdlib-only/lazy design. The first test suite works around it by importing metric modules **by file path** (`tests/conftest.py::load_metric`); once `utils/__init__.py` is lazy, tests can import normally. Note: coverage of the metric modules must be measured as `--cov=utils/metrics` (path form), not `--cov=utils.metrics`, until then.
 
 ## Backlog
 
