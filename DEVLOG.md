@@ -2,6 +2,23 @@
 
 A chronological narrative of development. Newest entries first.
 
+## 2026-06-21
+
+Gave the repo its first test suite: a pytest harness covering the five
+stdlib-only v2 metric modules (`cliche_density`, `dialogue_ratio`, `mtld`,
+`ngram_diversity`, `intra_text_repetition`) — 41 deterministic tests with
+human-predictable expected values plus structural-contract checks, hitting 100%
+line coverage of each module. No production code was touched. Bootstrapping this
+surfaced a design wart and it was logged in ROADMAP.md as a follow-up:
+`utils/__init__.py` eagerly imports `text_analysis` (and thus
+`sentence_transformers`), which defeats the metrics package's lazy-import design
+and breaks normal package import when the heavy dep isn't installed.
+
+**Decisions & notes:** because of that eager import, the tests load each metric
+module by file path (`tests/conftest.py::load_metric`) rather than through the
+package — a deliberate workaround until the `__init__.py` lazy-import cleanup
+lands.
+
 ## 2026-06-19
 
 Capstone day for the v2 metrics effort: wired up batch scoring and turned the
