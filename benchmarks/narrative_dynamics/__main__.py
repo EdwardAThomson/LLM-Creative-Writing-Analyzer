@@ -3,7 +3,7 @@
     python -m benchmarks.narrative_dynamics <text-file | directory>
         [--benchmark nd1 | --metrics name,name]
         [--segmentation chapters|windows] [--window-words 1500]
-        [--no-gutenberg-trim]
+        [--no-gutenberg-trim] [--include-front]
         [--judge-model MODEL | --dry-run]
         [--aliases aliases.json] [--reference ref.json]
         [--make-reference OUT.json]
@@ -56,16 +56,22 @@ def score_file(path: str, names, ctx: dict, args, benchmark_version) -> dict:
     seg = segmentation.segment(
         text, strategy=args.segmentation, window_words=args.window_words,
         trim_gutenberg=not args.no_gutenberg_trim)
+    # scoring-layer policy: the "(front)" unit is excluded unless --include-front;
+    # the record lands in the sidecar so the exclusion is never silent
+    units, front_record = segmentation.exclude_front_matter(
+        seg["units"], include_front=args.include_front)
+    seg_info = {k: v for k, v in seg.items() if k != "units"}
+    seg_info["front_matter"] = front_record
     doc_ctx = dict(ctx)  # fresh per document: unit_tensions must not leak across
     doc_ctx["title"] = _title_from_path(path)
-    metrics = compute_document(seg["units"], names, doc_ctx)
+    metrics = compute_document(units, names, doc_ctx)
     result = {
         "schema": SCHEMA,
         "source": os.path.basename(path),
         "benchmark": benchmark_version,
         "metrics_run": list(metrics),
         "judge": describe_judge(ctx["judge"]),
-        "segmentation": {k: v for k, v in seg.items() if k != "units"},
+        "segmentation": seg_info,
         "metrics": metrics,
     }
     comparison = None
@@ -103,6 +109,10 @@ def main(argv=None) -> int:
                         help="Target words per window unit (default: %(default)s)")
     parser.add_argument("--no-gutenberg-trim", action="store_true",
                         help="Do not strip Project Gutenberg frontmatter/license")
+    parser.add_argument("--include-front", action="store_true",
+                        help="Score the pre-first-heading \"(front)\" unit too "
+                             "(excluded by default: front matter distorts "
+                             "per-unit stats; the sidecar records the exclusion)")
     parser.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL,
                         help="ai_helper model key for the judge (default: %(default)s)")
     parser.add_argument("--dry-run", action="store_true",

@@ -254,6 +254,167 @@ def test_segment_rejects_unknown_strategy():
         raise AssertionError("expected ValueError")
 
 
+# --- trailing back-matter trim -------------------------------------------------------
+
+# A Grosset & Dunlap style catalog, modeled on the one printed after THE END
+# but inside the Gutenberg markers of the shakedown Dracula copy.
+CATALOG_TAIL = (
+    "                                THE END\n\n"
+    "       *       *       *       *       *\n\n"
+    "     There are more books of the sort you like; more than 500 titles\n"
+    "     all told, in the list which you will find on the wrapper of this\n"
+    "     book. Ask for the publishers' complete catalog.\n\n"
+    "DETECTIVE STORIES BY J. S. FLETCHER\n\n"
+    "THE SECRET OF THE BARBICAN\n\nGREEN INK\n\nTHE SAFETY PIN\n\n"
+    "GROSSET & DUNLAP, Publishers, NEW YORK\n"
+)
+
+_LONG_PROSE = ("It was a long and uneventful journey through the low hills "
+               "and the weather held fair for the whole of it. ") * 200
+
+
+def test_tail_trim_removes_catalog_after_end_marker():
+    text = _LONG_PROSE + "\n\n" + CATALOG_TAIL
+    out, note = seg.trim_trailing_backmatter(text)
+    assert note is not None
+    assert out.endswith("THE END")           # marker line kept
+    assert "GROSSET" not in out
+    assert note["marker"] == "THE END"
+    assert note["trimmed_words"] == seg.word_count(CATALOG_TAIL.split("THE END", 1)[1])
+    assert note["non_narrative_line_ratio"] >= seg.TAIL_NONPROSE_RATIO
+    assert "catalog" in note["vocabulary_hits"]
+    assert len(note["vocabulary_hits"]) >= seg.TAIL_MIN_VOCAB_HITS
+
+
+def test_tail_trim_no_marker_keeps_everything():
+    # the Steps case: no end-marker line at all; the closing prose survives
+    text = _LONG_PROSE + "\n\nBut I had done my best service, I think, before I put on khaki."
+    out, note = seg.trim_trailing_backmatter(text)
+    assert note is None
+    assert out == text
+
+
+def test_tail_trim_mid_text_marker_is_never_trusted():
+    # "THE END" of Book One at ~50% of the text: in doubt, keep everything
+    text = _LONG_PROSE + "\n\nTHE END\n\n" + _LONG_PROSE
+    out, note = seg.trim_trailing_backmatter(text)
+    assert note is None
+    assert out == text
+
+
+def test_tail_trim_keeps_prose_after_marker():
+    # an epilogue in real prose after the marker: in doubt, keep everything
+    epilogue = ("It remains only to add that the family prospered for many "
+                "years afterward and the old house stood open to travellers "
+                "until the road itself was moved. Nothing more was ever heard "
+                "of the stranger, though the innkeeper claimed otherwise.")
+    text = _LONG_PROSE + "\n\nTHE END\n\n" + epilogue
+    out, note = seg.trim_trailing_backmatter(text)
+    assert note is None
+    assert out == text
+
+
+def test_tail_trim_requires_catalog_vocabulary():
+    # non-narrative-looking lines without publisher vocabulary: keep everything
+    text = _LONG_PROSE + "\n\nTHE END\n\nALPHA\n\nBETA\n\nGAMMA\n\nDELTA\n"
+    out, note = seg.trim_trailing_backmatter(text)
+    assert note is None
+    assert out == text
+
+
+def test_tail_trim_marker_with_nothing_after_is_a_no_op():
+    text = _LONG_PROSE + "\n\nTHE END"
+    out, note = seg.trim_trailing_backmatter(text)
+    assert note is None
+    assert out == text
+
+
+def test_segment_records_tail_trim_and_final_chapter_is_clean():
+    # chapters long enough that the marker sits inside the last-5% zone
+    body = "\n\n".join(f"CHAPTER {c}\n\n" + _words(f"c{c}", 800) for c in (1, 2, 3))
+    out = seg.segment(body + "\n\n" + CATALOG_TAIL, strategy="chapters")
+    assert out["strategy_used"] == "chapters"
+    assert out["tail_trim"] is not None
+    assert out["tail_trim"]["marker"] == "THE END"
+    assert all("GROSSET" not in u["text"] for u in out["units"])
+    # material before the marker (the Harker-NOTE position) is untouched
+    assert out["units"][-1]["text"].rstrip().endswith("THE END")
+
+
+def test_segment_without_trim_reports_tail_trim_none():
+    out = seg.segment(_chaptered_text(3), strategy="chapters")
+    assert out["tail_trim"] is None
+
+
+# --- front-matter scoring policy -------------------------------------------------------
+
+def _units_with_front():
+    text = _words("front", 220) + "\n\n" + _chaptered_text(3)
+    units = seg.segment_chapters(text)
+    assert units[0]["label"] == seg.FRONT_LABEL  # fixture sanity
+    return units
+
+
+def test_exclude_front_matter_default_excludes_and_records():
+    units = _units_with_front()
+    kept, record = seg.exclude_front_matter(units)
+    assert [u["label"] for u in kept] == ["CHAPTER 1.", "CHAPTER 2.", "CHAPTER 3."]
+    assert [u["index"] for u in kept] == [1, 2, 3]  # original indices kept
+    assert record["excluded"] is True
+    assert record["front_units"] == [{"index": 0, "label": "(front)", "words": 220}]
+    assert record["n_units_segmented"] == 4
+    assert record["n_units_scored"] == 3
+    assert "--include-front" in record["policy"]
+
+
+def test_exclude_front_matter_opt_in_keeps_front():
+    units = _units_with_front()
+    kept, record = seg.exclude_front_matter(units, include_front=True)
+    assert kept == units
+    assert record["excluded"] is False
+    assert record["n_units_scored"] == 4
+
+
+def test_exclude_front_matter_without_front_unit_is_silent():
+    units = seg.segment_chapters(_chaptered_text(3))
+    kept, record = seg.exclude_front_matter(units)
+    assert kept == units
+    assert record is None
+
+
+# --- TOC density screen ------------------------------------------------------------
+
+def test_toc_density_screen_is_the_only_standing_guard():
+    # Regression for the density screen itself. On the real shakedown books it
+    # never fired (Dracula's TOC entries died at the heading regex and
+    # blank-context guards), so this fixture is built to pass every candidate
+    # guard: each blank-line-separated TOC entry matches the heading regex,
+    # has a blank line (or the text edge) above, and a blank line below.
+    entries = ["CHAPTER I", "CHAPTER II", "CHAPTER III", "CHAPTER IV", "CHAPTER V"]
+    for e in entries:
+        assert seg.is_chapter_heading(e)
+    toc = "\n\n".join(entries)
+    preface = _words("pref", 60)  # >= MIN_UNIT_WORDS: breaks the run before the body
+    body = "\n\n".join(f"{e}\n\n" + _words(e.split()[-1].lower(), 120) for e in entries)
+    text = f"{toc}\n\n{preface}\n\n{body}"
+
+    # Control: the same shape with a sub-threshold run (TOC_MIN_RUN - 1
+    # entries) leaks straight through the candidate guards, proving the
+    # density screen is the only defense standing against this fixture.
+    control = "\n\n".join(entries[:seg.TOC_MIN_RUN - 1]) + f"\n\n{preface}\n\n{body}"
+    assert len(seg.detect_chapter_lines(control)) == (seg.TOC_MIN_RUN - 1) + len(entries)
+
+    # The screen drops the whole TOC run; every real chapter survives.
+    lines = text.split("\n")
+    hits = seg.detect_chapter_lines(text)
+    assert [lines[i] for i in hits] == entries
+    assert min(hits) > lines.index(preface)  # the body headings, not the TOC
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_used"] == "chapters"
+    assert [u["label"] for u in out["units"]] == entries
+    assert all("pref0" not in u["text"] for u in out["units"])
+
+
 def test_truncate_middle_short_text_untouched():
     text = " ".join(f"w{i}" for i in range(100))
     assert seg.truncate_middle(text, 50, 50) == text  # within the +200 grace

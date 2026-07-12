@@ -128,6 +128,80 @@ def test_cli_list(capsys):
     assert "tension_trajectory" in out
 
 
+def _novel_with_front_and_catalog():
+    """The synthetic novel plus 220 words of front matter and a publisher
+    catalog after THE END (both inside the Gutenberg markers), padded so the
+    end-marker sits in the last-5% zone; the shakedown Dracula shape."""
+    front = " ".join(f"frontword{i}" for i in range(220))
+    padding = ("The road ran on through the low hills and the weather held "
+               "fair for the whole of that long uneventful day. ") * 150
+    catalog = ("                                THE END\n\n"
+               "     More stories of the sort you like; more than 500 titles in\n"
+               "     the list on the wrapper. Ask for the publishers' catalog.\n\n"
+               "STORIES BY J. S. FLETCHER\n\nGREEN INK\n\nTHE SAFETY PIN\n\n"
+               "GROSSET & DUNLAP, Publishers, NEW YORK\n")
+    text = SYNTHETIC_NOVEL.replace("***\n\nCHAPTER I", f"***\n\n{front}\n\nCHAPTER I")
+    return text.replace(
+        "\n\n*** END OF",
+        f"\n\n{padding}\n\n{catalog}\n\n*** END OF")
+
+
+def test_cli_front_excluded_by_default_and_recorded(tmp_path):
+    p = tmp_path / "mini.txt"
+    p.write_text(_novel_with_front_and_catalog(), encoding="utf-8")
+    rc = main([str(p), "--dry-run", "--metrics", "tension_trajectory"])
+    assert rc == 0
+    result = json.loads((tmp_path / "mini.nd.json").read_text())
+    seg_info = result["segmentation"]
+    assert seg_info["n_units"] == 4  # segmentation truth: (front) + 3 chapters
+    fm = seg_info["front_matter"]
+    assert fm["excluded"] is True
+    assert fm["front_units"] == [{"index": 0, "label": "(front)", "words": 220}]
+    assert fm["n_units_scored"] == 3
+    per_unit = result["metrics"]["tension_trajectory"]["per_unit"]
+    assert [u["label"] for u in per_unit] == ["CHAPTER I", "CHAPTER II", "CHAPTER III"]
+    assert [u["index"] for u in per_unit] == [1, 2, 3]  # traceable to segmentation
+    report = (tmp_path / "mini.nd.txt").read_text()
+    assert "excluded from scoring" in report
+    assert "--include-front" in report
+
+
+def test_cli_include_front_scores_the_front_unit(tmp_path):
+    p = tmp_path / "mini.txt"
+    p.write_text(_novel_with_front_and_catalog(), encoding="utf-8")
+    rc = main([str(p), "--dry-run", "--include-front",
+               "--metrics", "tension_trajectory"])
+    assert rc == 0
+    result = json.loads((tmp_path / "mini.nd.json").read_text())
+    fm = result["segmentation"]["front_matter"]
+    assert fm["excluded"] is False
+    assert fm["n_units_scored"] == 4
+    per_unit = result["metrics"]["tension_trajectory"]["per_unit"]
+    assert per_unit[0]["label"] == "(front)"
+
+
+def test_cli_tail_trim_recorded_in_sidecar_and_report(tmp_path):
+    p = tmp_path / "mini.txt"
+    p.write_text(_novel_with_front_and_catalog(), encoding="utf-8")
+    assert main([str(p), "--dry-run", "--metrics", "tension_trajectory"]) == 0
+    result = json.loads((tmp_path / "mini.nd.json").read_text())
+    tt = result["segmentation"]["tail_trim"]
+    assert tt is not None
+    assert tt["marker"] == "THE END"
+    assert "catalog" in tt["vocabulary_hits"]
+    per_unit = result["metrics"]["tension_trajectory"]["per_unit"]
+    assert all("GROSSET" not in u.get("label", "") for u in per_unit)
+    report = (tmp_path / "mini.nd.txt").read_text()
+    assert "Tail trim:" in report
+    # the untouched synthetic novel records no trim and no front unit
+    q = tmp_path / "plain.txt"
+    q.write_text(SYNTHETIC_NOVEL, encoding="utf-8")
+    assert main([str(q), "--dry-run", "--metrics", "tension_trajectory"]) == 0
+    plain = json.loads((tmp_path / "plain.nd.json").read_text())
+    assert plain["segmentation"]["tail_trim"] is None
+    assert plain["segmentation"]["front_matter"] is None
+
+
 def test_cli_windows_strategy(tmp_path):
     p = _write_novel(tmp_path)
     rc = main([str(p), "--dry-run", "--segmentation", "windows",

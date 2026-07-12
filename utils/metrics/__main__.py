@@ -110,6 +110,13 @@ def main(argv: list[str] | None = None) -> int:
         default=1500,
         help="Target words per unit for --segment windows (default: %(default)s)",
     )
+    parser.add_argument(
+        "--include-front",
+        action="store_true",
+        help="With --segment: score the pre-first-heading \"(front)\" unit too "
+        "(excluded by default: front matter distorts per-unit stats; the "
+        "sidecar records the exclusion).",
+    )
     args = parser.parse_args(argv)
 
     if args.list or not args.results_json:
@@ -159,7 +166,8 @@ def main(argv: list[str] | None = None) -> int:
                       file=sys.stderr)
                 return 2
             segmentation, sources, texts = segment_units(
-                texts[0], args.segment, args.window_words)
+                texts[0], args.segment, args.window_words,
+                include_front=args.include_front)
         print(f"  scoring {group} ({len(texts)} text{'s' if len(texts) != 1 else ''})...",
               file=sys.stderr)
         out = {

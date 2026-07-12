@@ -67,6 +67,48 @@ def test_segment_units_windows_strategy():
     assert labels[0] == "w000"
 
 
+def _fixture_book_with_front():
+    """The fixture book with 220 words of front matter (title page / TOC
+    stand-in) between the Gutenberg START marker and CHAPTER I."""
+    text, block = _fixture_book()
+    front = " ".join(f"frontword{i}" for i in range(220))
+    return text.replace("***\n\nCHAPTER I", f"***\n\n{front}\n\nCHAPTER I"), block
+
+
+def test_segment_units_excludes_front_by_default_and_records_it():
+    # shakedown: Dracula's (front) unit (MTLD 24.3 vs 70-101 for chapters,
+    # TOC names in the census) polluted the per-unit stats; the scoring layer
+    # now drops it by default and the sidecar info says so.
+    text, _ = _fixture_book_with_front()
+    info, labels, units = tm.segment_units(text, "chapters")
+    assert labels == ["CHAPTER I", "CHAPTER II", "CHAPTER III", "CHAPTER IV"]
+    assert all("frontword" not in u for u in units)
+    fm = info["front_matter"]
+    assert fm["excluded"] is True
+    assert fm["front_units"] == [{"index": 0, "label": "(front)", "words": 220}]
+    assert fm["n_units_segmented"] == 5
+    assert fm["n_units_scored"] == 4
+    assert info["n_units"] == 5  # segmentation truth is untouched
+
+
+def test_segment_units_include_front_opts_back_in():
+    text, _ = _fixture_book_with_front()
+    info, labels, units = tm.segment_units(text, "chapters", include_front=True)
+    assert labels[0] == "(front)"
+    assert len(units) == 5
+    assert info["front_matter"]["excluded"] is False
+    assert info["front_matter"]["n_units_scored"] == 5
+
+
+def test_segment_units_records_absent_front_and_tail_trim():
+    # nothing silent, nothing invented: without front matter or an end-marker
+    # tail, both records are present and null
+    text, _ = _fixture_book()
+    info, _, _ = tm.segment_units(text, "chapters")
+    assert info["front_matter"] is None
+    assert info["tail_trim"] is None
+
+
 def test_full_st1_pure_pass_over_segmented_fixture():
     text, block = _fixture_book()
     _, _, units = tm.segment_units(text, "chapters")

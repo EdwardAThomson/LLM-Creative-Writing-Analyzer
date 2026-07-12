@@ -29,12 +29,57 @@ MAX_OPENING_CHARS = 300  # fallback cap when no sentence boundary is found
 _SENT_END = re.compile(r"[.!?…]+[\"'”’)\]]*\s")
 _WORD = re.compile(r"[a-z0-9]+(?:['’-][a-z0-9]+)*")
 
+# Title/name abbreviations whose trailing period does not end a sentence.
+# Conservative frozen list: honorifics and name suffixes, matched
+# case-insensitively. Two-book shakedown evidence: Dracula's "DR. SEWARD'S
+# DIARY" chapter headers were truncated to "DR.", scoring eleven chapter
+# openings as identical 1.0-similarity pairs (a pure splitter artifact).
+# Kept in sync with the twin list in text_structure.py; the metric modules
+# stay self-contained and file-path loadable (see tests/conftest.py), so the
+# small guard is duplicated rather than shared.
+_ABBREVIATIONS = frozenset((
+    "dr", "mr", "mrs", "ms", "st", "prof", "capt", "col", "lieut", "sgt",
+    "rev", "hon", "jr", "sr",
+))
+_WORD_BEFORE = re.compile(r"[A-Za-z]+$")
+
+
+def _is_abbreviation_break(text: str, m: "re.Match[str]") -> bool:
+    """True when a boundary match is just the period of a title/name
+    abbreviation (``Dr.``, ``Mr.``, a single initial), not a sentence end.
+
+    Conservative on both sides: only a bare period can belong to an
+    abbreviation, so any other terminal punctuation, or a period wrapped in a
+    closing quote or bracket (a sentence that legitimately ends with ``"Dr."``),
+    is still a boundary. Single capital initials (``J. S. Fletcher``) count as
+    abbreviations, except ``A`` and ``I``, which are common English words that
+    legitimately end sentences.
+    """
+    if m.group(0).rstrip() != ".":
+        return False
+    # the word immediately before the period (12 chars covers the longest
+    # abbreviation; a longer word's tail cannot match the list or an initial)
+    w = _WORD_BEFORE.search(text[max(0, m.start() - 12):m.start()])
+    if not w:
+        return False
+    word = w.group(0)
+    if len(word) == 1:
+        return word.isupper() and word not in ("A", "I")
+    return word.lower() in _ABBREVIATIONS
+
 
 def first_sentence(text: str) -> str:
-    """First sentence of a unit (or its first MAX_OPENING_CHARS as fallback)."""
+    """First sentence of a unit (or its first MAX_OPENING_CHARS as fallback).
+
+    Boundaries that are only an abbreviation's period are skipped (see
+    ``_is_abbreviation_break``), so ``DR. SEWARD'S DIARY ...`` headers are no
+    longer cut to ``DR.``.
+    """
     t = text.strip()
-    m = _SENT_END.search(t + " ")
-    if m:
+    probe = t + " "
+    for m in _SENT_END.finditer(probe):
+        if _is_abbreviation_break(probe, m):
+            continue
         return t[: m.end()].strip()
     return t[:MAX_OPENING_CHARS].strip()
 

@@ -52,7 +52,8 @@ def sidecar_path(path: str, group: str) -> str:
     return os.path.splitext(path)[0] + ".metrics.json"
 
 
-def segment_units(text: str, strategy: str, window_words: int = 1500):
+def segment_units(text: str, strategy: str, window_words: int = 1500,
+                  include_front: bool = False):
     """Segment one document into units via the narrative_dynamics layer (reused,
     not duplicated). Returns ``(segmentation_info, unit_labels, unit_texts)``.
 
@@ -61,10 +62,20 @@ def segment_units(text: str, strategy: str, window_words: int = 1500):
     this module stays file-path loadable; it resolves when the repo root is on
     ``sys.path`` (true for ``python -m utils.metrics`` run from the repo root,
     and for the test harness).
+
+    The pre-first-heading ``(front)`` unit is excluded from scoring unless
+    ``include_front`` (the ``--include-front`` flag): the shakedown showed it
+    polluting per-unit stats (Dracula's TOC/title page). The exclusion is
+    recorded in ``segmentation_info["front_matter"]`` so the sidecar states
+    what was left out; any trailing back-matter trim is likewise recorded in
+    ``segmentation_info["tail_trim"]``.
     """
     from benchmarks.narrative_dynamics import segmentation as seg  # local, stdlib
 
     res = seg.segment(text, strategy=strategy, window_words=window_words)
+    units, front_record = seg.exclude_front_matter(
+        res["units"], include_front=include_front)
     info = {k: v for k, v in res.items() if k != "units"}
-    labels = [u["label"] for u in res["units"]]
-    return info, labels, [u["text"] for u in res["units"]]
+    info["front_matter"] = front_record
+    labels = [u["label"] for u in units]
+    return info, labels, [u["text"] for u in units]

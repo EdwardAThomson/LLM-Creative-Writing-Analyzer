@@ -18,6 +18,50 @@ def test_first_sentence_fallback_without_terminator():
     assert of.first_sentence(text) == "x" * of.MAX_OPENING_CHARS
 
 
+def test_first_sentence_not_cut_at_title_abbreviations():
+    # shakedown: Dracula's "DR. SEWARD'S DIARY" headers were truncated to "DR."
+    assert of.first_sentence("Dr. Seward spoke first. Then silence.") == \
+        "Dr. Seward spoke first."
+    assert of.first_sentence(
+        "DR. SEWARD'S DIARY\n\nRenfield escaped again tonight. More text.") == \
+        "DR. SEWARD'S DIARY\n\nRenfield escaped again tonight."
+    assert of.first_sentence(
+        "Mr. and Mrs. Harker walked to St. Paul's and rested. Then tea.") == \
+        "Mr. and Mrs. Harker walked to St. Paul's and rested."
+
+
+def test_first_sentence_not_cut_at_single_initials():
+    assert of.first_sentence("J. S. Fletcher wrote many books. Nobody read them.") == \
+        "J. S. Fletcher wrote many books."
+
+
+def test_first_sentence_pronoun_i_still_ends_sentence():
+    # "I" is a common English word, not an initial: the boundary stays
+    assert of.first_sentence("So did I. Then we left.") == "So did I."
+
+
+def test_first_sentence_quoted_abbreviation_still_ends_sentence():
+    # a sentence that legitimately ends before a name: the period sits inside a
+    # closing quote, so it is a real boundary, not an abbreviation period
+    assert of.first_sentence('The plate read "Dr." Seward was out.') == \
+        'The plate read "Dr."'
+
+
+def test_seward_style_headers_no_longer_score_identical():
+    # the Dracula artifact in miniature: same diary header, different chapters;
+    # before the abbreviation guard all three openings were "DR." (1.0 pairs)
+    units = [
+        "DR. SEWARD'S DIARY\n\nRenfield was quiet in his cell today. More.",
+        "DR. SEWARD'S DIARY\n\nLucy grows weaker with every passing hour. More.",
+        "DR. SEWARD'S DIARY\n\nVan Helsing arrived on the morning train. More.",
+    ]
+    out = of.compute(units)
+    assert out["aggregate"]["max"] < 1.0
+    # the genuine epistolary formula signal remains visible in the census
+    assert out["repeated_openers"][0]["opener"] == "dr seward's diary"
+    assert out["repeated_openers"][0]["count"] == 3
+
+
 def test_formulaic_openings_detected():
     units = [
         "The morning came cold and grey over the harbor. Ships moved slowly.",

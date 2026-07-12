@@ -22,9 +22,48 @@ NAME = "text_structure"
 
 _WORD = re.compile(r"[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*")
 # Sentence boundary: terminal punctuation (with optional closing quote/paren)
-# followed by whitespace, or end of text. An approximation; abbreviations split.
+# followed by whitespace, or end of text. An approximation; uncommon
+# abbreviations still split (common title/name abbreviations are guarded
+# below).
 _SENT_BOUNDARY = re.compile(r"[.!?…]+[\"'”’)\]]*(?:\s+|$)")
 _PARA_SPLIT = re.compile(r"\n\s*\n")
+
+# Title/name abbreviations whose trailing period does not end a sentence.
+# Conservative frozen list: honorifics and name suffixes, matched
+# case-insensitively. Two-book shakedown evidence: splitting at "Dr." et al.
+# inflated Dracula's sentence counts and truncated its chapter openings.
+# Kept in sync with the twin list in opening_formula.py; the metric modules
+# stay self-contained and file-path loadable (see tests/conftest.py), so the
+# small guard is duplicated rather than shared.
+_ABBREVIATIONS = frozenset((
+    "dr", "mr", "mrs", "ms", "st", "prof", "capt", "col", "lieut", "sgt",
+    "rev", "hon", "jr", "sr",
+))
+_WORD_BEFORE = re.compile(r"[A-Za-z]+$")
+
+
+def _is_abbreviation_break(text: str, m: "re.Match[str]") -> bool:
+    """True when a boundary match is just the period of a title/name
+    abbreviation (``Dr.``, ``Mr.``, a single initial), not a sentence end.
+
+    Conservative on both sides: only a bare period can belong to an
+    abbreviation, so any other terminal punctuation, or a period wrapped in a
+    closing quote or bracket (a sentence that legitimately ends with ``"Dr."``),
+    is still a boundary. Single capital initials (``J. S. Fletcher``) count as
+    abbreviations, except ``A`` and ``I``, which are common English words that
+    legitimately end sentences.
+    """
+    if m.group(0).rstrip() != ".":
+        return False
+    # the word immediately before the period (12 chars covers the longest
+    # abbreviation; a longer word's tail cannot match the list or an initial)
+    w = _WORD_BEFORE.search(text[max(0, m.start() - 12):m.start()])
+    if not w:
+        return False
+    word = w.group(0)
+    if len(word) == 1:
+        return word.isupper() and word not in ("A", "I")
+    return word.lower() in _ABBREVIATIONS
 
 
 def _round(x: Optional[float], nd: int = 2) -> Optional[float]:
@@ -36,11 +75,14 @@ def split_paragraphs(text: str) -> list[str]:
 
 
 def count_sentences(text: str) -> int:
-    """Approximate sentence count: number of terminal-punctuation boundaries,
-    with a floor of 1 for any text containing words."""
+    """Approximate sentence count: number of terminal-punctuation boundaries
+    (abbreviation periods excluded), with a floor of 1 for any text
+    containing words."""
     if not _WORD.search(text):
         return 0
-    return max(1, len(_SENT_BOUNDARY.findall(text)))
+    n = sum(1 for m in _SENT_BOUNDARY.finditer(text)
+            if not _is_abbreviation_break(text, m))
+    return max(1, n)
 
 
 def profile(text: str) -> dict:

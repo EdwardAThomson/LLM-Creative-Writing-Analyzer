@@ -132,6 +132,15 @@ def render_text(source: str, result: dict, comparison: Optional[dict] = None) ->
     seg = result.get("segmentation", {})
     lines.append(f"Segmentation: {seg.get('strategy_used', '-')} "
                  f"({seg.get('n_units', '-')} units, {seg.get('total_words', '-')} words)")
+    fm = seg.get("front_matter")
+    if fm and fm.get("excluded"):
+        lines.append(f"Front matter: {len(fm['front_units'])} \"(front)\" unit(s) "
+                     f"excluded from scoring ({fm['n_units_scored']}/"
+                     f"{fm['n_units_segmented']} units scored; --include-front to keep)")
+    tt = seg.get("tail_trim")
+    if tt:
+        lines.append(f"Tail trim: {tt['trimmed_words']} words of back-matter "
+                     f"removed after \"{tt['marker']}\"")
     lines.append(f"Judge: {result.get('judge', '-')}")
     lines.append(f"Benchmark: {result.get('benchmark') or 'ad hoc'} "
                  f"(metrics: {', '.join(result.get('metrics_run', []))})")
