@@ -84,3 +84,88 @@ def test_census_empty():
     out = ec.census([], [])
     assert out["aggregate"]["cast_size"] == 0
     assert out["aggregate"]["person_mentions_per_1k"] is None
+
+
+# --- unicode-safe name handling (War and Peace shakedown) --------------------------------
+
+def test_person_components_folds_accents_instead_of_deleting():
+    # The old [^A-Za-z] deletion produced "Kutzov"; NFKD folding must produce
+    # "Kutuzov" (W&P shakedown: Kutúzov -> kutzov, Natásha -> "nat sha").
+    assert ec.person_components("Kutúzov") == ["Kutuzov"]
+    assert ec.person_components("Natásha Rostóva") == ["Natasha", "Rostova"]
+    assert ec.person_components("Márya Dmítrievna") == ["Marya", "Dmitrievna"]
+
+
+def test_person_components_keeps_nondecomposable_letters():
+    # ø does not NFKD-decompose; it is a letter and must not be deleted
+    assert ec.person_components("Møller") == ["Møller"]
+
+
+def test_fold_marks():
+    assert ec.fold_marks("Kutúzov") == "Kutuzov"
+    assert ec.fold_marks("plain") == "plain"
+
+
+def test_census_accented_names_count_as_one_component():
+    ents = [[("PERSON", "Natásha")], [("PERSON", "Natásha")]]
+    out = ec.census(ents, [100, 100])
+    assert out["aggregate"]["cast_size"] == 1
+    assert out["top_components"][0] == {"component": "natasha", "mentions": 2,
+                                        "units": 2}
+
+
+# --- deterministic capitalized-token census (NER false-negative fallback) ----------------
+
+def test_capitalized_census_counts_mid_sentence_recurring_tokens():
+    # the Natásha/Napoleon shape: principals invisible to NER (labeled
+    # GPE/ORG) still recur as mid-sentence capitalized tokens
+    units = [
+        "Then Natásha smiled and watched Napoleon ride past the line.",
+        "Later Natásha and Napoleon met again near Moscow before dark.",
+    ]
+    out = ec.capitalized_census(units)
+    top = {t["token"]: t for t in out["top"]}
+    assert top["natasha"] == {"token": "natasha", "mentions": 2, "units": 2}
+    assert top["napoleon"] == {"token": "napoleon", "mentions": 2, "units": 2}
+    assert "moscow" not in top        # one unit only: not recurring
+    assert out["recurring_count"] == 2
+
+
+def test_capitalized_census_filters_sentence_and_dialogue_starts():
+    units = [
+        "Suddenly the road bent. Suddenly it bent again, said Anna.",
+        'She said, “Perhaps not now.” Suddenly all was quiet, said Anna.',
+    ]
+    out = ec.capitalized_census(units)
+    tokens = {t["token"] for t in out["top"]}
+    assert "suddenly" not in tokens   # only ever sentence-initial
+    assert "perhaps" not in tokens    # dialogue opener
+    assert "anna" in tokens           # mid-sentence in both units
+
+
+def test_capitalized_census_stopwords_and_form_filters():
+    units = [
+        "He met Mr Darcy and the French envoy in LONDON with Natásha's aunt.",
+        "She met Mr Darcy and the French envoy again with Natásha's uncle.",
+    ]
+    out = ec.capitalized_census(units)
+    tokens = {t["token"] for t in out["top"]}
+    assert "mr" not in tokens         # honorific stopword
+    assert "french" not in tokens     # nationality stopword
+    assert "london" not in tokens     # all-caps form dropped
+    assert "darcy" in tokens
+    assert "natasha" in tokens        # possessive stripped, accent folded
+
+
+def test_capitalized_census_requires_two_units():
+    units = ["He saw Kutúzov twice, and Kutúzov saw him.",
+             "Nothing capitalized mid-sentence here at all."]
+    out = ec.capitalized_census(units)
+    assert out["recurring_count"] == 0
+    assert out["top"] == []
+
+
+def test_capitalized_census_caller_stoplist_folded():
+    units = ["He saw Kutúzov there.", "She saw Kutúzov too."]
+    out = ec.capitalized_census(units, stoplist={"kutuzov"})
+    assert out["top"] == []

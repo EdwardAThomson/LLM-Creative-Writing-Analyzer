@@ -108,3 +108,30 @@ def test_openings_recorded_and_schema():
     out = of.compute(["Alpha beta gamma. Rest.", "Delta epsilon zeta. Rest."])
     assert out["schema"] == "opening_formula/1"
     assert out["openings"] == ["Alpha beta gamma.", "Delta epsilon zeta."]
+
+
+# --- unicode-safe tokenization (War and Peace shakedown) ---------------------------------
+
+def test_tokens_keep_accented_names_whole():
+    # the old ASCII tokenizer split "Natásha" into "nat", "sha"
+    assert of._tokens("Natásha smiled at Kutúzov.") == \
+        ["natasha", "smiled", "at", "kutuzov"]
+
+
+def test_accent_variants_compare_equal():
+    # the same opening with and without combining marks must score 1.0
+    out = of.compute([
+        "Kutúzov advanced at dawn toward the river crossing. Then rain.",
+        "Kutuzov advanced at dawn toward the river crossing. Then sun.",
+    ])
+    assert out["aggregate"]["max"] == 1.0
+    assert out["per_pair_high"][0]["pair"] == [0, 1]
+
+
+def test_repeated_openers_fold_accents():
+    out = of.compute([
+        "Natásha said nothing to him then. More.",
+        "Natasha said nothing at all that day. More.",
+    ])
+    assert out["repeated_openers"] == [
+        {"opener": "natasha said nothing", "count": 2}]

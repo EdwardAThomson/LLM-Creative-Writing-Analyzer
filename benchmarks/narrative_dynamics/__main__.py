@@ -2,7 +2,7 @@
 
     python -m benchmarks.narrative_dynamics <text-file | directory>
         [--benchmark nd1 | --metrics name,name]
-        [--segmentation chapters|windows] [--window-words 1500]
+        [--segmentation chapters|windows|md] [--window-words 1500]
         [--no-gutenberg-trim] [--include-front]
         [--judge-model MODEL | --dry-run]
         [--aliases aliases.json] [--reference ref.json]
@@ -13,6 +13,8 @@ Analyzes user-supplied text (one file, or every ``*.txt``/``*.md`` in a
 directory) and writes, per document, a self-describing JSON sidecar
 (``<stem>.nd.json``) and a text report (``<stem>.nd.txt``), following the
 ``utils/metrics`` retroactive-scorer pattern: input files are never touched.
+``.md`` inputs are treated as canonical extracted Markdown (see
+``extract.py``) and split on their ``# `` headings with no heuristics.
 
 ``--dry-run`` exercises the full pipeline with a zero-spend placeholder judge
 (the output is stamped so its numbers cannot be mistaken for measurements).
@@ -49,12 +51,28 @@ def _title_from_path(path: str) -> str:
     return os.path.splitext(os.path.basename(path))[0]
 
 
+def _effective_strategy(path: str, requested: str | None) -> str:
+    """Resolve the segmentation strategy for one input file.
+
+    ``.md`` inputs are canonical extracted Markdown (see ``extract.py``) and
+    take the heuristic-free ``md`` splitter; heading heuristics never run on
+    them (requesting ``chapters`` for an .md resolves to ``md`` too). An
+    explicit ``windows`` request is honoured for any input. Default for raw
+    text stays ``chapters``.
+    """
+    is_md = path.lower().endswith(".md")
+    if requested in (None, "chapters"):
+        return "md" if is_md else "chapters"
+    return requested
+
+
 def score_file(path: str, names, ctx: dict, args, benchmark_version) -> dict:
     """Segment, score, and write the sidecar + text report for one document."""
     with open(path, encoding="utf-8") as f:
         text = f.read()
     seg = segmentation.segment(
-        text, strategy=args.segmentation, window_words=args.window_words,
+        text, strategy=_effective_strategy(path, args.segmentation),
+        window_words=args.window_words,
         trim_gutenberg=not args.no_gutenberg_trim)
     # scoring-layer policy: the "(front)" unit is excluded unless --include-front;
     # the record lands in the sidecar so the exclusion is never silent
@@ -100,10 +118,12 @@ def main(argv=None) -> int:
     parser.add_argument("--benchmark", default=None,
                         help=f"ndN manifest to run (default: {DEFAULT_BENCHMARK}); "
                              "mutually exclusive with --metrics")
-    parser.add_argument("--segmentation", choices=["chapters", "windows"],
-                        default="chapters",
+    parser.add_argument("--segmentation", choices=["chapters", "windows", "md"],
+                        default=None,
                         help="Unit strategy: chapter-heading detection (falls back to "
-                             "windows) or fixed ~N-word windows (default: chapters)")
+                             "windows), fixed ~N-word windows, or canonical-Markdown "
+                             "splitting (default: chapters for raw text; md is "
+                             "auto-selected for .md inputs)")
     parser.add_argument("--window-words", type=int,
                         default=segmentation.DEFAULT_WINDOW_WORDS,
                         help="Target words per window unit (default: %(default)s)")

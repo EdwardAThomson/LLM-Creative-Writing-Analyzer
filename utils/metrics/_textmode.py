@@ -63,6 +63,14 @@ def segment_units(text: str, strategy: str, window_words: int = 1500,
     ``sys.path`` (true for ``python -m utils.metrics`` run from the repo root,
     and for the test harness).
 
+    Strategies: ``chapters`` (heading heuristics; a one-time proposer, see
+    ``benchmarks/narrative_dynamics/extract.py``), ``windows`` (fixed ~N-word
+    windows; note that windows-mode performs NO front-matter exclusion, so any
+    title page / TOC is scored inside the first window(s), which the
+    segmentation info records in its ``note`` field), and ``md`` (canonical
+    extracted Markdown split on ``# `` headings, no heuristics; auto-selected
+    by the CLI for ``.md`` inputs).
+
     The pre-first-heading ``(front)`` unit is excluded from scoring unless
     ``include_front`` (the ``--include-front`` flag): the shakedown showed it
     polluting per-unit stats (Dracula's TOC/title page). The exclusion is

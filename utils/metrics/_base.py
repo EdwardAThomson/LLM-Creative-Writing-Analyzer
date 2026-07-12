@@ -13,6 +13,7 @@ work (e.g. a cached spaCy model).
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Optional
 
 # Minimal spaCy-PERSON false-positive stop-list (report §4.4, §6.3, §6.6). These
@@ -28,6 +29,17 @@ PERSON_STOPLIST = {
 _POSSESSIVE = re.compile(r"['’]s$")
 
 
+def _fold_marks(text: str) -> str:
+    """NFKD-decompose and drop combining marks: ``Kutúzov`` -> ``Kutuzov``.
+
+    The unicode-safe replacement for ``[^A-Za-z]`` deletion, which mangled
+    accented names (W&P shakedown: Kutúzov -> kutzov). Letters that do not
+    decompose (ø, æ, ß) pass through unchanged.
+    """
+    return "".join(c for c in unicodedata.normalize("NFKD", text)
+                   if not unicodedata.combining(c))
+
+
 def _surname_candidates(person_text: str) -> list[str]:
     """Surname parts of a PERSON span.
 
@@ -35,6 +47,7 @@ def _surname_candidates(person_text: str) -> list[str]:
     split on hyphens so e.g. ``Dane Okafor-Voss`` yields ``Okafor`` and ``Voss``.
     Splitting hyphens is deliberate: the v1 token-splitter treats ``Okafor-Voss``
     as atomic and so misses the recurring ``Voss`` sound (report §6.6).
+    Accented letters are folded (NFKD), never deleted.
     """
     tokens = person_text.split()
     if not tokens:
@@ -42,7 +55,7 @@ def _surname_candidates(person_text: str) -> list[str]:
     surname = _POSSESSIVE.sub("", tokens[-1])
     parts = []
     for seg in surname.split("-"):
-        seg = re.sub(r"[^A-Za-z]", "", seg).strip()
+        seg = "".join(c for c in _fold_marks(seg) if c.isalpha())
         if len(seg) > 1 and not seg.isupper() and seg.lower() not in PERSON_STOPLIST:
             parts.append(seg)
     return parts

@@ -99,10 +99,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--segment",
-        choices=["chapters", "windows"],
+        choices=["chapters", "windows", "md"],
         help="With --text and a single file: segment the document into units "
-        "(chapter detection, or ~N-word windows) and score the units as the "
-        "runs. This is the single-text mode (--benchmark st1).",
+        "(chapter detection, ~N-word windows, or canonical-Markdown splitting) "
+        "and score the units as the runs. This is the single-text mode "
+        "(--benchmark st1). For a .md input, chapters resolves to md: "
+        "extracted Markdown is split on its headings, never re-parsed "
+        "heuristically.",
     )
     parser.add_argument(
         "--window-words",
@@ -165,8 +168,15 @@ def main(argv: list[str] | None = None) -> int:
                 print("error: --segment applies to a single document (one text file)",
                       file=sys.stderr)
                 return 2
+            strategy = args.segment
+            if strategy == "chapters" and args.results_json.lower().endswith(".md"):
+                # canonical extracted Markdown: split on its headings, never
+                # re-run the heading heuristics on it (extraction-first design)
+                strategy = "md"
+                print("  .md input: using the md splitter (no heading heuristics)",
+                      file=sys.stderr)
             segmentation, sources, texts = segment_units(
-                texts[0], args.segment, args.window_words,
+                texts[0], strategy, args.window_words,
                 include_front=args.include_front)
         print(f"  scoring {group} ({len(texts)} text{'s' if len(texts) != 1 else ''})...",
               file=sys.stderr)

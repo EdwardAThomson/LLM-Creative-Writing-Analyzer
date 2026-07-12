@@ -16,6 +16,7 @@ concern (``opening_lines``), not replicated here.
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 from difflib import SequenceMatcher
 from typing import Optional
@@ -27,7 +28,21 @@ OPENER_WORDS = 3         # first-N-words census window
 MAX_OPENING_CHARS = 300  # fallback cap when no sentence boundary is found
 
 _SENT_END = re.compile(r"[.!?…]+[\"'”’)\]]*\s")
-_WORD = re.compile(r"[a-z0-9]+(?:['’-][a-z0-9]+)*")
+# Unicode-aware word token ([^\W\d_] is "letter" plus \d for digits, in re's
+# unicode mode). The old ASCII class [a-z0-9] split accented names apart
+# (War and Peace shakedown: "Natásha" tokenized as "nat", "sha"); tokens are
+# NFKD-folded afterwards so Kutúzov and Kutuzov compare equal.
+_WORD = re.compile(r"[^\W_]+(?:['’-][^\W_]+)*")
+
+
+def _fold_marks(text: str) -> str:
+    """NFKD-decompose and drop combining marks: ``kutúzov`` -> ``kutuzov``."""
+    return "".join(c for c in unicodedata.normalize("NFKD", text)
+                   if not unicodedata.combining(c))
+
+
+def _tokens(text: str) -> list[str]:
+    return [_fold_marks(t) for t in _WORD.findall(text.lower())]
 
 # Title/name abbreviations whose trailing period does not end a sentence.
 # Conservative frozen list: honorifics and name suffixes, matched
@@ -85,7 +100,7 @@ def first_sentence(text: str) -> str:
 
 
 def _opener_key(opening: str) -> Optional[str]:
-    words = _WORD.findall(opening.lower())
+    words = _tokens(opening)
     if len(words) < OPENER_WORDS:
         return None
     return " ".join(words[:OPENER_WORDS])
@@ -97,7 +112,7 @@ def _round(x: Optional[float], nd: int = 3) -> Optional[float]:
 
 def compute(responses: list[str], ctx: Optional[dict] = None) -> dict:
     openings = [first_sentence(t) for t in responses]
-    tokens = [_WORD.findall(o.lower()) for o in openings]
+    tokens = [_tokens(o) for o in openings]
 
     pair_sims = []
     for i in range(len(openings)):

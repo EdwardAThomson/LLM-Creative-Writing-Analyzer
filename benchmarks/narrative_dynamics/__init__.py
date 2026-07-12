@@ -34,7 +34,7 @@ DEFAULT_BENCHMARK = "nd1"
 METRIC_ORDER = ["tension_trajectory", "block_rhythm", "thread_architecture"]
 
 _NON_METRIC_MODULES = {"segmentation", "judge", "clustering", "reference",
-                       "report", "rubrics", "__main__"}
+                       "report", "rubrics", "extract", "__main__"}
 
 _BENCHMARKS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

@@ -415,6 +415,206 @@ def test_toc_density_screen_is_the_only_standing_guard():
     assert all("pref0" not in u["text"] for u in out["units"])
 
 
+# --- illustration blocks containing structure (Pride and Prejudice shakedown) --------
+
+# The George Allen illustrated edition sets the only "Chapter I." heading of
+# the text INSIDE an illustration block, and closes the book with THE / END
+# inside another; both shapes verbatim from the shakedown copy.
+PP_CHAPTER_BLOCK = "[Illustration: ·PRIDE AND PREJUDICE·\n\n\n\n\nChapter I.]"
+PP_END_BLOCK = ("[Illustration:\n\n"
+                "                                  THE\n"
+                "                                  END\n"
+                "                                   ]")
+
+
+def test_illustration_block_preserves_chapter_heading():
+    text = "front words here.\n\n" + PP_CHAPTER_BLOCK + "\n\nIt is a truth."
+    out = seg.strip_gutenberg(text)
+    assert "[Illustration" not in out
+    assert "PRIDE AND PREJUDICE" not in out    # the caption itself still goes
+    lines = out.split("\n")
+    i = lines.index("Chapter I.")              # emitted standalone
+    assert not lines[i - 1].strip() and not lines[i + 1].strip()
+
+
+def test_illustration_block_preserves_end_marker():
+    text = "closing prose.\n\n" + PP_END_BLOCK + "\n\nPRINTER COLOPHON"
+    out = seg.strip_gutenberg(text)
+    assert "[Illustration" not in out
+    assert "END" in out.split("\n")            # the end-marker line survives
+    assert "THE" not in out.split("\n")        # bare THE is not a marker line
+
+
+def test_illustration_caption_only_blocks_still_removed_entirely():
+    text = "a\n\n[Illustration: “He came down to see the place”]\n\nb"
+    out = seg.strip_gutenberg(text)
+    assert "came down" not in out
+    assert out == "a\n\nb"
+
+
+def test_pride_shape_chapter_one_recovered_end_to_end():
+    text = (_words("front", 220) + "\n\n" + PP_CHAPTER_BLOCK + "\n\n"
+            + _words("one", 80) + "\n\nCHAPTER II.\n\n" + _words("two", 80)
+            + "\n\nCHAPTER III.\n\n" + _words("three", 80) + "\n\n"
+            + PP_END_BLOCK + "\n")
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == [
+        seg.FRONT_LABEL, "Chapter I.", "CHAPTER II.", "CHAPTER III."]
+    assert out["units"][1]["text"].startswith("one0")
+    assert out["units"][-1]["text"].rstrip().endswith("END")
+
+
+# --- PRELUDE / FINALE structural units (Middlemarch shakedown) ------------------------
+
+def test_prelude_and_finale_are_headings():
+    # Middlemarch shape: without these patterns the Prelude fell into front
+    # matter and the Finale fused into Chapter 86.
+    assert seg.is_chapter_heading("PRELUDE.")
+    assert seg.is_chapter_heading("FINALE.")
+
+
+def test_prelude_and_finale_segment_as_units():
+    text = ("PRELUDE.\n\n" + _words("pre", 80)
+            + "\n\nCHAPTER I.\n\n" + _words("c1", 80)
+            + "\n\nCHAPTER II.\n\n" + _words("c2", 80)
+            + "\n\nFINALE.\n\n" + _words("fin", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == [
+        "PRELUDE.", "CHAPTER I.", "CHAPTER II.", "FINALE."]
+    assert out["units"][0]["text"] == _words("pre", 80)
+    assert out["units"][-1]["text"] == _words("fin", 80)
+
+
+# --- TOC screen body-exemption (War and Peace / Moonstone shakedown) -------------------
+
+def test_toc_run_tail_with_substantial_body_survives():
+    # War and Peace shape: the real Book One CHAPTER I sat at the END of the
+    # TOC run (only "BOOK ONE: 1805", 3 words, between the last TOC entry and
+    # it) with 2,015 words following, and was deleted with the run.
+    toc = "\n\n".join(f"CHAPTER {r}" for r in ["I", "II", "III", "IV", "V"])
+    text = ("Contents\n\n" + toc + "\n\nBOOK ONE: 1805\n\nCHAPTER I\n\n"
+            + _words("b1", seg.TOC_BODY_EXEMPT_WORDS + 50)
+            + "\n\nCHAPTER II\n\n" + _words("b2", 120)
+            + "\n\nCHAPTER III\n\n" + _words("b3", 120))
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_used"] == "chapters"
+    assert [u["label"] for u in out["units"]] == ["CHAPTER I", "CHAPTER II",
+                                                  "CHAPTER III"]
+    assert out["units"][0]["text"].startswith("b10 ")  # the real chapter body
+    # the TOC entries were screened and recorded
+    screened = out["chapter_detection"]["screened_candidates"]
+    assert [s["text"] for s in screened] == [
+        "CHAPTER I", "CHAPTER II", "CHAPTER III", "CHAPTER IV", "CHAPTER V"]
+
+
+def test_junction_run_keeps_the_substantial_chapter():
+    # Moonstone shape: the junction run SECOND PERIOD. -> FIRST NARRATIVE. ->
+    # CHAPTER I lost all three, fusing two narrators. The envelope headings
+    # have thin bodies and may still drop; the CHAPTER I with a substantial
+    # body must survive.
+    text = ("CHAPTER XXII\n\n" + _words("a", 150)
+            + "\n\nCHAPTER XXIII\n\n" + _words("b", 150)
+            + "\n\nTHE END OF THE FIRST PERIOD.\n\n"
+            "SECOND PERIOD.\n\n"
+            "THE DISCOVERY OF THE TRUTH. (1848-1849.)\n\n"
+            "The Events related in several Narratives.\n\n"
+            "FIRST NARRATIVE.\n\n"
+            "Contributed by Miss Clack; niece of the late Sir John Verinder.\n\n"
+            "CHAPTER I\n\n" + _words("clack", seg.TOC_BODY_EXEMPT_WORDS + 100)
+            + "\n\nCHAPTER II\n\n" + _words("clack2", 150))
+    out = seg.segment(text, strategy="chapters")
+    labels = [u["label"] for u in out["units"]]
+    assert "CHAPTER I" in labels[2:]  # the narrator-opening chapter survives
+    assert labels == ["CHAPTER XXII", "CHAPTER XXIII", "CHAPTER I", "CHAPTER II"]
+    assert out["units"][2]["text"].startswith("clack0")
+    screened = [s["text"] for s in out["chapter_detection"]["screened_candidates"]]
+    assert screened == ["SECOND PERIOD.", "FIRST NARRATIVE."]
+
+
+def test_toc_run_tail_below_exemption_bar_stays_screened():
+    # The original protection stands: a TOC whose last entry is followed by a
+    # sub-exemption gap (a dedication, 60 words) must screen completely; the
+    # dedication is never absorbed as a fake chapter.
+    entries = ["CHAPTER I", "CHAPTER II", "CHAPTER III", "CHAPTER IV"]
+    toc = "\n\n".join(entries)
+    dedication = _words("ded", 60)
+    body = "\n\n".join(f"{e}\n\n" + _words(e.split()[-1].lower(), 120)
+                       for e in entries)
+    out = seg.segment(f"{toc}\n\n{dedication}\n\n{body}", strategy="chapters")
+    assert [u["label"] for u in out["units"]] == entries
+    assert all("ded0" not in u["text"] for u in out["units"])
+
+
+def test_dense_latent_lines_screen_guard_passing_neighbors():
+    # Middlemarch TOC shape: the packed " CHAPTER n." entries fail the
+    # blank-context guards line by line, but the first and last entries of the
+    # block (" PRELUDE.", " FINALE.") pass them. Density measured over ALL
+    # heading-like lines screens those two; the body PRELUDE./FINALE. (with
+    # real bodies) survive.
+    toc = (" PRELUDE.\n\n BOOK I. MISS BROOKE.\n" +
+           "\n".join(f" CHAPTER {r}." for r in ["I", "II", "III", "IV", "V"]) +
+           "\n\n FINALE.")
+    text = ("Title Page\n\nContents\n\n" + toc + "\n\nPRELUDE.\n\n"
+            + _words("pre", 250) + "\n\nCHAPTER I.\n\n" + _words("c1", 120)
+            + "\n\nCHAPTER II.\n\n" + _words("c2", 120)
+            + "\n\nFINALE.\n\n" + _words("fin", 250))
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == [
+        "PRELUDE.", "CHAPTER I.", "CHAPTER II.", "FINALE."]
+    assert out["units"][0]["text"].startswith("pre0")
+    assert out["units"][-1]["text"].startswith("fin0")
+
+
+# --- orphan heading-like tail lines (War and Peace shakedown) --------------------------
+
+def test_orphan_heading_line_stripped_from_unit_tail():
+    # "BOOK EIGHT: 1811 - 12" matches no heading pattern and landed verbatim
+    # at the tail of the preceding chapter; it is stripped and recorded.
+    text = ("CHAPTER I\n\n" + _words("a", 80)
+            + "\n\nBOOK EIGHT: 1811 - 12\n\nCHAPTER II\n\n" + _words("b", 80)
+            + "\n\nCHAPTER III\n\n" + _words("c", 80))
+    out = seg.segment(text, strategy="chapters")
+    u = out["units"][0]
+    assert u["text"] == _words("a", 80)
+    assert u["stripped_tail"] == ["BOOK EIGHT: 1811 - 12"]
+    assert u["words"] == 80
+    assert out["chapter_detection"]["stripped_tails"] == [
+        {"unit_label": "CHAPTER I", "lines": ["BOOK EIGHT: 1811 - 12"]}]
+
+
+def test_orphan_tail_strip_leaves_prose_and_final_unit_alone():
+    # A prose tail (terminal punctuation) is never stripped, and the final
+    # unit is never processed (THE END lives there).
+    text = ("CHAPTER I\n\n" + _words("a", 80) + "\n\nHe went to Moscow.\n\n"
+            "CHAPTER II\n\n" + _words("b", 80)
+            + "\n\nCHAPTER III\n\n" + _words("c", 80) + "\n\nTHE END")
+    out = seg.segment(text, strategy="chapters")
+    assert out["units"][0]["text"].endswith("He went to Moscow.")
+    assert "stripped_tail" not in out["units"][0]
+    assert out["units"][-1]["text"].rstrip().endswith("THE END")
+
+
+def test_orphan_tail_requires_standalone_line():
+    # A short title-case line that is the wrapped tail of a paragraph (no
+    # blank line above it) stays: only standalone orphans are stripped.
+    body = _words("a", 60) + "\nAnd So It Ends"
+    text = ("CHAPTER I\n\n" + body + "\n\nCHAPTER II\n\n" + _words("b", 80)
+            + "\n\nCHAPTER III\n\n" + _words("c", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert out["units"][0]["text"].endswith("And So It Ends")
+
+
+# --- windows-mode front-matter note (documented, no behavior change) --------------------
+
+def test_windows_result_carries_front_matter_note():
+    paras = "\n\n".join(" ".join(f"p{k}w{i}" for i in range(300)) for k in range(3))
+    out = seg.segment(paras, strategy="windows", window_words=400)
+    assert "front-matter exclusion" in out["note"]
+    fallback = seg.segment("no chapters.\n\n" + _words("x", 100), strategy="chapters")
+    assert fallback["strategy_used"].startswith("windows (fallback")
+    assert "front-matter exclusion" in fallback["note"]
+
+
 def test_truncate_middle_short_text_untouched():
     text = " ".join(f"w{i}" for i in range(100))
     assert seg.truncate_middle(text, 50, 50) == text  # within the +200 grace

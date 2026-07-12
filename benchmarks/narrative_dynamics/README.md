@@ -21,8 +21,18 @@ python -m benchmarks.narrative_dynamics path/to/book.txt
 # A directory of *.txt / *.md files
 python -m benchmarks.narrative_dynamics path/to/corpus/
 
-# Fixed ~1500-word windows instead of chapters (texts without headings)
+# Fixed ~1500-word windows instead of chapters (texts without headings).
+# Caveat: windows mode performs no front-matter exclusion; the sidecar notes it.
 python -m benchmarks.narrative_dynamics story.txt --segmentation windows
+
+# One-time extraction to canonical Markdown (the chapter heuristics are a
+# PROPOSER run here once per book, with a verification report and an
+# .extract.json sidecar; --expected-units N exits nonzero on a count mismatch)
+python -m benchmarks.narrative_dynamics.extract book.txt --out book.md --expected-units 61
+
+# Analysis then consumes the canonical Markdown: .md inputs auto-select the
+# heuristic-free md splitter (top-level "# " headings + provenance header)
+python -m benchmarks.narrative_dynamics book.md
 
 # Subset of metrics, or a frozen benchmark manifest (default: nd1)
 python -m benchmarks.narrative_dynamics book.txt --metrics tension_trajectory
@@ -55,8 +65,11 @@ benchmarks/nd1.yaml           frozen manifest for this benchmark series (extends
 benchmarks/narrative_dynamics/
   __init__.py                 registry + compute_document() + ndN manifest resolver
   __main__.py                 the scoring-only CLI (this file's examples)
-  segmentation.py             PURE: Gutenberg trimmer, chapter detection, ~1500-word
-                              windows with paragraph snapping, long-unit truncation
+  extract.py                  scoring-free extraction CLI: proposer -> canonical
+                              Markdown + .extract.json sidecar + verification report
+  segmentation.py             PURE: Gutenberg trimmer, chapter detection (the
+                              proposer), md ingestion, ~1500-word windows with
+                              paragraph snapping, long-unit truncation
   clustering.py               PURE: name normalization + majority-cast Jaccard
                               thread clustering + convergence detection
   judge.py                    the one LLM seam: ai_helper routing, FakeJudge (tests),
