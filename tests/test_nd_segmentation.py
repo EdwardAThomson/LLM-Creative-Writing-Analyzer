@@ -814,6 +814,231 @@ def test_windows_result_carries_front_matter_note():
     assert "front-matter exclusion" in fallback["note"]
 
 
+# --- wrapped/long headings (Monte Cristo Chapter 61 extraction evidence) ---------------
+
+# The wild Dumas lead line verbatim: 66 chars, over the old magic 60 cap, its
+# title wrapped onto a second line ("Peaches") in the Gutenberg copy.
+DUMAS_WRAP_LEAD = "Chapter 61. How a Gardener May Get Rid of the Dormice that Eat His"
+
+
+def test_long_heading_cap_admits_dumas_chapter_61():
+    assert len(DUMAS_WRAP_LEAD) == 66          # over the old inline 60 cap
+    assert len(DUMAS_WRAP_LEAD) <= seg.MAX_HEADING_CHARS
+    assert seg.is_chapter_heading(DUMAS_WRAP_LEAD)
+    # a prose line starting "Chapter 61 " (no dot after the number) never matches
+    assert not seg.is_chapter_heading(
+        "Chapter 61 was long past when the gardener came to the gate")
+
+
+def test_wrapped_heading_dumas_shape_recovered():
+    # The exact Dumas shape: the wrapped heading (leading space and all)
+    # between real chapters. One heading, label joined across both lines, the
+    # continuation line never becomes body text.
+    text = ("Chapter 60. The Telegraph\n\n" + _words("sixty", 80) + "\n\n\n"
+            " " + DUMAS_WRAP_LEAD + "\n Peaches\n\n" + _words("gard", 80)
+            + "\n\n\nChapter 62. Ghosts\n\n" + _words("gh", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == [
+        "Chapter 60. The Telegraph",
+        DUMAS_WRAP_LEAD + " Peaches",
+        "Chapter 62. Ghosts"]
+    assert out["units"][0]["text"] == _words("sixty", 80)   # no fusion
+    assert out["units"][1]["text"] == _words("gard", 80)    # no "Peaches" body line
+
+
+def test_wrap_continuation_is_conservative():
+    # the title-line convention is untouched: a bare heading over a title line
+    # keeps the title in the body (no title text after the numbered prefix)
+    assert not seg._wrap_continuation(["Chapter I.", "The Man Who Died", ""], 0)
+    # a prose continuation (comma, lowercase words) is never joined
+    assert not seg._wrap_continuation(
+        [DUMAS_WRAP_LEAD, "peaches, though he tried,", ""], 0)
+    assert not seg._wrap_continuation([DUMAS_WRAP_LEAD, "peaches and cream", ""], 0)
+    # the wild continuation is; an optional terminal period is allowed
+    assert seg._wrap_continuation([DUMAS_WRAP_LEAD, "Peaches", ""], 0)
+    assert seg._wrap_continuation([DUMAS_WRAP_LEAD, "Peaches.", ""], 0)
+    # no blank line after the continuation: hard-wrapped prose, not a title
+    assert not seg._wrap_continuation([DUMAS_WRAP_LEAD, "Peaches", "and more prose"], 0)
+
+
+def test_suspects_surface_wrapped_heading_lead_without_blank_below():
+    # Fix facet (c): a non-standalone line that PREFIX-matches a numbered
+    # heading but fails full heading detection (here: over the raised cap)
+    # must surface as a suspect even though the wrap breaks blank-below.
+    lead = "Chapter 71. " + " ".join(["Word"] * 15)
+    assert len(lead) > seg.MAX_HEADING_CHARS
+    assert not seg.is_chapter_heading(lead)
+    body = _words("a", 40) + "\n\n" + lead + "\nContinuation Title\n\n" + _words("b", 40)
+    sus = seg.find_unmatched_suspects([{"index": 2, "text": body}])
+    assert sus == [{"unit_index": 2, "line": lead,
+                    "position_words_into_unit": 40}]
+    # hard-wrapped prose paragraphs starting "Chapter 61. ..." stay out: an
+    # in-cap lead is excluded as a full pattern match (visible elsewhere),
+    # an over-cap one dies on the connective-aware cap ratio
+    for prose in [
+        "Chapter 61. That was the year when the gardener first came down\n"
+        "to the house and stayed.",
+        "Chapter 61. That was the year when the gardener first came down to the "
+        "house from town\nand stayed on.",
+    ]:
+        sus = seg.find_unmatched_suspects(
+            [{"index": 0, "text": _words("a", 40) + "\n\n" + prose}])
+        assert sus == [], prose
+
+
+# --- BOOK the-ordinal headings (Tale of Two Cities extraction evidence) -----------------
+
+TOTC_BOOKS = ["Book the First--Recalled to Life",
+              "Book the Second--the Golden Thread",
+              "Book the Third--the Track of a Storm"]
+
+
+def test_totc_book_heading_forms():
+    # the three wild headings verbatim, plus case/title variants
+    for h in TOTC_BOOKS + ["BOOK THE FIRST", "BOOK THE FIRST--RECALLED TO LIFE",
+                           "Book the First", "Book the Twentieth.",
+                           "PART THE SECOND"]:
+        assert seg.is_chapter_heading(h), h
+    # negatives: prose after "the", and the pinned shakedown non-matches (the
+    # trailing-title group is scoped to the the-ordinal branch so these stay out)
+    for h in ["Book the passage for Tuesday", "Book One",
+              "BOOK ONE.—THE COMING OF THE MARTIANS", "BOOK EIGHT: 1811 - 12",
+              "The end of the first book."]:
+        assert not seg.is_chapter_heading(h), h
+
+
+def test_totc_shape_book_boundaries_end_to_end():
+    # Compact Tale of Two Cities shape: an indented TOC repeating the Book
+    # headings (leading spaces per the wild file) over packed chapter entries,
+    # then the body. The TOC copies screen under the existing TOC handling;
+    # the body Book headings become boundaries whose empty bodies drop as
+    # runts (the sidecar-visible record); no Book furniture leaks into
+    # chapter bodies. The paratext "The end of the first book." is prose-shaped
+    # and stays in the preceding chapter tail (documented out of scope).
+    def toc_section(book, chapters):
+        entries = "\n".join(f"     CHAPTER {r}      T{r}" for r in chapters)
+        return f"     {book}\n\n{entries}"
+    toc = "\n\n".join(toc_section(b, ["I", "II"]) for b in TOTC_BOOKS)
+    body = (TOTC_BOOKS[0] + "\n\n\n"
+            "CHAPTER I.\nThe Period\n\n" + _words("c1", 80) + "\n\n"
+            "CHAPTER II.\nThe Mail\n\n" + _words("c2", 80) + "\n\n"
+            "The end of the first book.\n\n\n"
+            + TOTC_BOOKS[1] + "\n\n\n"
+            "CHAPTER I.\nFive Years Later\n\n" + _words("c3", 80) + "\n\n"
+            + TOTC_BOOKS[2] + "\n\n\n"
+            "CHAPTER I.\nIn Secret\n\n" + _words("c4", 80))
+    text = ("A TALE OF TWO CITIES\n\nCONTENTS\n\n" + toc + "\n\n"
+            + _words("scrap", 60) + "\n\n" + body)
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_used"] == "chapters"
+    assert [u["label"] for u in out["units"]] == [
+        "CHAPTER I.", "CHAPTER II.", "CHAPTER I.", "CHAPTER I."]
+    det = out["chapter_detection"]
+    assert [s["text"] for s in det["screened_candidates"]] == TOTC_BOOKS
+    assert det["dropped_runts"] == [
+        {"label": b, "words": 0} for b in TOTC_BOOKS]
+    assert all("Book the" not in u["text"] for u in out["units"])
+    assert out["units"][1]["text"].endswith("The end of the first book.")
+
+
+# --- suspects: connective exemption after a structural keyword (ToTC evidence) ----------
+
+def test_suspect_cap_ratio_exempts_connectives_after_keyword():
+    # Pre-fix, the plain 0.7 ratio missed 2 of the 3 ToTC Book headings
+    # ("...First--Recalled to Life" 3/5, "...the Track of a Storm" 4/7);
+    # with connectives out of the denominator all three read structural.
+    for line in TOTC_BOOKS:
+        assert seg._suspect_cap_ratio_ok(line), line
+
+
+def test_suspects_surface_keyword_heading_with_connectives():
+    # end-to-end on an unmatched analogue ("Last" is not a spelled ordinal,
+    # so no pattern matches and the suspect scan is the only visibility)
+    line = "Part the Last--the Reckoning of a Storm"
+    assert not seg.is_chapter_heading(line)
+    assert seg._is_suspect_line(line)
+    body = _words("a", 30) + "\n\n" + line + "\n\n" + _words("b", 30)
+    sus = seg.find_unmatched_suspects([{"index": 5, "text": body}])
+    assert sus == [{"unit_index": 5, "line": line,
+                    "position_words_into_unit": 30}]
+
+
+def test_suspects_do_not_flood_on_prose_book_or_the_lines():
+    # ordinary prose starting with a keyword or "The" stays out; the
+    # prose-shaped paratext "The end of the first book." is documented out of
+    # scope (terminal period, lowercase words: catching it would flood)
+    for line in ["Book the passage for Tuesday and send word ahead",
+                 "The end of the first book.",
+                 "The mail came late over the hill that night"]:
+        assert not seg._is_suspect_line(line), line
+
+
+# --- NOTE structural units (Jane Eyre extraction evidence) ------------------------------
+
+def test_note_heading_forms():
+    for h in ["NOTE TO THE THIRD EDITION", "NOTE", "NOTE."]:
+        assert seg.is_chapter_heading(h), h
+    # the colon form is an aside, not a heading; mixed case and other NOTE
+    # phrasings stay out (uppercase-led, EDITION-suffixed form only)
+    for h in ["NOTE: this is an aside", "Note to the third edition",
+              "NOTE TO THE READER"]:
+        assert not seg.is_chapter_heading(h), h
+
+
+def test_jane_eyre_note_edition_unit_recovered():
+    # the Jane Eyre shape: PREFACE, then the standalone third-edition note,
+    # then the chapters; the note becomes its own unit
+    text = ("PREFACE\n\n" + _words("pref", 80) + "\n\n"
+            "NOTE TO THE THIRD EDITION\n\n" + _words("note", 80) + "\n\n"
+            "CHAPTER I\n\n" + _words("c1", 80) + "\n\n"
+            "CHAPTER II\n\n" + _words("c2", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == [
+        "PREFACE", "NOTE TO THE THIRD EDITION", "CHAPTER I", "CHAPTER II"]
+    assert out["units"][1]["text"] == _words("note", 80)
+
+
+# --- page-anchor noise strip (Monte Cristo extraction evidence) --------------------------
+
+def test_strip_page_anchors_wild_shape():
+    # the wild shape: prose, blank, anchor, blank, prose; anchors go, prose
+    # stays, leftover blank runs collapse
+    text = (_words("a", 30) + "\n\n0185m\n\n" + _words("b", 30)
+            + "\n\n0023m\n\n" + _words("c", 30))
+    out, removed = seg.strip_page_anchors(text)
+    assert removed == 2
+    assert "0185m" not in out and "0023m" not in out
+    assert "\n\n\n" not in out
+    assert out.startswith("a0 ") and out.endswith(" c29")
+
+
+def test_strip_page_anchors_conservative_guards():
+    # a prose line ending "...100m", sub-3-digit standalone lines (the poem /
+    # measurement case behind the 3+ digit floor), and a non-standalone
+    # anchor are all untouched
+    for text in [_words("a", 10) + " it measured 100m",
+                 _words("a", 10) + "\n\n5m\n\n" + _words("b", 10),
+                 _words("a", 10) + "\n\n12m\n\n" + _words("b", 10),
+                 _words("a", 10) + "\n0185m\n" + _words("b", 10)]:
+        out, removed = seg.strip_page_anchors(text)
+        assert removed == 0
+        assert out == text
+
+
+def test_segment_records_page_anchor_strip():
+    text = ("CHAPTER 1.\n\n" + _words("a", 80) + "\n\n0185m\n\n" + _words("a2", 20)
+            + "\n\nCHAPTER 2.\n\n" + _words("b", 80)
+            + "\n\nCHAPTER 3.\n\n" + _words("c", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert out["page_anchor_lines_removed"] == 1
+    assert all("0185m" not in u["text"] for u in out["units"])
+    assert out["units"][0]["words"] == 100  # the anchor is not a word
+    # trimming disabled: nothing stripped, count stays 0
+    out2 = seg.segment(text, strategy="chapters", trim_gutenberg=False)
+    assert out2["page_anchor_lines_removed"] == 0
+    assert any("0185m" in u["text"] for u in out2["units"])
+
+
 def test_truncate_middle_short_text_untouched():
     text = " ".join(f"w{i}" for i in range(100))
     assert seg.truncate_middle(text, 50, 50) == text  # within the +200 grace

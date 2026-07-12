@@ -182,6 +182,24 @@ def test_extract_records_proposer_warnings(tmp_path, capsys):
     assert "screened TOC/junction candidates" in report
 
 
+def test_extract_records_page_anchor_strip(tmp_path, capsys):
+    # Monte Cristo shape: standalone plate-anchor lines ("0185m") are stripped
+    # during trimming and the count must be sidecar- and report-visible
+    text = ("CHAPTER I\n\n" + _words("one", 80) + "\n\n0185m\n\n" + _words("oneb", 20)
+            + "\n\nCHAPTER II\n\n" + _words("two", 80) + "\n\n0261m\n\n"
+            + _words("twob", 20)
+            + "\n\nCHAPTER III\n\n" + _words("three", 80) + "\n")
+    src = tmp_path / "anchors.txt"
+    src.write_text(text, encoding="utf-8")
+    assert extract_main([str(src), "--out", str(tmp_path / "anchors.md")]) == 0
+    sidecar = json.loads((tmp_path / "anchors.extract.json").read_text())
+    assert sidecar["warnings"]["page_anchor_lines_removed"] == 2
+    assert sidecar["unit_words"] == [100, 100, 80]  # anchors are not words
+    md = (tmp_path / "anchors.md").read_text(encoding="utf-8")
+    assert "0185m" not in md and "0261m" not in md
+    assert "page_anchor_lines_removed: 2" in capsys.readouterr().out
+
+
 # --- unmatched structural suspects in the extract report --------------------------------
 
 def test_extract_reports_unmatched_suspects(tmp_path, capsys):

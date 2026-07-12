@@ -148,6 +148,11 @@ def _collect_warnings(seg_result: dict, escaped_lines: int) -> dict:
         }
     if seg_result.get("tail_trim"):
         warnings["tail_trim"] = seg_result["tail_trim"]
+    if seg_result.get("page_anchor_lines_removed"):
+        # standalone HTML-conversion plate anchors ("0185m") stripped during
+        # trimming; Monte Cristo carries 443 of them (see strip_page_anchors)
+        warnings["page_anchor_lines_removed"] = \
+            seg_result["page_anchor_lines_removed"]
     for key in ("dropped_runts", "screened_candidates", "stripped_tails",
                 "dropped_front_words"):
         if detection.get(key):

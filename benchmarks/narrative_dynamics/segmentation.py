@@ -23,9 +23,11 @@ selectable strategies:
   heuristics. This is the permanent analysis path for extracted books.
 
 Plus a Project Gutenberg frontmatter/license trimmer, since the masters corpus
-files carry the header and license tail as downloaded, and a conservative
+files carry the header and license tail as downloaded, a conservative
 trailing back-matter trimmer for publisher catalogs printed INSIDE the
-Gutenberg markers (see ``trim_trailing_backmatter``).
+Gutenberg markers (see ``trim_trailing_backmatter``), and a page-anchor noise
+strip for standalone HTML-conversion plate anchors like ``0185m`` (see
+``strip_page_anchors``).
 
 A unit is a dict: ``{"index": int, "label": str, "text": str, "words": int}``.
 """
@@ -41,6 +43,13 @@ DEFAULT_WINDOW_WORDS = 1500  # the repo's established story-unit framing
 MIN_UNIT_WORDS = 50          # drop degenerate units (heading-only fragments)
 MIN_CHAPTERS = 3             # fewer detected chapters than this -> fall back
 MAX_TITLE_LINE_CHARS = 60    # a chapter-title line under a heading stays short
+# Longest line is_chapter_heading will consider. Was a magic 60 inline, which
+# made long headings doubly invisible: Monte Cristo's "Chapter 61. How a
+# Gardener May Get Rid of the Dormice that Eat His" (66 chars, its title
+# wrapped onto a second line) matched nothing, fused into its neighbor, AND
+# stayed off the suspects report. 80 clears the wild case with margin while
+# still rejecting typical hard-wrapped prose (Gutenberg wraps near 72).
+MAX_HEADING_CHARS = 80
 TOC_MIN_RUN = 3              # 3+ near-adjacent heading candidates = a contents list
 FRONT_LABEL = "(front)"      # label of the kept pre-first-heading unit
 
@@ -197,6 +206,43 @@ def trim_trailing_backmatter(text: str) -> tuple[str, Optional[dict]]:
     return text[:m.end()].rstrip(), note
 
 
+# --- page-anchor noise -------------------------------------------------------------
+
+# Standalone lines like "0185m": HTML-conversion plate anchors, not prose.
+# Monte Cristo extraction evidence: the shakedown copy carries 443 of them
+# (zero-padded, 4 to 6 digits in the wild), each alone between blank lines,
+# and they contaminated unit bodies and word counts. Judgment call on the
+# digit floor: 3+ digits required, so a legitimate short line like "5m" or
+# "12m" (a measurement, a poem line) is never clipped; every wild anchor has
+# at least 4 digits, so 3 keeps a margin without loosening toward prose.
+_PAGE_ANCHOR = re.compile(r"^\d{3,}m$")
+
+
+def strip_page_anchors(text: str) -> tuple[str, int]:
+    """Remove standalone page-anchor lines; return ``(text, lines_removed)``.
+
+    Conservative by design: the line must match ``_PAGE_ANCHOR`` exactly (no
+    surrounding text, no stripping of indentation) and be standalone (blank
+    line or text edge above AND below), so a prose line ending "...100m" or
+    an anchor-like token inside a paragraph is never touched. Runs during
+    trimming, alongside the Gutenberg strip; callers record the count in the
+    sidecar/warnings so the removal is never silent.
+    """
+    lines = text.split("\n")
+    kept: list[str] = []
+    removed = 0
+    for i, line in enumerate(lines):
+        if (_PAGE_ANCHOR.match(line)
+                and (i == 0 or not lines[i - 1].strip())
+                and (i == len(lines) - 1 or not lines[i + 1].strip())):
+            removed += 1
+            continue
+        kept.append(line)
+    if not removed:
+        return text, 0
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)), removed
+
+
 # --- paragraphs --------------------------------------------------------------------
 
 def split_paragraphs(text: str) -> list[str]:
@@ -222,13 +268,35 @@ _ROMAN = r"[IVXLCDM]+"
 _SPELLED_NUMBER = ("ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|"
                    "ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|"
                    "SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY")
+# Title-Case ordinal words accepted after a "the"/"THE" in BOOK/PART/VOLUME
+# headings (uppercase ordinals are already covered by the THE [A-Z]+ branch).
+# Tale of Two Cities extraction evidence: the body headings "Book the
+# First--Recalled to Life" (and Second/Third) matched nothing and leaked
+# silently. Range mirrors the uppercase spelled numbers above (up to twenty).
+_SPELLED_ORDINAL_TITLE = ("First|Second|Third|Fourth|Fifth|Sixth|Seventh|"
+                          "Eighth|Ninth|Tenth|Eleventh|Twelfth|Thirteenth|"
+                          "Fourteenth|Fifteenth|Sixteenth|Seventeenth|"
+                          "Eighteenth|Nineteenth|Twentieth")
 _CHAPTER_PATTERNS = [
     # CHAPTER IV / Chapter 12. / CHAPTER THE FIRST, optionally followed by a
     # title after a dot, colon, hyphen, or em dash (the em dash in the class
     # below is a literal matched in Gutenberg headings, e.g. Eddison's)
     re.compile(rf"^(?:CHAPTER|Chapter)\s+(?:{_ROMAN}|\d+|[A-Z][A-Za-z-]+)\.?(?:\s*[.:—-]\s*\S.*)?$"),
-    # BOOK II / PART THE SECOND / VOLUME I / BOOK ONE (treated as boundaries too)
-    re.compile(rf"^(?:BOOK|PART|VOLUME|Book|Part|Volume)\s+(?:{_ROMAN}|\d+|THE\s+[A-Z]+|{_SPELLED_NUMBER})\.?$"),
+    # BOOK II / PART THE SECOND / VOLUME I / BOOK ONE (treated as boundaries
+    # too), plus the Tale of Two Cities forms: a mixed-case "the" with a
+    # spelled ordinal and an optional trailing title mirroring the CHAPTER
+    # suffix ("Book the First--Recalled to Life"; the "--" is covered because
+    # "-" matches the separator class and the second "-" starts the title).
+    # The trailing-title group is deliberately scoped to the the-ordinal
+    # branch only: the roman/digit/spelled-cardinal branches stay title-free
+    # because the Wells TOC form "BOOK ONE.—THE COMING OF THE MARTIANS" and
+    # the War and Peace orphan "BOOK EIGHT: 1811 - 12" are pinned NON-matches
+    # (see the shakedown fixtures; both must keep failing every pattern).
+    re.compile(rf"^(?:BOOK|PART|VOLUME|Book|Part|Volume)\s+"
+               rf"(?:{_ROMAN}|\d+|{_SPELLED_NUMBER}"
+               rf"|(?:THE|the)\s+(?:[A-Z]+|{_SPELLED_ORDINAL_TITLE})"
+               rf"(?:\s*[.:—-]\s*\S.*)?"
+               rf")\.?$"),
     # bare roman numeral heading lines: "IV." / "XII"
     re.compile(rf"^{_ROMAN}\.?$"),
     # numbered headings: "12." on a line of its own
@@ -239,8 +307,12 @@ _CHAPTER_PATTERNS = [
     # front unit); PREAMBLE is the same shape in other editions. EPOCH (with
     # an optional THE prefix on the ordinal form) per The Woman in White:
     # the body headings are "THE SECOND EPOCH" / "THE THIRD EPOCH".
+    # NOTE per Jane Eyre: the standalone "NOTE TO THE THIRD EDITION" heading
+    # matched nothing. Uppercase-led like the rest of this alternation, and
+    # only the bare form or the "TO THE <words> EDITION" form; a colon form
+    # ("NOTE: ...") is an aside, not a heading, and must not match.
     re.compile(r"^(?:PROLOGUE|EPILOGUE|PRELUDE|FINALE|INTRODUCTION|CONCLUSION|"
-               r"PREFACE|PREAMBLE|"
+               r"PREFACE|PREAMBLE|NOTE(?:\s+TO\s+THE\s+[A-Z]+(?:\s+[A-Z]+)*\s+EDITION)?|"
                r"(?:THE\s+)?(?:FIRST|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH|NINTH|TENTH)"
                r"\s+(?:NARRATIVE|PERIOD|BOOK|PART|EPOCH))\.?$"),
 ]
@@ -249,9 +321,53 @@ _CHAPTER_PATTERNS = [
 def is_chapter_heading(line: str) -> bool:
     """True when a stripped line looks like a chapter-style structural heading."""
     s = line.strip()
-    if not s or len(s) > 60:
+    if not s or len(s) > MAX_HEADING_CHARS:
         return False
     return any(p.match(s) for p in _CHAPTER_PATTERNS)
+
+
+# A numbered CHAPTER heading prefix: "Chapter 61." / "CHAPTER IV." followed by
+# a space or the line end. Used for the two wrapped-heading facets (Monte
+# Cristo evidence, Chapter 61): joining a wrapped title continuation line into
+# the heading, and surfacing over-long or non-standalone leads as suspects.
+_NUMBERED_HEADING_PREFIX = re.compile(
+    rf"^(?:CHAPTER|Chapter)\s+(?:\d+|{_ROMAN})\.(?:\s|$)")
+
+
+def _wrap_continuation(lines: list[str], i: int) -> bool:
+    """True when ``lines[i + 1]`` is the wrapped continuation of a numbered
+    heading-with-title at ``lines[i]``.
+
+    Monte Cristo evidence: "Chapter 61. How a Gardener May Get Rid of the
+    Dormice that Eat His" wraps its title onto a second line ("Peaches");
+    the two lines are ONE heading and the continuation must not become body
+    text. Deliberately conservative, so the title-line convention (a bare
+    "Chapter I." over "The Man Who Died", where the title line stays in the
+    body) is untouched: the lead line must be a full pattern match that
+    ALREADY carries title text after the numbered prefix, and the next line
+    must be short, title-cased (lowercase connectives allowed), free of prose
+    punctuation except an optional terminal period, and followed by a blank
+    line or the text edge.
+    """
+    s = lines[i].strip()
+    m = _NUMBERED_HEADING_PREFIX.match(s)
+    if not m or not s[m.end():].strip() or not is_chapter_heading(s):
+        return False
+    if i + 1 >= len(lines):
+        return False
+    c = lines[i + 1].strip()
+    if not c or len(c) > MAX_TITLE_LINE_CHARS or is_chapter_heading(c):
+        return False
+    if i + 2 < len(lines) and lines[i + 2].strip():
+        return False  # continuation must be followed by a blank line / edge
+    core = c[:-1] if c.endswith(".") else c
+    if not core or core[-1] in _TERMINAL_PUNCT:
+        return False  # prose-punctuated: only a terminal period is allowed
+    alpha_words = [w for w in core.split() if w[:1].isalpha()]
+    if not alpha_words:
+        return False
+    return all(w[:1].isupper() or w.lower() in _HEADING_CONNECTIVES
+               for w in alpha_words)
 
 
 def _is_title_line(lines: list[str], i: int) -> bool:
@@ -520,10 +636,18 @@ def segment_chapters(text: str, min_unit_words: int = MIN_UNIT_WORDS,
         report["dropped_front_words"] = word_count(pre)
     for k, i in enumerate(idxs):
         j = idxs[k + 1] if k + 1 < len(idxs) else len(lines)
-        body = "\n".join(lines[i + 1 : j]).strip()
+        body_start = i + 1
+        raw_label = lines[i].strip()
+        if not override_lines.get(i) and _wrap_continuation(lines, i):
+            # wrapped long heading (Monte Cristo Chapter 61): the title
+            # continues on the next line; the label joins both lines and the
+            # continuation line never becomes body text
+            raw_label = raw_label + " " + lines[i + 1].strip()
+            body_start = i + 2
+        body = "\n".join(lines[body_start : j]).strip()
         entry = override_lines.get(i)
         label = (entry.get("label") or entry["match"]) if entry \
-            else lines[i].strip()
+            else raw_label
         if word_count(body) < min_unit_words:
             if report is not None:
                 report.setdefault("dropped_runts", []).append(
@@ -556,6 +680,37 @@ SUSPECT_MAX_CHARS = 70       # a structural line stays short
 _SUSPECT_LEAD_CHARS = "_\"'“‘"  # italic/quoted epistolary headers, not structure
 _SUSPECT_CAP_RATIO = 0.7     # share of capitalized words that reads as a title
 
+# Lowercase connective words that structural headings legitimately carry
+# ("Book the Third--the Track of a Storm"). When a line STARTS with a
+# structural keyword, these are exempted from the cap-ratio denominator.
+_HEADING_CONNECTIVES = frozenset(("the", "of", "a", "an", "to", "and", "in"))
+_STRUCTURAL_KEYWORD_LEAD = re.compile(
+    r"^(?:BOOK|Book|PART|Part|VOLUME|Volume|CHAPTER|Chapter)\s")
+
+
+def _suspect_cap_ratio_ok(s: str) -> bool:
+    """Cap-ratio test for suspect lines, connective-aware for keyword leads.
+
+    Tale of Two Cities evidence: "Book the First--Recalled to Life" (3 of 5
+    capitalized) and "Book the Third--the Track of a Storm" (4 of 7) fell
+    under the plain 0.7 ratio and never surfaced, while "Book the Second--the
+    Golden Thread" (4 of 5) did: 2 of 3 headings missed. When the line starts
+    with a structural keyword (Book/Part/Volume/Chapter, either case), the
+    connective words are dropped from the denominator; ordinary prose lines
+    starting with those keywords still fail because their remaining words are
+    lowercase.
+    """
+    words = [w.lstrip("(\"'“‘[") for w in s.split()]
+    alpha_words = [w for w in words if w[:1].isalpha()]
+    if not alpha_words:
+        return False
+    if _STRUCTURAL_KEYWORD_LEAD.match(s):
+        counted = [w for w in alpha_words
+                   if w.rstrip(".,:;").lower() not in _HEADING_CONNECTIVES]
+        alpha_words = counted or alpha_words
+    caps = sum(1 for w in alpha_words if w[:1].isupper())
+    return caps / len(alpha_words) >= _SUSPECT_CAP_RATIO
+
 
 def _is_suspect_line(s: str) -> bool:
     """One stripped line: looks structural yet matches no heading pattern.
@@ -567,7 +722,15 @@ def _is_suspect_line(s: str) -> bool:
     junction scaffolding still surfaces. The words must read as mostly
     uppercase / Title Case (at least ``_SUSPECT_CAP_RATIO`` of the
     alpha-leading words capitalized, after stripping opening brackets and
-    quotes), which drops ordinary prose lines.
+    quotes, and exempting lowercase connectives when the line starts with a
+    structural keyword; see ``_suspect_cap_ratio_ok``), which drops ordinary
+    prose lines.
+
+    Out of scope, deliberately: prose-shaped paratext such as Tale of Two
+    Cities' "The end of the first book." is NOT chased here. It reads exactly
+    like a sentence (lowercase words, terminal period), so any cap-ratio or
+    punctuation loosening wide enough to catch it would flood the report with
+    real prose; it stays in the preceding unit's tail.
     """
     if not s or len(s) > SUSPECT_MAX_CHARS:
         return False
@@ -577,12 +740,7 @@ def _is_suspect_line(s: str) -> bool:
         return False
     if is_chapter_heading(s) or _END_MARKER.match(s):
         return False  # matched a pattern / end marker: visible elsewhere
-    words = [w.lstrip("(\"'“‘[") for w in s.split()]
-    alpha_words = [w for w in words if w[:1].isalpha()]
-    if not alpha_words:
-        return False
-    caps = sum(1 for w in alpha_words if w[:1].isupper())
-    return caps / len(alpha_words) >= _SUSPECT_CAP_RATIO
+    return _suspect_cap_ratio_ok(s)
 
 
 def find_unmatched_suspects(units: list[dict]) -> list[dict]:
@@ -594,9 +752,20 @@ def find_unmatched_suspects(units: list[dict]) -> list[dict]:
     fused silently into neighboring units; nothing in the report showed they
     existed. This scan is purely diagnostic (no behavior change to
     segmentation): a line counts when it is standalone (blank lines or the
-    body edge above AND below) and passes ``_is_suspect_line``. Returns
-    ``[{"unit_index", "line", "position_words_into_unit"}, ...]`` for the
-    extract sidecar; the stdout report summarizes the count.
+    body edge above AND below) and passes ``_is_suspect_line``.
+
+    Wrapped-heading exception (Monte Cristo evidence, Chapter 61): a wrapped
+    numbered heading is non-standalone (its title continuation sits directly
+    below, so blank-below fails) and can exceed ``SUSPECT_MAX_CHARS``, which
+    made the miss doubly invisible. A line that PREFIX-matches a numbered
+    heading ("Chapter 61. ..." per ``_NUMBERED_HEADING_PREFIX``) but is not a
+    full pattern match therefore surfaces with only blank-above required, no
+    length cap (over-length is the very failure mode being caught), no prose
+    terminal punctuation, and the connective-aware cap ratio (which keeps
+    hard-wrapped prose paragraphs starting "Chapter 61. That was..." out).
+
+    Returns ``[{"unit_index", "line", "position_words_into_unit"}, ...]`` for
+    the extract sidecar; the stdout report summarizes the count.
     """
     suspects: list[dict] = []
     for u in units:
@@ -604,9 +773,18 @@ def find_unmatched_suspects(units: list[dict]) -> list[dict]:
         words_seen = 0
         for i, line in enumerate(lines):
             s = line.strip()
-            standalone = ((i == 0 or not lines[i - 1].strip())
-                          and (i == len(lines) - 1 or not lines[i + 1].strip()))
-            if s and standalone and _is_suspect_line(s):
+            blank_above = i == 0 or not lines[i - 1].strip()
+            blank_below = i == len(lines) - 1 or not lines[i + 1].strip()
+            hit = False
+            if s and blank_above:
+                if blank_below and _is_suspect_line(s):
+                    hit = True
+                elif (_NUMBERED_HEADING_PREFIX.match(s)
+                        and not is_chapter_heading(s)
+                        and s[-1] not in _TERMINAL_PUNCT
+                        and _suspect_cap_ratio_ok(s)):
+                    hit = True  # wrapped/over-long numbered heading lead
+            if hit:
                 suspects.append({"unit_index": u["index"], "line": s,
                                  "position_words_into_unit": words_seen})
             words_seen += word_count(line)
@@ -766,6 +944,9 @@ def segment(text: str, strategy: str = "chapters",
     too few headings are detectable; ``strategy_used`` records what actually
     happened. ``tail_trim`` records a trailing back-matter trim (see
     ``trim_trailing_backmatter``; applied with the Gutenberg trim), or None.
+    ``chapters``/``windows`` results carry ``page_anchor_lines_removed``, the
+    count of standalone page-anchor lines stripped during trimming (see
+    ``strip_page_anchors``; 0 when trimming is disabled).
     ``chapters`` results also carry ``chapter_detection`` (what the proposer
     screened/dropped; see ``segment_chapters``); ``md`` results carry the
     ``provenance`` header of the extracted file; ``windows`` results carry a
@@ -790,8 +971,10 @@ def segment(text: str, strategy: str = "chapters",
         }
 
     tail_note = None
+    page_anchors_removed = 0
     if trim_gutenberg:
         text = strip_gutenberg(text)
+        text, page_anchors_removed = strip_page_anchors(text)
         text, tail_note = trim_trailing_backmatter(text)
     else:
         text = text.replace("\r\n", "\n").strip()
@@ -811,6 +994,7 @@ def segment(text: str, strategy: str = "chapters",
         "n_units": len(units),
         "total_words": sum(u["words"] for u in units),
         "tail_trim": tail_note,
+        "page_anchor_lines_removed": page_anchors_removed,
     }
     if used == "chapters":
         result["chapter_detection"] = detection or None
