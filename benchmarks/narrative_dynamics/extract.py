@@ -2,6 +2,7 @@
 
     python -m benchmarks.narrative_dynamics.extract <file.txt>
         [--out <file.md>] [--expected-units N] [--no-gutenberg-trim]
+        [--boundaries <file.json>]
 
 The architecture decision this implements (2026-07): the chapter-heading
 heuristics in ``segmentation.py`` are a PROPOSER, run once per book here, with
@@ -13,13 +14,29 @@ chapter proposer and writes:
 * ``<out>.md`` — a provenance header (HTML comment: source filename, sha256,
   extraction date, tool version/commit) then one ``# <label>`` heading per
   unit with its body. Body lines that would read as headings (``# ...``) are
-  escaped with a backslash; the md splitter unescapes them.
+  escaped with a backslash; the md splitter unescapes them. When the same
+  label occurs more than once (e.g. roman numerals restarting per book), the
+  later occurrences are suffixed deterministically ("I.", "I. (2)", ...) so
+  md headings stay unique; the sidecar keeps the raw text per unit
+  (``label_raw``).
 * a ``.extract.json`` sidecar next to the output — units found, labels in
-  order, per-unit word counts, and warnings (front-unit summary, tail trim,
-  dropped runts, screened candidate runs, stripped tails, dropped front
-  scraps).
+  order, per-unit word counts (plus per-unit records with ``label_raw`` and
+  override provenance), warnings (front-unit summary, tail trim, dropped
+  runts, screened candidate runs, stripped tails, dropped front scraps), and
+  ``unmatched_suspects``: standalone body lines that look structural but
+  matched no heading pattern (purely diagnostic; review candidates for a
+  ``--boundaries`` file).
 * a VERIFICATION REPORT on stdout. With ``--expected-units N`` the exit code
   is nonzero on a count mismatch, so fleet runs can gate on it.
+  ``--expected-units`` counts the ``(front)`` unit when it is kept.
+
+``--boundaries <file.json>`` loads a reviewed data file of additional heading
+lines: ``{"headings": [{"match": "<exact line text>", "label": "<optional>"},
+...]}``. Each ``match`` is compared by exact stripped-line equality; matching
+lines become boundaries exactly like pattern-matched headings (unit splitting,
+exclusion from bodies, runt/front rules as usual). The sidecar records which
+boundaries came from overrides, and an entry that matches zero lines is a
+hard error (exit nonzero) so stale overrides are caught.
 
 No LLM, no metrics: pure stdlib, like the segmentation layer it drives.
 """
@@ -49,6 +66,46 @@ def _tool_commit() -> str:
         return out.stdout.strip() or "unknown"
     except (OSError, subprocess.SubprocessError):
         return "unknown"
+
+
+def load_boundaries(path: str) -> list[dict]:
+    """Load and validate a ``--boundaries`` overrides file.
+
+    Expected shape: ``{"headings": [{"match": str, "label": str?}, ...]}``.
+    Raises ValueError with a human-readable message on any malformation.
+    """
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict) or not isinstance(data.get("headings"), list):
+        raise ValueError('boundaries file must be {"headings": [...]}')
+    entries = []
+    for k, e in enumerate(data["headings"]):
+        if (not isinstance(e, dict) or not isinstance(e.get("match"), str)
+                or not e["match"].strip()):
+            raise ValueError(f'headings[{k}] needs a non-empty string "match"')
+        if "label" in e and not isinstance(e["label"], str):
+            raise ValueError(f'headings[{k}] "label" must be a string')
+        entries.append({"match": e["match"].strip(),
+                        "label": e.get("label")})
+    if not entries:
+        raise ValueError("boundaries file has no headings entries")
+    return entries
+
+
+def disambiguate_labels(units: list[dict]) -> list[dict]:
+    """Suffix repeated labels deterministically: "I.", "I. (2)", "I. (3)"...
+
+    Keeps md headings unique without inventing structure. The raw heading
+    text is preserved on every unit as ``label_raw``.
+    """
+    seen: dict[str, int] = {}
+    for u in units:
+        raw = u["label"]
+        n = seen[raw] = seen.get(raw, 0) + 1
+        u["label_raw"] = raw
+        if n > 1:
+            u["label"] = f"{raw} ({n})"
+    return units
 
 
 def _escape_body(text: str) -> tuple[str, int]:
@@ -138,6 +195,14 @@ def _print_report(source: str, sidecar: dict) -> None:
                 print(f"  - {key}: {value}")
     else:
         print("Warnings: none")
+    bo = sidecar.get("boundary_overrides")
+    if bo:
+        matched = sum(e["lines_matched"] for e in bo["entries"])
+        print(f"Boundary overrides: {len(bo['entries'])} entries, "
+              f"{matched} matched lines, {len(bo['boundaries'])} boundaries")
+    suspects = sidecar.get("unmatched_suspects", [])
+    print(f"Unmatched structural suspects: {len(suspects)}"
+          + (" (diagnostic; lines listed in the sidecar)" if suspects else ""))
     if sidecar.get("expected_units") is not None:
         status = "OK" if sidecar["expected_match"] else "MISMATCH"
         print(f"Expected units: {sidecar['expected_units']}, "
@@ -145,7 +210,8 @@ def _print_report(source: str, sidecar: dict) -> None:
 
 
 def extract_file(path: str, out_path: str, expected_units: int | None = None,
-                 trim_gutenberg: bool = True) -> tuple[dict, str]:
+                 trim_gutenberg: bool = True,
+                 overrides: list[dict] | None = None) -> tuple[dict, str]:
     """Run trimming + the proposer on one file; return (sidecar_dict, markdown)."""
     with open(path, "rb") as f:
         raw = f.read()
@@ -153,8 +219,10 @@ def extract_file(path: str, out_path: str, expected_units: int | None = None,
     text = raw.decode("utf-8")
 
     seg_result = segmentation.segment(text, strategy="chapters",
-                                      trim_gutenberg=trim_gutenberg)
-    units = seg_result["units"]
+                                      trim_gutenberg=trim_gutenberg,
+                                      overrides=overrides)
+    units = disambiguate_labels(seg_result["units"])
+    suspects = segmentation.find_unmatched_suspects(units)
     provenance = {
         "schema": EXTRACT_SCHEMA,
         "source": os.path.basename(path),
@@ -165,6 +233,13 @@ def extract_file(path: str, out_path: str, expected_units: int | None = None,
         "units": len(units),
     }
     markdown, escaped_lines = render_markdown(units, provenance)
+    unit_records = []
+    for u in units:
+        rec = {"label": u["label"], "label_raw": u.get("label_raw", u["label"]),
+               "words": u["words"]}
+        if u.get("source") == "override":
+            rec["from_override"] = True
+        unit_records.append(rec)
     sidecar = {
         "schema": EXTRACT_SCHEMA,
         "source": os.path.basename(path),
@@ -177,8 +252,16 @@ def extract_file(path: str, out_path: str, expected_units: int | None = None,
         "total_words": seg_result["total_words"],
         "labels": [u["label"] for u in units],
         "unit_words": [u["words"] for u in units],
+        "units": unit_records,
+        "unmatched_suspects": suspects,
         "warnings": _collect_warnings(seg_result, escaped_lines),
     }
+    if overrides is not None:
+        detection = seg_result.get("chapter_detection") or {}
+        sidecar["boundary_overrides"] = {
+            "entries": detection.get("override_entries", []),
+            "boundaries": detection.get("override_boundaries", []),
+        }
     if expected_units is not None:
         sidecar["expected_units"] = expected_units
         sidecar["expected_match"] = (len(units) == expected_units)
@@ -194,9 +277,18 @@ def main(argv=None) -> int:
     parser.add_argument("--out", help="Canonical Markdown output path "
                                       "(default: <input stem>.md next to the input)")
     parser.add_argument("--expected-units", type=int, default=None,
-                        help="Ground-truth unit count; exit nonzero on mismatch")
+                        help="Ground-truth unit count; exit nonzero on mismatch "
+                             "(counts the (front) unit when it is kept)")
     parser.add_argument("--no-gutenberg-trim", action="store_true",
                         help="Do not strip Project Gutenberg frontmatter/license")
+    parser.add_argument("--boundaries", default=None,
+                        help="Reviewed JSON data file of additional heading "
+                             'lines: {"headings": [{"match": "<exact line '
+                             'text>", "label": "<optional>"}]}. Matched by '
+                             "exact stripped-line equality; matching lines "
+                             "become boundaries exactly like pattern-matched "
+                             "headings. An entry matching zero lines is a "
+                             "hard error")
     args = parser.parse_args(argv)
 
     if not os.path.isfile(args.path):
@@ -206,10 +298,34 @@ def main(argv=None) -> int:
     if os.path.abspath(out_path) == os.path.abspath(args.path):
         print("error: output path equals the input path", file=sys.stderr)
         return 2
+    overrides = None
+    if args.boundaries:
+        try:
+            overrides = load_boundaries(args.boundaries)
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            print(f"error: bad boundaries file {args.boundaries}: {e}",
+                  file=sys.stderr)
+            return 2
 
     sidecar, markdown = extract_file(
         args.path, out_path, expected_units=args.expected_units,
-        trim_gutenberg=not args.no_gutenberg_trim)
+        trim_gutenberg=not args.no_gutenberg_trim, overrides=overrides)
+
+    if overrides is not None:
+        if sidecar["strategy_used"] != "chapters":
+            print("error: --boundaries supplied but chapter segmentation "
+                  f"fell back ({sidecar['strategy_used']}); nothing written",
+                  file=sys.stderr)
+            return 2
+        stale = [e for e in sidecar["boundary_overrides"]["entries"]
+                 if e["lines_matched"] == 0]
+        if stale:
+            for e in stale:
+                print(f"error: boundary override matched zero lines: "
+                      f"{e['match']!r}", file=sys.stderr)
+            print("error: stale boundary overrides; nothing written",
+                  file=sys.stderr)
+            return 2
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(markdown)

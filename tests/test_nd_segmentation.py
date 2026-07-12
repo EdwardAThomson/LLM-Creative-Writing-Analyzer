@@ -604,6 +604,205 @@ def test_orphan_tail_requires_standalone_line():
     assert out["units"][0]["text"].endswith("And So It Ends")
 
 
+# --- spelled-number BOOK/PART/VOLUME headings (War of the Worlds extraction) -----------
+
+def test_spelled_number_book_headings():
+    # Wells body headings verbatim: "BOOK ONE" / "BOOK TWO" matched nothing
+    # and leaked into the adjacent chapter units.
+    for h in ["BOOK ONE", "BOOK TWO", "PART THREE", "VOLUME TWENTY",
+              "BOOK ONE.", "BOOK SEVENTEEN"]:
+        assert seg.is_chapter_heading(h), h
+    for h in ["BOOK TWENTYONE", "Book One", "BOOK ONE.—THE COMING OF THE MARTIANS"]:
+        assert not seg.is_chapter_heading(h), h
+
+
+def test_wells_book_headings_become_runt_dropped_boundaries():
+    # The Wells junction shape verbatim: a book heading over its short title
+    # line, directly over the next chapter. The book headings become
+    # boundaries whose title-only bodies drop as runts, so no furniture leaks
+    # into the chapter tails.
+    text = ("BOOK ONE\nTHE COMING OF THE MARTIANS\n\n\n"
+            "I.\nTHE EVE OF THE WAR.\n\n" + _words("one", 80) + "\n\n"
+            "II.\nTHE FALLING STAR.\n\n" + _words("two", 80) + "\n\n\n"
+            "BOOK TWO\nTHE EARTH UNDER THE MARTIANS.\n\n\n"
+            "I.\nUNDER FOOT.\n\n" + _words("uf", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == ["I.", "II.", "I."]
+    assert "BOOK TWO" not in out["units"][1]["text"]
+    assert "MARTIANS" not in out["units"][1]["text"].split("THE FALLING STAR.")[1]
+    runts = [r["label"] for r in out["chapter_detection"]["dropped_runts"]]
+    assert runts == ["BOOK ONE", "BOOK TWO"]
+
+
+# --- PREFACE / PREAMBLE named units (Bleak House / Woman in White evidence) ------------
+
+def test_preface_and_preamble_are_headings():
+    # Bleak House sets a bare PREFACE over the author's preface, which merged
+    # into the front unit; a PREAMBLE is the same shape in other editions.
+    for h in ["PREFACE", "PREAMBLE", "PREFACE."]:
+        assert seg.is_chapter_heading(h), h
+    # the TOC's title-case "Preface" line stays unmatched (conservative)
+    assert not seg.is_chapter_heading("Preface")
+
+
+def test_preface_unit_recovered():
+    text = ("PREFACE\n\n" + _words("pref", 80) + "\n\n"
+            "CHAPTER I\nIn Chancery\n\n" + _words("c1", 80) + "\n\n"
+            "CHAPTER II\nIn Fashion\n\n" + _words("c2", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == ["PREFACE", "CHAPTER I",
+                                                  "CHAPTER II"]
+    assert out["units"][0]["text"] == _words("pref", 80)
+
+
+# --- EPOCH ordinal units with THE prefix (Woman in White evidence) ----------------------
+
+def test_epoch_headings_with_optional_the_prefix():
+    # Collins body headings verbatim: "THE SECOND EPOCH" / "THE THIRD EPOCH".
+    for h in ["THE SECOND EPOCH", "THE THIRD EPOCH", "FIRST EPOCH",
+              "THE FIRST PERIOD."]:
+        assert seg.is_chapter_heading(h), h
+    for h in ["First Epoch", "THE EPOCH", "THE END OF THE FIRST PERIOD."]:
+        assert not seg.is_chapter_heading(h), h
+
+
+def test_epoch_junction_keeps_closing_unit_clean():
+    # The Woman in White epoch junction verbatim: the epoch heading stands
+    # over the narrator line, over the diary's "I". The epoch boundary's
+    # narrator-only body drops as a runt; nothing leaks into chapter bodies.
+    text = ("I\n\n" + _words("a", 80) + "\n\n"
+            "II\n\n" + _words("b", 80) + "\n\n"
+            "[The First Epoch of the Story closes here.]\n\n\n\n"
+            "THE SECOND EPOCH\n\n"
+            "THE STORY CONTINUED BY MARIAN HALCOMBE.\n\n\n\n"
+            "I\n\nBLACKWATER PARK, HAMPSHIRE.\n\n" + _words("d", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == ["I", "II", "I"]
+    assert out["units"][1]["text"].endswith(
+        "[The First Epoch of the Story closes here.]")
+    assert out["units"][2]["text"].startswith("BLACKWATER PARK, HAMPSHIRE.")
+
+
+# --- multi-line orphan tail blocks (Wells / Collins extraction evidence) -----------------
+
+def test_orphan_block_wells_shape_stripped():
+    # War of the Worlds unit 17 tail verbatim: "BOOK TWO" over "THE EARTH
+    # UNDER THE MARTIANS." The old single-line loop broke because the line
+    # above the title line is non-blank, and on the trailing period.
+    body = _words("a", 80) + "\n\n\nBOOK TWO\nTHE EARTH UNDER THE MARTIANS."
+    out, stripped = seg._strip_orphan_tail(body)
+    assert stripped == ["BOOK TWO", "THE EARTH UNDER THE MARTIANS."]
+    assert out == _words("a", 80)
+
+
+def test_orphan_block_collins_shape_stripped():
+    # Woman in White junction scaffolding verbatim: the narrator heading over
+    # the parenthetical subtitle; a trailing ")" is not prose-terminal here.
+    body = (_words("a", 80) + "\n\nThe End of Hartright’s Narrative.\n\n\n"
+            "THE STORY CONTINUED BY VINCENT GILMORE\n\n"
+            "(of Chancery Lane, Solicitor)")
+    out, stripped = seg._strip_orphan_tail(body)
+    assert stripped == ["THE STORY CONTINUED BY VINCENT GILMORE",
+                        "(of Chancery Lane, Solicitor)"]
+    assert out.endswith("The End of Hartright’s Narrative.")
+
+
+def test_orphan_block_sentence_line_needs_heading_like_top():
+    # a lone all-caps sentence-punctuated line reads as prose and stays,
+    # with or without a clean prose line above it
+    for body in [_words("a", 80) + "\n\nHE SAID IT WAS OVER.",
+                 _words("a", 80) + "\n\nTHE EARTH UNDER THE MARTIANS."]:
+        out, stripped = seg._strip_orphan_tail(body)
+        assert stripped == []
+        assert out == body
+
+
+def test_orphan_block_single_parenthetical_stays():
+    # the ")" nuance is scoped to blocks: a lone parenthetical is not stripped
+    body = _words("a", 80) + "\n\n(of Chancery Lane, Solicitor)"
+    out, stripped = seg._strip_orphan_tail(body)
+    assert stripped == []
+    assert out == body
+
+
+def test_orphan_block_end_marker_protected():
+    # THE END must survive for the tail trimmer, alone or under a heading
+    body = _words("a", 80) + "\n\nBOOK TWO\n\nTHE END"
+    out, stripped = seg._strip_orphan_tail(body)
+    assert stripped == []
+    assert out == body
+
+
+def test_orphan_block_requires_standalone_top():
+    # four stacked structural lines exceed the block cap, so the top of the
+    # collected block has a non-blank line above it: nothing is stripped
+    body = (_words("a", 80) + "\n\nFIRST LINE HERE\nSECOND LINE HERE\n"
+            "THIRD LINE HERE\nFOURTH LINE HERE")
+    out, stripped = seg._strip_orphan_tail(body)
+    assert stripped == []
+    assert out == body
+
+
+def test_collins_junction_scaffolding_stripped_end_to_end():
+    # segment-level: the narrator heading + subtitle land at the tail of the
+    # preceding chapter (the next "I" is the detected boundary) and are
+    # stripped and recorded
+    text = ("I\n\n" + _words("a", 80) + "\n\n"
+            "II\n\n" + _words("b", 80) + "\n\nThe End of Hartright’s Narrative.\n\n\n"
+            "THE STORY CONTINUED BY VINCENT GILMORE\n\n"
+            "(of Chancery Lane, Solicitor)\n\n\n"
+            "I\n\n" + _words("g", 80))
+    out = seg.segment(text, strategy="chapters")
+    assert [u["label"] for u in out["units"]] == ["I", "II", "I"]
+    assert out["units"][1]["text"].endswith("The End of Hartright’s Narrative.")
+    assert out["chapter_detection"]["stripped_tails"] == [
+        {"unit_label": "II",
+         "lines": ["THE STORY CONTINUED BY VINCENT GILMORE",
+                   "(of Chancery Lane, Solicitor)"]}]
+
+
+# --- unmatched structural suspects (diagnostic; Collins invisibility evidence) ----------
+
+def test_unmatched_suspects_flags_collins_narrator_headers():
+    # Without overrides, the Woman in White narrator headings matched no
+    # pattern and fused invisibly; the scan must surface them per unit.
+    units = [{"index": 0, "text": _words("x", 40)},
+             {"index": 1, "text": (_words("a", 40) + "\n\n"
+                                   "THE STORY CONTINUED BY VINCENT GILMORE\n\n"
+                                   + _words("b", 40) + "\n\n"
+                                   "THE STORY CONCLUDED BY WALTER HARTRIGHT\n\n"
+                                   + _words("c", 40))}]
+    sus = seg.find_unmatched_suspects(units)
+    assert [s["line"] for s in sus] == [
+        "THE STORY CONTINUED BY VINCENT GILMORE",
+        "THE STORY CONCLUDED BY WALTER HARTRIGHT"]
+    assert [s["unit_index"] for s in sus] == [1, 1]
+    # positions count every word above the line, including earlier suspects
+    assert [s["position_words_into_unit"] for s in sus] == [40, 86]
+
+
+def test_unmatched_suspects_ignore_epistolary_and_prose():
+    # Dracula-style italic entry headers (leading underscore, trailing
+    # period) must not flood the report; nor do prose lines, pattern-matched
+    # headings, end markers, or non-standalone lines.
+    body = ("_Dr. Seward’s Diary._\n\n" + _words("a", 30) + "\n\n"
+            "_Mina Murray’s Journal._\n\n" + _words("b", 30) + "\n\n"
+            "He crossed the room.\n\n"
+            "CHAPTER II\n\n"
+            "A Fine Title Case Prose Line Ending Here.\n\n"
+            "WRAPPED CAPS LINE\n" + _words("c", 10) + "\n\nTHE END")
+    sus = seg.find_unmatched_suspects([{"index": 0, "text": body}])
+    assert sus == []
+
+
+def test_unmatched_suspects_allow_trailing_parenthesis():
+    # the ")" nuance from the orphan stripper applies here too
+    body = _words("a", 20) + "\n\n(Housekeeper at Blackwater Park)\n\n" + _words("b", 20)
+    sus = seg.find_unmatched_suspects([{"index": 3, "text": body}])
+    assert sus == [{"unit_index": 3, "line": "(Housekeeper at Blackwater Park)",
+                    "position_words_into_unit": 20}]
+
+
 # --- windows-mode front-matter note (documented, no behavior change) --------------------
 
 def test_windows_result_carries_front_matter_note():

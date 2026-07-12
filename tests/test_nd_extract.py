@@ -182,6 +182,156 @@ def test_extract_records_proposer_warnings(tmp_path, capsys):
     assert "screened TOC/junction candidates" in report
 
 
+# --- unmatched structural suspects in the extract report --------------------------------
+
+def test_extract_reports_unmatched_suspects(tmp_path, capsys):
+    # Collins shape: a narrator heading matching no pattern sits mid-body; it
+    # must surface in the sidecar and the stdout count (diagnostic only)
+    text = ("CHAPTER I\n\n" + _words("one", 80) + "\n\n"
+            "THE STORY CONTINUED BY VINCENT GILMORE\n\n" + _words("g", 80)
+            + "\n\nCHAPTER II\n\n" + _words("two", 80)
+            + "\n\nCHAPTER III\n\n" + _words("three", 80) + "\n")
+    src = tmp_path / "sus.txt"
+    src.write_text(text, encoding="utf-8")
+    assert extract_main([str(src), "--out", str(tmp_path / "sus.md")]) == 0
+    sidecar = json.loads((tmp_path / "sus.extract.json").read_text())
+    assert sidecar["unmatched_suspects"] == [
+        {"unit_index": 0, "line": "THE STORY CONTINUED BY VINCENT GILMORE",
+         "position_words_into_unit": 80}]
+    assert "Unmatched structural suspects: 1" in capsys.readouterr().out
+
+
+def test_extract_suspects_exclude_epistolary_headers(tmp_path, capsys):
+    # Dracula shape: italic entry headers must not flood the suspect list
+    text = ("CHAPTER I\n\n_Jonathan Harker’s Journal._\n\n" + _words("one", 80)
+            + "\n\nCHAPTER II\n\n_Dr. Seward’s Diary._\n\n" + _words("two", 80)
+            + "\n\nCHAPTER III\n\n" + _words("three", 80) + "\n")
+    src = tmp_path / "drac.txt"
+    src.write_text(text, encoding="utf-8")
+    assert extract_main([str(src), "--out", str(tmp_path / "drac.md")]) == 0
+    sidecar = json.loads((tmp_path / "drac.extract.json").read_text())
+    assert sidecar["unmatched_suspects"] == []
+    assert "Unmatched structural suspects: 0" in capsys.readouterr().out
+
+
+# --- boundary overrides ------------------------------------------------------------------
+
+COLLINS_SHAPED = ("I\n\n" + _words("w1", 80) + "\n\n"
+                  "II\n\n" + _words("w2", 80) + "\n\n\n"
+                  "THE STORY CONTINUED BY VINCENT GILMORE\n\n"
+                  + _words("g", 80) + "\n\n"
+                  "I\n\n" + _words("g1", 80) + "\n")
+
+
+def _write_boundaries(tmp_path, headings):
+    p = tmp_path / "b.json"
+    p.write_text(json.dumps({"headings": headings}), encoding="utf-8")
+    return p
+
+
+def test_boundaries_override_splits_collins_shape(tmp_path, capsys):
+    src = tmp_path / "collins.txt"
+    src.write_text(COLLINS_SHAPED, encoding="utf-8")
+    b = _write_boundaries(tmp_path, [
+        {"match": "THE STORY CONTINUED BY VINCENT GILMORE",
+         "label": "The Story Continued by Vincent Gilmore"}])
+    out = tmp_path / "collins.md"
+    rc = extract_main([str(src), "--out", str(out), "--boundaries", str(b)])
+    assert rc == 0
+    sidecar = json.loads((tmp_path / "collins.extract.json").read_text())
+    assert sidecar["labels"] == [
+        "I", "II", "The Story Continued by Vincent Gilmore", "I (2)"]
+    assert [u.get("from_override", False) for u in sidecar["units"]] == [
+        False, False, True, False]
+    assert sidecar["boundary_overrides"]["entries"] == [
+        {"match": "THE STORY CONTINUED BY VINCENT GILMORE",
+         "label": "The Story Continued by Vincent Gilmore",
+         "lines_matched": 1, "boundaries": 1}]
+    md = out.read_text(encoding="utf-8")
+    assert "\n# The Story Continued by Vincent Gilmore\n" in md
+    # the heading line is excluded from bodies: unit II ends with its prose
+    units, _ = seg.segment_markdown(md)
+    assert units[1]["text"].endswith("w279")
+    assert units[2]["text"] == _words("g", 80)
+    assert "Boundary overrides: 1 entries, 1 matched lines, 1 boundaries" \
+        in capsys.readouterr().out
+
+
+def test_boundaries_override_runt_and_front_rules_apply(tmp_path):
+    # an override whose body is thin drops as a runt, like any heading
+    text = ("I\n\n" + _words("w1", 80) + "\n\n"
+            "II\n\n" + _words("w2", 80) + "\n\n\n"
+            "THE STORY CONCLUDED BY WALTER HARTRIGHT\n\n\n"
+            "I\n\n" + _words("g1", 80) + "\n")
+    src = tmp_path / "runt.txt"
+    src.write_text(text, encoding="utf-8")
+    b = _write_boundaries(tmp_path, [
+        {"match": "THE STORY CONCLUDED BY WALTER HARTRIGHT"}])
+    assert extract_main([str(src), "--out", str(tmp_path / "runt.md"),
+                         "--boundaries", str(b)]) == 0
+    sidecar = json.loads((tmp_path / "runt.extract.json").read_text())
+    assert sidecar["labels"] == ["I", "II", "I (2)"]
+    assert sidecar["warnings"]["dropped_runts"] == [
+        {"label": "THE STORY CONCLUDED BY WALTER HARTRIGHT", "words": 0}]
+    # label defaulted to the matched text in the runt record; the entry still
+    # reports its boundary
+    assert sidecar["boundary_overrides"]["entries"][0]["boundaries"] == 1
+
+
+def test_boundaries_zero_match_fails_loudly(tmp_path, capsys):
+    src = tmp_path / "collins.txt"
+    src.write_text(COLLINS_SHAPED, encoding="utf-8")
+    b = _write_boundaries(tmp_path, [
+        {"match": "THE STORY CONTINUED BY VINCENT GILMORE"},
+        {"match": "THE STORY CONTINUED BY NOBODY AT ALL"}])
+    out = tmp_path / "collins.md"
+    rc = extract_main([str(src), "--out", str(out), "--boundaries", str(b)])
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "matched zero lines" in err
+    assert "THE STORY CONTINUED BY NOBODY AT ALL" in err
+    assert not out.exists()  # nothing written on stale overrides
+    assert not (tmp_path / "collins.extract.json").exists()
+
+
+def test_boundaries_malformed_file_fails_loudly(tmp_path, capsys):
+    src = tmp_path / "collins.txt"
+    src.write_text(COLLINS_SHAPED, encoding="utf-8")
+    for payload in ["not json at all", '{"headings": "x"}',
+                    '{"headings": [{"label": "no match key"}]}',
+                    '{"headings": []}']:
+        b = tmp_path / "b.json"
+        b.write_text(payload, encoding="utf-8")
+        rc = extract_main([str(src), "--out", str(tmp_path / "c.md"),
+                           "--boundaries", str(b)])
+        assert rc == 2, payload
+        assert "bad boundaries file" in capsys.readouterr().err
+
+
+# --- duplicate-label disambiguation -------------------------------------------------------
+
+def test_extract_disambiguates_duplicate_labels(tmp_path):
+    # Wells shape: roman numerals restart in Book Two; md headings must stay
+    # unique while the sidecar keeps the raw heading text per unit
+    text = ("I.\n\n" + _words("a", 80) + "\n\nII.\n\n" + _words("b", 80)
+            + "\n\nI.\n\n" + _words("c", 80) + "\n\nII.\n\n" + _words("d", 80)
+            + "\n\nI.\n\n" + _words("e", 80) + "\n")
+    src = tmp_path / "dup.txt"
+    src.write_text(text, encoding="utf-8")
+    out = tmp_path / "dup.md"
+    assert extract_main([str(src), "--out", str(out)]) == 0
+    sidecar = json.loads((tmp_path / "dup.extract.json").read_text())
+    assert sidecar["labels"] == ["I.", "II.", "I. (2)", "II. (2)", "I. (3)"]
+    assert [u["label_raw"] for u in sidecar["units"]] == [
+        "I.", "II.", "I.", "II.", "I."]
+    md = out.read_text(encoding="utf-8")
+    assert "\n# I. (2)\n" in md and "\n# I. (3)\n" in md
+    # round-trip parity on the disambiguated headings
+    units, _ = seg.segment_markdown(md)
+    assert [u["label"] for u in units] == sidecar["labels"]
+    assert units[2]["text"] == _words("c", 80)
+
+
 # --- round trip: extract -> md -> re-ingest ---------------------------------------------
 
 def test_round_trip_unit_parity(tmp_path):

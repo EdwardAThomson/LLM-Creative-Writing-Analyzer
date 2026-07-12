@@ -216,23 +216,33 @@ def word_count(text: str) -> int:
 # --- chapter detection -------------------------------------------------------------
 
 _ROMAN = r"[IVXLCDM]+"
+# Spelled-out number words accepted in BOOK/PART/VOLUME headings (uppercase
+# only, conservative). Wells extraction evidence: the body headings
+# "BOOK ONE" / "BOOK TWO" matched nothing and leaked into chapter units.
+_SPELLED_NUMBER = ("ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|"
+                   "ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|"
+                   "SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY")
 _CHAPTER_PATTERNS = [
     # CHAPTER IV / Chapter 12. / CHAPTER THE FIRST, optionally followed by a
     # title after a dot, colon, hyphen, or em dash (the em dash in the class
     # below is a literal matched in Gutenberg headings, e.g. Eddison's)
     re.compile(rf"^(?:CHAPTER|Chapter)\s+(?:{_ROMAN}|\d+|[A-Z][A-Za-z-]+)\.?(?:\s*[.:—-]\s*\S.*)?$"),
-    # BOOK II / PART THE SECOND / VOLUME I (treated as boundaries too)
-    re.compile(rf"^(?:BOOK|PART|VOLUME|Book|Part|Volume)\s+(?:{_ROMAN}|\d+|THE\s+[A-Z]+)\.?$"),
+    # BOOK II / PART THE SECOND / VOLUME I / BOOK ONE (treated as boundaries too)
+    re.compile(rf"^(?:BOOK|PART|VOLUME|Book|Part|Volume)\s+(?:{_ROMAN}|\d+|THE\s+[A-Z]+|{_SPELLED_NUMBER})\.?$"),
     # bare roman numeral heading lines: "IV." / "XII"
     re.compile(rf"^{_ROMAN}\.?$"),
     # numbered headings: "12." on a line of its own
     re.compile(r"^\d{1,3}\.?$"),
     # named structural units. PRELUDE/FINALE per the Middlemarch shakedown:
     # without them the Prelude fell into front matter and the Finale fused
-    # into Chapter 86.
+    # into Chapter 86. PREFACE per Bleak House (the preface merged into the
+    # front unit); PREAMBLE is the same shape in other editions. EPOCH (with
+    # an optional THE prefix on the ordinal form) per The Woman in White:
+    # the body headings are "THE SECOND EPOCH" / "THE THIRD EPOCH".
     re.compile(r"^(?:PROLOGUE|EPILOGUE|PRELUDE|FINALE|INTRODUCTION|CONCLUSION|"
-               r"(?:FIRST|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH|NINTH|TENTH)"
-               r"\s+(?:NARRATIVE|PERIOD|BOOK|PART))\.?$"),
+               r"PREFACE|PREAMBLE|"
+               r"(?:THE\s+)?(?:FIRST|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH|NINTH|TENTH)"
+               r"\s+(?:NARRATIVE|PERIOD|BOOK|PART|EPOCH))\.?$"),
 ]
 
 
@@ -259,8 +269,25 @@ def _is_title_line(lines: list[str], i: int) -> bool:
     return i + 1 >= len(lines) or not lines[i + 1].strip()
 
 
+def _match_override_lines(lines: list[str], overrides) -> dict[int, dict]:
+    """Line index -> boundary-override entry, by exact stripped-line equality.
+
+    ``overrides`` is the reviewed data list from an extract ``--boundaries``
+    file: dicts with a required ``match`` (exact stripped line text) and an
+    optional ``label`` (defaults to the matched text).
+    """
+    if not overrides:
+        return {}
+    by_text: dict[str, dict] = {}
+    for entry in overrides:
+        by_text.setdefault(entry["match"], entry)
+    return {i: by_text[line.strip()] for i, line in enumerate(lines)
+            if line.strip() in by_text}
+
+
 def _screen_toc_runs(lines: list[str], hits: list[int],
-                     report: Optional[dict] = None) -> list[int]:
+                     report: Optional[dict] = None,
+                     extra_latent: Optional[set[int]] = None) -> list[int]:
     """Drop dense runs of heading-like lines (a table of contents, not structure).
 
     Density is measured over ALL lines matching the heading patterns (not only
@@ -281,10 +308,15 @@ def _screen_toc_runs(lines: list[str], hits: list[int],
     *last* entry of a plain TOC stays screened: the front matter following it
     (dedication, preface scraps) stays under the exemption bar, so it cannot
     absorb that front matter as a fake chapter.
+
+    ``extra_latent`` adds line indices that count as heading-like for the
+    density measurement even though no pattern matches them: boundary-override
+    lines, whose TOC copies would otherwise read as boundaries.
     """
     if not hits:
         return hits
-    latent = [i for i, line in enumerate(lines) if is_chapter_heading(line)]
+    latent = [i for i, line in enumerate(lines)
+              if is_chapter_heading(line) or (extra_latent and i in extra_latent)]
     if len(latent) < TOC_MIN_RUN:
         return hits
     dense: set[int] = set()
@@ -319,7 +351,8 @@ def _screen_toc_runs(lines: list[str], hits: list[int],
     return kept
 
 
-def detect_chapter_lines(text: str, report: Optional[dict] = None) -> list[int]:
+def detect_chapter_lines(text: str, report: Optional[dict] = None,
+                         overrides: Optional[list[dict]] = None) -> list[int]:
     """Indices of heading lines in ``text.split('\\n')``.
 
     A heading counts when preceded by a blank line (or the text edge) and
@@ -330,75 +363,151 @@ def detect_chapter_lines(text: str, report: Optional[dict] = None) -> list[int]:
     running prose, and ``_screen_toc_runs`` screens contents listings. When a
     ``report`` dict is passed, screened candidates are recorded in it (used by
     the extract command's verification report).
+
+    ``overrides`` (see ``_match_override_lines``) adds reviewed exact-text
+    boundary lines. They pass through the same context guards and TOC screen
+    as pattern-matched headings; when a ``report`` dict is passed, per-entry
+    match/boundary counts (``override_entries``) and the surviving override
+    boundaries (``override_boundaries``) are recorded in it.
     """
     lines = text.split("\n")
+    override_lines = _match_override_lines(lines, overrides)
     n = len(lines)
     hits = []
     for i, line in enumerate(lines):
-        if not is_chapter_heading(line):
+        if not (is_chapter_heading(line) or i in override_lines):
             continue
         if i > 0 and lines[i - 1].strip():
             continue  # no blank line (or edge) above
         next_blank = i == n - 1 or not lines[i + 1].strip()
         if next_blank or _is_title_line(lines, i + 1):
             hits.append(i)
-    return _screen_toc_runs(lines, hits, report)
+    hits = _screen_toc_runs(lines, hits, report,
+                            extra_latent=set(override_lines) or None)
+    if report is not None and overrides:
+        report["override_entries"] = [
+            {"match": e["match"],
+             "label": e.get("label") or e["match"],
+             "lines_matched": sum(1 for j in override_lines
+                                  if lines[j].strip() == e["match"]),
+             "boundaries": sum(1 for j in hits if j in override_lines
+                               and lines[j].strip() == e["match"])}
+            for e in overrides]
+        boundaries = [{"line": j, "text": lines[j].strip(),
+                       "label": (override_lines[j].get("label")
+                                 or lines[j].strip())}
+                      for j in hits if j in override_lines]
+        if boundaries:
+            report["override_boundaries"] = boundaries
+    return hits
 
 
 # Characters that end a prose line: a paragraph's final line virtually always
-# closes with one of these, an orphan heading line does not.
-_TERMINAL_PUNCT = ".!?,;\"'”’)]*_…"
+# closes with one of these, an orphan heading line does not. A trailing ")"
+# is deliberately NOT in the set: a short parenthetical scaffolding line such
+# as "(of Chancery Lane, Solicitor)" under a narrator heading is part of the
+# orphan block (The Woman in White junction shape), not prose.
+_TERMINAL_PUNCT = ".!?,;\"'”’]*_…"
+# Sentence-final punctuation. A line ending in one of these may still be
+# stripped, but only inside a multi-line orphan block whose top line is
+# heading-like (the Wells shape: "BOOK TWO" over "THE EARTH UNDER THE
+# MARTIANS."); it is never stripped on its own or from the top of a block.
+_SENTENCE_PUNCT = ".!?\"”"
+MAX_ORPHAN_BLOCK_LINES = 3   # orphan blocks stay small: heading plus title-ish lines
+
+
+def _looks_structural(s: str) -> bool:
+    """Short, title-case/all-caps, alpha-bearing: the texture of a heading or
+    junction-scaffolding line rather than prose."""
+    if not s or len(s) > MAX_TITLE_LINE_CHARS:
+        return False
+    alpha_words = [w for w in s.split() if w[:1].isalpha()]
+    return bool(alpha_words) and all(w[:1].isupper() for w in alpha_words)
 
 
 def _strip_orphan_tail(body: str) -> tuple[str, list[str]]:
-    """Strip trailing orphan heading-like lines from a unit body.
+    """Strip trailing orphan heading-like lines or blocks from a unit body.
 
     Shakedown evidence (War and Peace): a structural heading line matching NO
     pattern ("BOOK EIGHT: 1811 - 12") lands verbatim at the tail of the
     preceding unit, because the following CHAPTER I is the detected boundary.
-    Cheap conservative mitigation: strip a trailing line only when it is
-    standalone (blank line above), short (heading-length), has no terminal
-    punctuation, is title-case or all-caps, and is neither an end-marker line
-    (THE END must survive for the tail trimmer) nor a pattern-matching heading
-    (those are boundaries or screened candidates, not orphans). Stripped lines
-    are returned so the caller can record them in the unit metadata; only
-    units followed by a detected boundary are processed (see segment_chapters).
+    Extraction evidence (Wells, Collins): the orphan can be a small BLOCK, a
+    heading-like line over a short title line ("BOOK TWO" + "THE EARTH UNDER
+    THE MARTIANS.") or a narrator heading over a parenthetical subtitle
+    ("THE STORY CONTINUED BY VINCENT GILMORE" + "(of Chancery Lane,
+    Solicitor)"), where the single-line loop broke on the non-blank line
+    above or on the trailing punctuation.
+
+    Conservative rules: at most ``MAX_ORPHAN_BLOCK_LINES`` structural-looking
+    lines (blank lines between them allowed) are collected from the tail; the
+    block must be standalone (blank line or edge above its top line); an
+    end-marker line (THE END must survive for the tail trimmer) or a
+    prose-looking line ends collection. A line ending in sentence punctuation
+    (. ! ? ") is stripped only inside a multi-line block whose top line is
+    heading-like (a clean structural line or a pattern-matching heading),
+    never on its own. A single-line orphan keeps the old rules: no terminal
+    punctuation at all (a trailing ")" only counts as non-terminal inside a
+    block) and not a pattern-matching heading (those are boundaries or
+    screened candidates, not orphans). Stripped lines are returned so the
+    caller can record them in the unit metadata; only units followed by a
+    detected boundary are processed (see segment_chapters).
     """
     lines = body.split("\n")
-    stripped: list[str] = []
-    while lines:
-        if not lines[-1].strip():
-            lines.pop()
-            continue
-        s = lines[-1].strip()
-        if len(s) > MAX_TITLE_LINE_CHARS or len(lines) < 2 or lines[-2].strip():
-            break  # long, or not standalone: a wrapped prose tail stays
-        if s[-1] in _TERMINAL_PUNCT:
-            break  # ends like prose
-        if _END_MARKER.match(s) or is_chapter_heading(s):
+    block: list[int] = []  # candidate line indices, collected bottom-up
+    i = len(lines) - 1
+    while i >= 0 and not lines[i].strip():
+        i -= 1
+    while i >= 0 and len(block) < MAX_ORPHAN_BLOCK_LINES:
+        s = lines[i].strip()
+        if not s:
+            i -= 1
+            continue  # blank lines inside the block are allowed
+        if not _looks_structural(s) or _END_MARKER.match(s):
             break
-        alpha_words = [w for w in s.split() if w[:1].isalpha()]
-        if not alpha_words or not all(w[:1].isupper() for w in alpha_words):
-            break  # not title-case/all-caps
-        stripped.insert(0, s)
-        lines.pop()
-    if not stripped:
+        if s[-1] in _TERMINAL_PUNCT and s[-1] not in _SENTENCE_PUNCT:
+            break  # ends like broken prose (comma, semicolon, ...): never strip
+        block.append(i)
+        i -= 1
+    # a sentence-punctuated line may not top the block: without a heading-like
+    # line above it, it reads as prose and stays
+    while block and lines[block[-1]].strip()[-1] in _SENTENCE_PUNCT:
+        block.pop()
+    if block:
+        top = block[-1]
+        top_s = lines[top].strip()
+        if top > 0 and lines[top - 1].strip():
+            block = []  # not standalone: a wrapped prose tail stays
+        elif len(block) == 1 and (top_s[-1] in _TERMINAL_PUNCT + ")"
+                                  or is_chapter_heading(top_s)):
+            block = []  # single lines keep the old conservative rules
+        elif len(block) > 1 and (top_s[-1] in _TERMINAL_PUNCT + ")"
+                                 and not is_chapter_heading(top_s)):
+            block = []  # block top must be heading-like
+    if not block:
         return body, []
-    return "\n".join(lines).rstrip(), stripped
+    stripped = [lines[j].strip() for j in reversed(block)]
+    return "\n".join(lines[: block[-1]]).rstrip(), stripped
 
 
 def segment_chapters(text: str, min_unit_words: int = MIN_UNIT_WORDS,
-                     report: Optional[dict] = None) -> list[dict]:
+                     report: Optional[dict] = None,
+                     overrides: Optional[list[dict]] = None) -> list[dict]:
     """Split at detected chapter headings. Returns [] if fewer than MIN_CHAPTERS.
 
     When a ``report`` dict is passed, it collects what the split left out
     (screened TOC candidates, dropped runt units, dropped front-matter scraps,
     stripped orphan tail lines) for the extract command's verification report.
+    ``overrides`` adds reviewed exact-text boundary lines (see
+    ``detect_chapter_lines``); a unit whose heading came from an override
+    carries ``source: "override"`` and uses the entry's label (defaulting to
+    the matched line text). Runt and front-matter rules apply to override
+    units exactly as to pattern-matched ones.
     """
     lines = text.split("\n")
-    idxs = detect_chapter_lines(text, report)
+    idxs = detect_chapter_lines(text, report, overrides)
     if len(idxs) < MIN_CHAPTERS:
         return []
+    override_lines = _match_override_lines(lines, overrides)
     units: list[dict] = []
     followed_by_boundary: list[bool] = []
     # Text before the first heading is kept only if it is substantial (a preface
@@ -412,12 +521,18 @@ def segment_chapters(text: str, min_unit_words: int = MIN_UNIT_WORDS,
     for k, i in enumerate(idxs):
         j = idxs[k + 1] if k + 1 < len(idxs) else len(lines)
         body = "\n".join(lines[i + 1 : j]).strip()
+        entry = override_lines.get(i)
+        label = (entry.get("label") or entry["match"]) if entry \
+            else lines[i].strip()
         if word_count(body) < min_unit_words:
             if report is not None:
                 report.setdefault("dropped_runts", []).append(
-                    {"label": lines[i].strip(), "words": word_count(body)})
+                    {"label": label, "words": word_count(body)})
             continue
-        units.append({"label": lines[i].strip(), "text": body})
+        unit = {"label": label, "text": body}
+        if entry:
+            unit["source"] = "override"
+        units.append(unit)
         followed_by_boundary.append(k + 1 < len(idxs))
     for u, followed in zip(units, followed_by_boundary):
         if not followed:
@@ -433,6 +548,69 @@ def segment_chapters(text: str, min_unit_words: int = MIN_UNIT_WORDS,
         u["index"] = n
         u["words"] = word_count(u["text"])
     return units
+
+
+# --- unmatched structural suspects (diagnostic only) ---------------------------------
+
+SUSPECT_MAX_CHARS = 70       # a structural line stays short
+_SUSPECT_LEAD_CHARS = "_\"'“‘"  # italic/quoted epistolary headers, not structure
+_SUSPECT_CAP_RATIO = 0.7     # share of capitalized words that reads as a title
+
+
+def _is_suspect_line(s: str) -> bool:
+    """One stripped line: looks structural yet matches no heading pattern.
+
+    Calibrated for precision over recall. Epistolary italic entry headers
+    (Dracula's "_Dr. Seward's Diary._") are excluded by the leading
+    underscore/quote guard and the sentence-punctuation guard; a trailing
+    ")" does NOT count as prose-terminal (the fix-2 nuance), so parenthetical
+    junction scaffolding still surfaces. The words must read as mostly
+    uppercase / Title Case (at least ``_SUSPECT_CAP_RATIO`` of the
+    alpha-leading words capitalized, after stripping opening brackets and
+    quotes), which drops ordinary prose lines.
+    """
+    if not s or len(s) > SUSPECT_MAX_CHARS:
+        return False
+    if s[0] in _SUSPECT_LEAD_CHARS:
+        return False
+    if s[-1] in _TERMINAL_PUNCT:
+        return False
+    if is_chapter_heading(s) or _END_MARKER.match(s):
+        return False  # matched a pattern / end marker: visible elsewhere
+    words = [w.lstrip("(\"'“‘[") for w in s.split()]
+    alpha_words = [w for w in words if w[:1].isalpha()]
+    if not alpha_words:
+        return False
+    caps = sum(1 for w in alpha_words if w[:1].isupper())
+    return caps / len(alpha_words) >= _SUSPECT_CAP_RATIO
+
+
+def find_unmatched_suspects(units: list[dict]) -> list[dict]:
+    """Scan unit bodies for standalone lines that look structural but matched
+    no heading pattern (the heading-invisibility fix).
+
+    Extraction evidence (The Woman in White): the narrator headings
+    ("THE STORY CONTINUED BY VINCENT GILMORE", ...) matched no pattern and
+    fused silently into neighboring units; nothing in the report showed they
+    existed. This scan is purely diagnostic (no behavior change to
+    segmentation): a line counts when it is standalone (blank lines or the
+    body edge above AND below) and passes ``_is_suspect_line``. Returns
+    ``[{"unit_index", "line", "position_words_into_unit"}, ...]`` for the
+    extract sidecar; the stdout report summarizes the count.
+    """
+    suspects: list[dict] = []
+    for u in units:
+        lines = u["text"].split("\n")
+        words_seen = 0
+        for i, line in enumerate(lines):
+            s = line.strip()
+            standalone = ((i == 0 or not lines[i - 1].strip())
+                          and (i == len(lines) - 1 or not lines[i + 1].strip()))
+            if s and standalone and _is_suspect_line(s):
+                suspects.append({"unit_index": u["index"], "line": s,
+                                 "position_words_into_unit": words_seen})
+            words_seen += word_count(line)
+    return suspects
 
 
 # --- fixed windows -----------------------------------------------------------------
@@ -579,7 +757,8 @@ def segment_markdown(text: str) -> tuple[list[dict], Optional[dict]]:
 
 def segment(text: str, strategy: str = "chapters",
             window_words: int = DEFAULT_WINDOW_WORDS,
-            trim_gutenberg: bool = True) -> dict:
+            trim_gutenberg: bool = True,
+            overrides: Optional[list[dict]] = None) -> dict:
     """Segment a document into ordered units.
 
     Returns ``{"strategy_requested", "strategy_used", "units", "n_units",
@@ -590,7 +769,9 @@ def segment(text: str, strategy: str = "chapters",
     ``chapters`` results also carry ``chapter_detection`` (what the proposer
     screened/dropped; see ``segment_chapters``); ``md`` results carry the
     ``provenance`` header of the extracted file; ``windows`` results carry a
-    ``note`` recording that no front-matter exclusion applies.
+    ``note`` recording that no front-matter exclusion applies. ``overrides``
+    (chapters strategy only) adds reviewed exact-text boundary lines; see
+    ``segment_chapters``.
     """
     if strategy not in ("chapters", "windows", "md"):
         raise ValueError(f"unknown segmentation strategy: {strategy!r}")
@@ -617,7 +798,8 @@ def segment(text: str, strategy: str = "chapters",
 
     used = strategy
     detection: dict = {}
-    units = segment_chapters(text, report=detection) if strategy == "chapters" else []
+    units = (segment_chapters(text, report=detection, overrides=overrides)
+             if strategy == "chapters" else [])
     if not units:
         units = segment_windows(text, window_words=window_words)
         if strategy == "chapters":
