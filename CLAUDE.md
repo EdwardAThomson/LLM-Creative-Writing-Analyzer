@@ -21,6 +21,13 @@ python -m utils.text_analysis results/<file>.txt --all
 # Score saved runs with the v2 metric set -> sidecar (no API calls); dir = whole corpus
 python -m utils.metrics results/<file>.json --benchmark v2
 python -m utils.metrics results/ --benchmark v2
+# Scoring-only mode over arbitrary raw text (no generation step)
+python -m utils.metrics --text <file.txt|dir/> --benchmark v2
+python -m benchmarks.narrative_dynamics <file.txt|dir/> [--dry-run]
+# Single-text series (one book segmented into units; fully local, zero LLM)
+python -m utils.metrics --text book.txt --segment chapters --benchmark st1
+# Tests (fakes only, no LLM calls; minimal venv/ has just pytest)
+venv/bin/python -m pytest -q
 ```
 
 ## v2 metrics library (`utils/metrics/`)
@@ -38,12 +45,40 @@ in `METRICS_ROADMAP.md`; the rules that protect the longitudinal series:
 - **Benchmark versions** are frozen, cumulative manifests `benchmarks/vN.yaml`
   (`extends:` + `add:`), resolved by `_manifests.py`. `v2` = the 8 shipped metrics.
   Once a vN ships it isn't edited; new work adds `vN+1`.
+- **Two manifest series share the library:** vN scores N runs of one prompt;
+  `st1` scores ONE text whose "runs" are its segmentation units (via `--text
+  --segment`, reusing the narrative_dynamics segmentation layer). New library
+  module names must never collide with the v1 legacy names (`structure`,
+  `entity_analysis`, ...) or they would leak into the frozen vN resolution.
 - **`ctx`** is a scratch dict shared across metrics in one run — caches the spaCy
   model (`ctx['_nlp']`) and embedding model (`ctx['_sentence_model']`) so a batch
   loads each once. Directory mode reuses one `ctx` across all files.
 - When a metric or a frozen lexicon (e.g. `cliche_density` `LEXICON_VERSION`)
   changes, re-score the corpus with `python -m utils.metrics results/ --benchmark v2`
   to refresh every sidecar.
+
+## Narrative Dynamics benchmark (`benchmarks/narrative_dynamics/`)
+
+The third benchmark: long-range structure (tension trajectory, block rhythm,
+thread architecture) of ONE arbitrary-length text, scoring-only, no generation.
+Self-contained package + its own frozen manifest series (`benchmarks/nd1.yaml`).
+Rules that keep it sane:
+
+- Metric contract mirrors v2: `compute(units, ctx) -> dict`, one module per
+  metric; units come from `segmentation.segment` (chapters or ~1500-word
+  windows). New metrics ship via `nd2.yaml` (extends: nd1); nd1 is frozen.
+- **All LLM traffic goes through `ctx["judge"]`** (`judge.py`): AiHelperJudge
+  routes to `ai_helper.send_prompt`; tests inject `FakeJudge`; `--dry-run` uses
+  the placeholder judge. The package imports only the stdlib until a real call,
+  so it works in the minimal test venv (unlike `utils`, whose `__init__` is
+  eagerly heavy).
+- The rubrics in `rubrics/` are **versioned provenance artifacts** ported from
+  StoryDaemon; their reliability numbers were measured THERE and must be
+  re-verified in this harness before findings are trusted. Do not edit rubric
+  text in place; a changed rubric is a new version.
+- Metric order matters once: tension_trajectory stashes `ctx["unit_tensions"]`
+  for thread_architecture's switch-delta analysis (handled by
+  `compute_document`; keep it if you touch the runner).
 
 ## Backends (the important part)
 

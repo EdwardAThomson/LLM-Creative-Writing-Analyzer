@@ -164,6 +164,83 @@ Each item below is tagged **What · Why · How · Done-when.**
   requested **species/tech** (entity/keyword presence) — and an LLM check for the
   rest. *Done-when:* per-run adherence score + per-parameter pass/fail.
 
+## Narrative Dynamics: the third benchmark (shipped 2026-07, scoring-only)
+
+A separate benchmark series (`benchmarks/nd1.yaml` + the self-contained package
+`benchmarks/narrative_dynamics/`), because its object of study differs from the
+vN series: not N repeated runs of one prompt but the **long-range structure of a
+single arbitrary-length text**. Same architecture instincts as v2 (one module
+per metric, frozen cumulative manifests, self-describing output, lazy/spendy
+work behind one seam), applied to a new unit of analysis (segmentation units
+instead of run texts, `ctx["judge"]` instead of cached NLP models).
+
+- [x] **Segmentation layer** (`segmentation.py`, pure): Gutenberg trimmer,
+  chapter-heading detection with windows fallback, ~1500-word paragraph-snapped
+  windows, long-unit truncation.
+- [x] **`tension_trajectory`**: per-unit 0-10 LLM judge on the anchored
+  StoryDaemon tension rubric; register, volatility, deciles, peak, tail/ending
+  mode. Rubric ported as a versioned artifact with provenance
+  (within-1 reliability 100% as measured in the source harness).
+- [x] **`block_rhythm`**: per-paragraph 7-type block annotation; the study's
+  four validated signals (words-per-mode-segment, interiority self-transition,
+  secondary shading, setting touch) plus distribution/transition matrix.
+- [x] **`thread_architecture`**: LLM cast extraction + deterministic
+  majority-cast Jaccard clustering (ported rules, pure code, tested); runs,
+  convergence, theta sensitivity, tension deltas at switches.
+- [x] **Scoring-only mode**: `python -m benchmarks.narrative_dynamics
+  <file|dir>` (no generation; `--dry-run` = zero spend), plus `--text` on
+  `python -m utils.metrics` so the v2 library scores raw text too.
+- [x] **Masters-comparison hook**: `nd_reference/1` format, loader,
+  `--make-reference` builder, `--reference` comparison in report + JSON.
+  Reference data itself is generated later by a real masters run.
+- [ ] **Reliability re-verification in THIS harness**: required before
+  trusting findings: double-pass agreement per rubric on a stratified sample
+  (the ported reliability numbers were measured in StoryDaemon's harness; see
+  each rubric's PROVENANCE header).
+- [ ] **First masters run**: 26-work Gutenberg corpus, ~6,000-6,500 judge
+  calls (block annotation dominates); pilot one novel (~250 calls) as the
+  re-verification step first.
+
+Docs: [benchmarks/narrative_dynamics/README.md](benchmarks/narrative_dynamics/README.md).
+
+## Single-Text series (st1, shipped 2026-07, zero-LLM)
+
+The vN library adapted for ONE arbitrary-length text: `benchmarks/st1.yaml` is a
+new manifest series (extends: null, resolved by the same `_manifests.py` loader)
+whose "runs" are a single document's segmentation units (chapters or ~1500-word
+windows, reusing `benchmarks/narrative_dynamics/segmentation.py`, not
+duplicating it). Same library, different unit of account: vN asks "how do N runs
+of one prompt vary", st asks "how does one book vary against itself". Everything
+is local (stdlib or the repo's existing spaCy/embedding deps); no judge seam at
+all, zero LLM calls end to end.
+
+- [x] Per-text v2 metrics reused as-is (per_run = per unit): `mtld`,
+  `burstiness`, `dialogue_ratio`, `intra_text_repetition`, `cliche_density`,
+  plus `ngram_diversity` (distinct-n/Self-BLEU across chapters) and
+  `phonetic_names` (name-sound inventory) whose within-text readings are
+  meaningful directly.
+- [x] **`text_structure`** (new, stdlib): the structure-equivalent profile
+  (words/sentences/paragraphs and ratios); v1's structure numbers live in the
+  frozen N-run pipeline and cannot be reused per-text.
+- [x] **`self_similarity`** (new, stdlib + optional local embedding): adjacent-
+  unit similarity series, max/mean/median, longest verbatim token run, flagged
+  outliers. The within-text analog of cross-run text similarity and a
+  duplication detector: built against the observed defect class (~9,200
+  verbatim chars across adjacent scenes, 0.668 vs ~0.02 baseline), proven in
+  tests with a planted duplicated block.
+- [x] **`opening_formula`** (new, stdlib): chapter-opening formula detection
+  (all-pairs first-sentence similarity + first-words census), the within-text
+  analog of `opening_lines`.
+- [x] **`entity_census`** (new, spaCy lazy): entity analysis reframed as a
+  single-text census (cast size, recurring cast vs walk-ons, densities,
+  name-component inventory); cross-run overlap is meaningless for one book.
+- [x] Scoring-only invocation through the existing retroactive CLI:
+  `python -m utils.metrics --text book.txt --segment chapters --benchmark st1`.
+
+Naming guard: the new module names deliberately avoid the v1 legacy names
+(`structure`, `entity_analysis`, ...) so the frozen vN manifests keep resolving
+to exactly what they resolved to before (tested).
+
 ## Phase 4 — LLM-as-judge (quality ground truth; the anchor)
 
 - [ ] **Rubric scoring** — *What:* a strong model rates each piece on craft

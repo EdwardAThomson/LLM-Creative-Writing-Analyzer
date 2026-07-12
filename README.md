@@ -254,6 +254,64 @@ schema, benchmark version, and exact metric set. Benchmark "versions" are
 cumulative, frozen manifests in `benchmarks/vN.yaml` (e.g. `v2` = the eight metrics
 above); see [METRICS_ROADMAP.md](METRICS_ROADMAP.md) for the design rationale.
 
+### Narrative Dynamics benchmark (scoring-only, arbitrary text)
+
+A third benchmark measuring **long-range story structure** of a single
+arbitrary-length text (a novel, a long generated run): per-unit **tension
+trajectory** (0-10 anchored-rubric LLM judge; register, volatility, decile
+table, peak, tail/ending mode), **block rhythm** (7-type per-paragraph prose
+modes; words-per-mode-segment, interiority exit dynamics, secondary shading,
+setting touch), and **thread architecture** (LLM cast extraction plus
+deterministic majority-cast Jaccard clustering; runs, hand-offs, convergence,
+tension deltas at switches). The rubrics are versioned artifacts ported from the
+StoryDaemon masters studies, each with a provenance header carrying the
+reliability numbers as measured there and a caveat that they must be re-verified
+in this harness before findings are trusted.
+
+There is no generation step, and the analysis pipeline runs at zero LLM spend in
+`--dry-run` mode (tests use fakes throughout):
+
+```bash
+# Score a text file or a directory of *.txt/*.md (chapter detection by default,
+# Gutenberg frontmatter auto-trimmed; --segmentation windows for ~1500-word units)
+python -m benchmarks.narrative_dynamics path/to/book.txt
+python -m benchmarks.narrative_dynamics corpus/ --make-reference masters_ref.json
+python -m benchmarks.narrative_dynamics my_story.txt --reference masters_ref.json
+```
+
+Outputs per document: `<stem>.nd.json` + `<stem>.nd.txt` (inputs never touched).
+Scoring-only mode also exists for the v2 metrics over raw text:
+`python -m utils.metrics --text <file|dir> --benchmark v2`. Full docs:
+[benchmarks/narrative_dynamics/README.md](benchmarks/narrative_dynamics/README.md).
+
+### Single-Text benchmark (st1: the vN library over one book, zero LLM calls)
+
+The `st1` series (`benchmarks/st1.yaml`) runs the shared metric library over ONE
+arbitrary-length text: the document is segmented into units (chapters, or
+~1500-word windows, reusing the narrative-dynamics segmentation layer) and the
+units become the "runs". Same library as vN, different unit of account; fully
+local (stdlib plus the already-required spaCy/sentence-transformers), no LLM
+judge anywhere.
+
+It combines the per-text-valid v2 metrics (MTLD, burstiness, dialogue ratio,
+intra-text repetition, cliche density, distinct-n/Self-BLEU across chapters,
+phonetic name inventory) with new single-text modules:
+
+| Metric | What it measures |
+|---|---|
+| `text_structure` | per-unit paragraph/sentence/word profile (stdlib regex) |
+| `self_similarity` | adjacent-unit similarity series + longest verbatim match; flags recycled/duplicated units (the defect class where a shipped novel carried ~9,200 verbatim chars across adjacent scenes at 0.668 similarity vs a ~0.02 baseline) |
+| `opening_formula` | do the book's own chapters open alike (first-sentence similarity + first-words census) |
+| `entity_census` | single-text cast census: cast size, recurring cast vs walk-ons, entity density, name-component inventory |
+
+```bash
+python -m utils.metrics --text book.txt --segment chapters --benchmark st1
+python -m utils.metrics --text story.txt --segment windows --window-words 1500 --benchmark st1
+```
+
+Writes the usual self-describing sidecar (`book.metrics.json`) with the
+segmentation recorded; the input file is never touched.
+
 
 ## Project Structure
 
@@ -278,9 +336,12 @@ above); see [METRICS_ROADMAP.md](METRICS_ROADMAP.md) for the design rationale.
 │   └── metrics/               # v2+ opt-in metric library (see "Extended Metrics")
 │       ├── _base.py           # shared compute() contract + spaCy/embedding helpers
 │       ├── _manifests.py      # benchmark version (vN.yaml) resolver
-│       ├── __main__.py        # retroactive scorer CLI (file or directory)
+│       ├── _textmode.py       # raw-text input for scoring-only mode (--text)
+│       ├── __main__.py        # retroactive scorer CLI (file, directory, or --text)
 │       └── <metric>.py        # one module per metric
-├── benchmarks/                # frozen, cumulative metric manifests (v1.yaml, v2.yaml)
+├── benchmarks/                # frozen metric manifests (v1/v2/nd1.yaml) + benchmark packages
+│   └── narrative_dynamics/    # long-range structure benchmark (scoring-only; own README)
+├── tests/                     # pytest suite (pure modules + fakes; no LLM calls)
 └── results/                   # Output: v1 JSON + v2 .metrics.json sidecars
 ```
 

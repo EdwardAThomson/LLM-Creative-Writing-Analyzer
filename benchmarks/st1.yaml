@@ -1,0 +1,29 @@
+# Benchmark st1: Single-Text series, first frozen selection.
+#
+# Same shared metric library as vN (utils/metrics), different unit of account:
+# vN scores N repeated runs of one prompt; st scores ONE arbitrary-length text
+# whose "runs" are its segmentation units (chapters or ~1500-word windows, via
+# benchmarks/narrative_dynamics/segmentation.py). st1 therefore extends null,
+# not v1: the v1 legacy names are run by the frozen N-run pipeline and have no
+# meaning per-text. Resolved by the shared loader (utils/metrics/_manifests.py).
+#
+# Everything below is LOCAL (zero LLM calls): stdlib or local NLP models only.
+# Once shipped this file is frozen; new work adds st2.yaml (extends: st1).
+version: st1
+extends: null
+add:
+  # per-text-valid library metrics, as-is (per_run = per unit)
+  - text_structure
+  - mtld
+  - burstiness
+  - dialogue_ratio
+  - intra_text_repetition
+  - cliche_density
+  # cross-run metrics whose within-text reading is meaningful as-is:
+  # distinct-n / Self-BLEU across chapters; name-sound inventory across chapters
+  - ngram_diversity
+  - phonetic_names
+  # within-text adaptations of the cross-run ideas (new local modules)
+  - self_similarity
+  - opening_formula
+  - entity_census
