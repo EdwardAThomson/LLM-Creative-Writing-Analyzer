@@ -24,6 +24,8 @@ from typing import Optional
 DEFAULT_WINDOW_WORDS = 1500  # the repo's established story-unit framing
 MIN_UNIT_WORDS = 50          # drop degenerate units (heading-only fragments)
 MIN_CHAPTERS = 3             # fewer detected chapters than this -> fall back
+MAX_TITLE_LINE_CHARS = 60    # a chapter-title line under a heading stays short
+TOC_MIN_RUN = 3              # 3+ near-adjacent heading candidates = a contents list
 
 # --- Gutenberg trimming -----------------------------------------------------------
 
@@ -96,22 +98,75 @@ def is_chapter_heading(line: str) -> bool:
     return any(p.match(s) for p in _CHAPTER_PATTERNS)
 
 
+def _is_title_line(lines: list[str], i: int) -> bool:
+    """True when ``lines[i]`` reads as a standalone chapter-title line.
+
+    Used for headings with no blank line under them: many Gutenberg editions set
+    ``Chapter I.`` immediately over the chapter title (``The Man Who Died``). A
+    title line is short, not itself a heading, and is followed by a blank line
+    or the text edge; a hard-wrapped prose paragraph continues on the next
+    line, so prose starting right under a candidate never qualifies.
+    """
+    s = lines[i].strip()
+    if not s or len(s) > MAX_TITLE_LINE_CHARS or is_chapter_heading(s):
+        return False
+    return i + 1 >= len(lines) or not lines[i + 1].strip()
+
+
+def _screen_toc_runs(lines: list[str], hits: list[int]) -> list[int]:
+    """Drop dense runs of heading candidates (a table of contents, not structure).
+
+    A run is ``TOC_MIN_RUN`` or more consecutive candidates with fewer than
+    ``MIN_UNIT_WORDS`` words between each adjacent pair. Real chapters packed
+    that tightly would be dropped as degenerate units anyway, so removing the
+    run cannot lose usable structure; what it does prevent is a Contents block
+    (whose entries otherwise look exactly like body headings) contributing
+    bogus boundaries, in particular the *last* TOC entry, which is followed by
+    real front matter and would otherwise absorb it as a fake chapter.
+    """
+    if len(hits) < TOC_MIN_RUN:
+        return hits
+    keep = [True] * len(hits)
+    run = [0]
+
+    def flush(run: list[int]) -> None:
+        if len(run) >= TOC_MIN_RUN:
+            for k in run:
+                keep[k] = False
+
+    for k in range(1, len(hits)):
+        between = " ".join(lines[hits[k - 1] + 1 : hits[k]])
+        if word_count(between) < MIN_UNIT_WORDS:
+            run.append(k)
+        else:
+            flush(run)
+            run = [k]
+    flush(run)
+    return [h for h, kp in zip(hits, keep) if kp]
+
+
 def detect_chapter_lines(text: str) -> list[int]:
     """Indices of heading lines in ``text.split('\\n')``.
 
-    A heading only counts when surrounded by blank lines (or the text edge), which
-    screens out roman numerals and short phrases inside running prose.
+    A heading counts when preceded by a blank line (or the text edge) and
+    followed by either a blank line / the text edge, or a short standalone
+    title line (see ``_is_title_line``): Gutenberg editions commonly set the
+    chapter title directly under the heading with no intervening blank. The
+    blank-before guard still screens roman numerals and short phrases inside
+    running prose, and ``_screen_toc_runs`` screens contents listings.
     """
     lines = text.split("\n")
+    n = len(lines)
     hits = []
     for i, line in enumerate(lines):
         if not is_chapter_heading(line):
             continue
-        prev_blank = i == 0 or not lines[i - 1].strip()
-        next_blank = i == len(lines) - 1 or not lines[i + 1].strip()
-        if prev_blank and next_blank:
+        if i > 0 and lines[i - 1].strip():
+            continue  # no blank line (or edge) above
+        next_blank = i == n - 1 or not lines[i + 1].strip()
+        if next_blank or _is_title_line(lines, i + 1):
             hits.append(i)
-    return hits
+    return _screen_toc_runs(lines, hits)
 
 
 def segment_chapters(text: str, min_unit_words: int = MIN_UNIT_WORDS) -> list[dict]:

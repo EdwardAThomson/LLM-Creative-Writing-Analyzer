@@ -71,6 +71,113 @@ def test_detect_chapter_lines_requires_blank_surround():
     assert [lines[i] for i in hits] == ["CHAPTER I", "CHAPTER II"]
 
 
+def test_detect_chapter_lines_accepts_heading_with_title_line():
+    # The Thirty-Nine Steps format: "Chapter I." immediately over a short title
+    # line, no blank between them (the shakedown bug: these were all rejected).
+    text = ("Chapter I.\nThe Man Who Died\n\n" + _words("a") + "\n\n"
+            "Chapter II.\nThe Milkman Sets Out on his Travels\n\n" + _words("b") + "\n\n"
+            "Chapter III.\nThe Adventure of the Literary Innkeeper\n\n" + _words("c"))
+    lines = text.split("\n")
+    hits = seg.detect_chapter_lines(text)
+    assert [lines[i] for i in hits] == ["Chapter I.", "Chapter II.", "Chapter III."]
+
+
+def test_segment_chapters_keeps_title_line_in_body():
+    text = ("Chapter I.\nThe Man Who Died\n\n" + _words("a") + "\n\n"
+            "Chapter II.\nThe Milkman\n\n" + _words("b") + "\n\n"
+            "Chapter III.\nThe Innkeeper\n\n" + _words("c"))
+    units = seg.segment_chapters(text)
+    assert [u["label"] for u in units] == ["Chapter I.", "Chapter II.", "Chapter III."]
+    assert units[0]["text"].startswith("The Man Who Died")
+    assert units[1]["text"].startswith("The Milkman")
+
+
+def test_detect_chapter_lines_rejects_heading_followed_by_prose():
+    # A short first prose line is NOT a title: hard-wrapped prose continues on
+    # the following line, so the candidate is rejected (guard purpose intact).
+    text = ("intro para.\n\n"
+            "IV.\nAnd the prose just runs on here\n"
+            "continuing on a second wrapped line before any blank.\n\n"
+            "more text.")
+    assert seg.detect_chapter_lines(text) == []
+
+
+def test_detect_chapter_lines_rejects_long_line_after_heading():
+    long_line = "x" * 80  # too long to be a title line, and no blank after CHAPTER I
+    text = f"CHAPTER I\n{long_line}\n\nbody."
+    assert seg.detect_chapter_lines(text) == []
+
+
+def test_toc_block_produces_no_headings():
+    # A Contents block whose entries look exactly like body headings (heading +
+    # title-line form) must be screened out; the body headings must survive.
+    toc = "\n\n".join(f"CHAPTER {r}\nTitle {r}" for r in ["I", "II", "III"])
+    dedication = _words("ded", 60)
+    body = "\n\n".join(f"CHAPTER {r}\nTitle {r}\n\n" + _words(r.lower())
+                       for r in ["I", "II", "III"])
+    text = f"Contents\n\n{toc}\n\n{dedication}\n\n{body}"
+    lines = text.split("\n")
+    hits = seg.detect_chapter_lines(text)
+    assert len(hits) == 3
+    assert all(i > lines.index(dedication.split("\n")[0]) for i in hits)
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_used"] == "chapters"
+    assert [u["label"] for u in out["units"]] == ["CHAPTER I", "CHAPTER II", "CHAPTER III"]
+    # the dedication is not mislabeled as the tail of a TOC "chapter"
+    assert all("ded0" not in u["text"] for u in out["units"])
+
+
+def test_toc_blank_separated_entries_also_screened():
+    # TOC entries each surrounded by blank lines passed even the OLD guard;
+    # the density screen drops the run while keeping the real chapters.
+    toc = "\n\n".join(f"CHAPTER {r}" for r in ["I", "II", "III", "IV"])
+    body = "\n\n".join(f"CHAPTER {r}\n\n" + _words(r.lower())
+                       for r in ["I", "II", "III", "IV"])
+    text = f"{toc}\n\n{_words('front', 60)}\n\n{body}"
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_used"] == "chapters"
+    assert [u["label"] for u in out["units"]] == [
+        "CHAPTER I", "CHAPTER II", "CHAPTER III", "CHAPTER IV"]
+    assert len(seg.detect_chapter_lines(text)) == 4
+
+
+def test_steps_style_toc_lines_are_not_headings():
+    # The actual Steps TOC sets title on the SAME line with no punctuation
+    # separator; such lines never match the heading patterns at all.
+    for line in ["Chapter I    The Man Who Died",
+                 "Chapter X    Various Parties Converging on the Sea"]:
+        assert not seg.is_chapter_heading(line), line
+
+
+def test_segment_mixed_heading_formats():
+    # Synthetic multi-format fixture: old style (blank after), title-line
+    # style, and a bare roman numeral; boundaries and labels all correct.
+    a, b, c = _words("a"), _words("b"), _words("c")
+    text = (f"CHAPTER 1.\n\n{a}\n\n"
+            f"Chapter II.\nThe Title Line\n\n{b}\n\n"
+            f"III.\n\n{c}")
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_used"] == "chapters"
+    units = out["units"]
+    assert [u["label"] for u in units] == ["CHAPTER 1.", "Chapter II.", "III."]
+    assert units[0]["text"] == a
+    assert units[1]["text"] == "The Title Line\n\n" + b
+    assert units[2]["text"] == c
+    assert [u["words"] for u in units] == [80, 83, 80]
+
+
+def test_title_line_style_still_falls_back_below_min_chapters():
+    text = ("Chapter I.\nThe Man Who Died\n\n" + _words("a", 200) + "\n\n"
+            "Chapter II.\nThe Milkman\n\n" + _words("b", 200))
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_requested"] == "chapters"
+    assert out["strategy_used"].startswith("windows (fallback")
+
+
+def _words(tag, n=80):
+    return " ".join(f"{tag}{i}" for i in range(n))
+
+
 def _chaptered_text(n_chapters=4, words_per=80):
     parts = []
     for c in range(1, n_chapters + 1):
