@@ -1,0 +1,14 @@
+# Benchmark nd1: Narrative Dynamics, first frozen selection.
+#
+# A separate manifest SERIES from vN (the repetition/fingerprint benchmark):
+# nd metrics analyze long-range story structure of a single arbitrary-length
+# text (segmented into ordered units), not N repeated runs of one prompt.
+# The metric modules live in benchmarks/narrative_dynamics/, resolved by that
+# package's own manifest loader (same extends/add scheme as _manifests.py).
+# Once shipped this file is frozen; new work adds nd2.yaml (extends: nd1).
+version: nd1
+extends: null
+add:
+  - tension_trajectory
+  - block_rhythm
+  - thread_architecture

@@ -14,10 +14,18 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import sys
 
 import pytest
 
-_METRICS_DIR = pathlib.Path(__file__).parent.parent / "utils" / "metrics"
+_REPO_ROOT = pathlib.Path(__file__).parent.parent
+_METRICS_DIR = _REPO_ROOT / "utils" / "metrics"
+
+# The benchmarks package (benchmarks/narrative_dynamics) imports only the stdlib
+# at import time, so unlike `utils` it can be imported normally; it just needs
+# the repo root on sys.path (pytest only adds tests/ for us).
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 
 def load_metric(name: str):

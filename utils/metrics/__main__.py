@@ -3,6 +3,7 @@
     python -m utils.metrics <results.json | results_dir/>
                             [--benchmark vN | --metrics name,name]
                             [--model NAME] [--out FILE] [--list]
+    python -m utils.metrics --text <file.txt | text_dir/> [same flags]
 
 Reads the v1 results JSON (``results[model]['responses'][i]['response_text']``),
 runs the requested metrics per model, and writes a **sidecar** JSON. It never
@@ -12,6 +13,18 @@ what lets the 2025/2026 corpora be re-scored with new metrics safely.
 Pass a **directory** instead of a file to (re-)score every ``results_*.json`` under
 it into its own sidecar — the batch shares one spaCy/embedding model load. Use this
 to refresh the whole corpus whenever a metric or lexicon version changes.
+
+``--text`` is scoring-only mode over arbitrary user-supplied text (no generation,
+no results JSON): a single text file scores as a one-response set; a directory's
+``*.txt``/``*.md`` files score as one set whose "runs" are the files (so cross-run
+metrics compare the files and per-text metrics score each). Same sidecar shape,
+stamped ``"input": "text"``.
+
+``--text <book.txt> --segment chapters --benchmark st1`` is SINGLE-TEXT mode:
+one document is segmented into units (chapters, or ``--segment windows`` for
+~1500-word windows) and the units become the runs. ``st1`` is the frozen
+single-text metric selection (``benchmarks/st1.yaml``): same library, different
+unit of account than vN. Fully local, zero LLM calls.
 """
 from __future__ import annotations
 
@@ -68,7 +81,7 @@ def _score_file(path: str, names, only_model, benchmark_version, ctx: dict, out_
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m utils.metrics", description=__doc__)
-    parser.add_argument("results_json", nargs="?", help="A v1 results_*.json file, or a directory to score all of them")
+    parser.add_argument("results_json", nargs="?", help="A v1 results_*.json file, or a directory to score all of them (with --text: a raw text file or directory)")
     parser.add_argument("--metrics", help="Comma-separated metric names (default: all)")
     parser.add_argument(
         "--benchmark",
@@ -78,6 +91,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", help="Only score this model key")
     parser.add_argument("--out", help="Sidecar output path (default: <input>.metrics.json)")
     parser.add_argument("--list", action="store_true", help="List available metrics and exit")
+    parser.add_argument(
+        "--text",
+        action="store_true",
+        help="Treat the input as raw text (a file, or a directory of *.txt/*.md) "
+        "instead of a results JSON: scoring-only mode, no generation step.",
+    )
+    parser.add_argument(
+        "--segment",
+        choices=["chapters", "windows"],
+        help="With --text and a single file: segment the document into units "
+        "(chapter detection, or ~N-word windows) and score the units as the "
+        "runs. This is the single-text mode (--benchmark st1).",
+    )
+    parser.add_argument(
+        "--window-words",
+        type=int,
+        default=1500,
+        help="Target words per unit for --segment windows (default: %(default)s)",
+    )
     args = parser.parse_args(argv)
 
     if args.list or not args.results_json:
@@ -107,6 +139,44 @@ def main(argv: list[str] | None = None) -> int:
         names = None
 
     ctx: dict = {}  # shared scratch: caches spaCy + embedding model across the batch
+
+    if args.segment and not args.text:
+        print("error: --segment requires --text", file=sys.stderr)
+        return 2
+
+    if args.text:
+        from ._textmode import collect_texts, segment_units, sidecar_path
+
+        try:
+            group, sources, texts = collect_texts(args.results_json)
+        except FileNotFoundError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        segmentation = None
+        if args.segment:
+            if len(texts) != 1:
+                print("error: --segment applies to a single document (one text file)",
+                      file=sys.stderr)
+                return 2
+            segmentation, sources, texts = segment_units(
+                texts[0], args.segment, args.window_words)
+        print(f"  scoring {group} ({len(texts)} text{'s' if len(texts) != 1 else ''})...",
+              file=sys.stderr)
+        out = {
+            "schema": SCHEMA,
+            "source": os.path.basename(os.path.normpath(args.results_json)),
+            "input": "text",  # scoring-only mode: raw text, not a results JSON
+            "texts": sources,  # with --segment: the unit labels
+            "segmentation": segmentation,  # null unless --segment
+            "benchmark": benchmark_version,
+            "metrics_run": names if names is not None else available(),
+            "models": {group: compute(texts, names, ctx)},
+        }
+        out_path = args.out or sidecar_path(args.results_json, group)
+        with open(out_path, "w") as f:
+            json.dump(out, f, indent=2)
+        print(f"wrote {out_path}")
+        return 0
 
     if os.path.isdir(args.results_json):
         if args.out:
