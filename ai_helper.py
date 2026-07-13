@@ -13,6 +13,7 @@ load_dotenv()  # This will load environment variables from the .env file
 # Lazy-initialized API clients
 _openai_client = None
 _anthropic_client = None
+_openrouter_client = None
 _gemini_configured = False
 
 def get_openai_client():
@@ -23,6 +24,23 @@ def get_openai_client():
             raise ValueError("OPENAI_API_KEY environment variable not set")
         _openai_client = OpenAI(api_key=api_key)
     return _openai_client
+
+def get_openrouter_client():
+    """Return a shared OpenAI-SDK client pointed at OpenRouter (https://openrouter.ai).
+
+    OpenRouter is a hosted, OpenAI-compatible router over many upstream models
+    (DeepSeek, Anthropic, and others, proxied). Configured from
+    OPENROUTER_API_KEY. Kept as its own singleton, distinct from the plain
+    OpenAI client above (different base_url + key), so the two backends can
+    coexist in one process.
+    """
+    global _openrouter_client
+    if _openrouter_client is None:
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError("OPENROUTER_API_KEY environment variable not set")
+        _openrouter_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+    return _openrouter_client
 
 def get_gemini_configured():
     global _gemini_configured
@@ -43,8 +61,24 @@ def get_anthropic_client():
     return _anthropic_client
 
 def send_prompt(prompt, model="gpt-5.5"):
-    # Define configurations for each model. Two families of backend:
+    # General OpenRouter passthrough: "openrouter:<upstream-model-id>" routes to
+    # OpenRouter with the upstream id verbatim (e.g. "openrouter:deepseek/deepseek-chat",
+    # "openrouter:anthropic/claude-haiku-4.5"), so any OpenRouter model works without
+    # a code change. Checked BEFORE the exact-match model_config lookup below.
+    if model.startswith("openrouter:"):
+        upstream_model = model[len("openrouter:"):]
+        if not upstream_model:
+            raise ValueError(
+                f"Unsupported model: {model!r} (missing upstream model id after 'openrouter:')"
+            )
+        print(f"trying:{model}")
+        return send_prompt_openrouter(prompt, model_name=upstream_model)
+
+    # Define configurations for each model. Three families of backend:
     #   * API backends   -> send_prompt_oai / _gemini / _claude (need API keys)
+    #   * OpenRouter      -> convenience keys below route to send_prompt_openrouter
+    #                       (needs OPENROUTER_API_KEY; see the "openrouter:" prefix above
+    #                       for the general passthrough form)
     #   * CLI backends   -> *-cli keys route to locally-installed agent CLIs via
     #                       cli_backends/ (no API keys; see _send_via_*_cli below)
     def _gpt(model_name):
@@ -97,6 +131,16 @@ def send_prompt(prompt, model="gpt-5.5"):
         "claude-opus-4-8": _claude("claude-opus-4-8", temperature=None),
         "claude-sonnet-4-6": _claude("claude-sonnet-4-6"),
         "claude-haiku-4-5": _claude("claude-haiku-4-5", max_tokens=8192),
+
+        # --- OpenRouter convenience keys (API; needs OPENROUTER_API_KEY) ---
+        # For any other OpenRouter model, use the "openrouter:<upstream-model-id>"
+        # passthrough form handled above instead of adding a new key here.
+        "openrouter-deepseek": lambda prompt: send_prompt_openrouter(
+            prompt, model_name="deepseek/deepseek-chat"
+        ),
+        "openrouter-haiku": lambda prompt: send_prompt_openrouter(
+            prompt, model_name="anthropic/claude-haiku-4.5"
+        ),
 
         # --- Local CLI backends (no API keys; require the CLI on PATH) ---
         "codex-cli": lambda prompt: _send_via_codex_cli(prompt),
@@ -250,4 +294,57 @@ def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temp
 
     except Exception as e:
         print(f"Error generating content with Claude: {e}")
+        return None
+
+
+def send_prompt_openrouter(prompt, model_name=None, max_tokens=16384, temperature=0.7,
+                           role_description="You are a helpful fiction writing assistant. You will create original text only."):
+    """
+    Sends a prompt to an upstream model via OpenRouter (https://openrouter.ai), a
+    hosted OpenAI-compatible router over many providers (DeepSeek, Anthropic,
+    and others, proxied through OpenRouter's own upstream model ids).
+
+    Args:
+        prompt: The text prompt to send.
+        model_name: The upstream OpenRouter model id, e.g. "deepseek/deepseek-chat"
+            or "anthropic/claude-haiku-4.5". Required.
+        max_tokens: Maximum number of tokens to generate.
+        temperature: Controls randomness of generations.
+        role_description: System prompt that sets the context for the model.
+
+    Returns:
+        The generated text, or None if there was an error.
+    """
+    if not model_name:
+        raise ValueError(
+            "model_name must be specified for send_prompt_openrouter "
+            "(e.g. 'deepseek/deepseek-chat')"
+        )
+    # Not wrapped in the try/except below: a missing OPENROUTER_API_KEY should
+    # raise clearly (same as get_gemini_configured()'s precedent in this file),
+    # not be swallowed into a silent None return.
+    client = get_openrouter_client()
+
+    try:
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": role_description},
+                {"role": "user", "content": prompt},
+            ],
+            model=model_name,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            # Note: unlike a single-provider backend, no provider-specific
+            # extra_body is set here. OpenRouter fans out to many different
+            # upstream backends, so a hack tuned for one of them would be
+            # silently ignored by most others and would be misleading to carry
+            # as a default.
+        )
+
+        print("Used model (openrouter): ", model_name)
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        print(f"Error generating content with OpenRouter: {e}")
         return None
