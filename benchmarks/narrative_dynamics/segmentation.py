@@ -150,6 +150,33 @@ _CATALOG_VOCAB = (
     "complete list", "titles", "grosset", "dunlap",
 )
 
+# A printer's colophon (Pride and Prejudice/Chiswick Press evidence: "END"
+# then "CHISWICK PRESS:--CHARLES WHITTINGHAM AND CO." / "TOOKS COURT,
+# CHANCERY LANE, LONDON.") is a second, publisher-vocabulary-free back-matter
+# shape: unlike a catalog blurb-plus-title-list (long, needs the vocabulary
+# corroboration above), a colophon is just a couple of short non-narrative
+# lines naming a press/printer and an address, standing alone as the very
+# last thing in the document. Key on that structural texture only (block
+# size, non-narrative-ness, multi-word lines), never on a specific press
+# name, so it generalizes to any printed edition's imprint.
+MAX_COLOPHON_LINES = 3            # an imprint block stays this short
+_COLOPHON_MIN_WORDS_PER_LINE = 2  # an address/imprint reads as a phrase, not
+                                   # a bare word-list entry (catalog titles,
+                                   # single capitalized items)
+
+
+def _looks_like_colophon(lines: list[str]) -> bool:
+    """General texture of a printer's colophon trailing the end-marker: a
+    short block of standalone non-narrative lines, each carrying more than
+    one word. Deliberately requires no vocabulary match (unlike the catalog
+    path) so it generalizes across printers/publishers; the line-count cap
+    and per-line word-count floor are what keep it from also swallowing a
+    longer catalog blurb or a bare list of single-word titles."""
+    return (bool(lines) and len(lines) <= MAX_COLOPHON_LINES
+            and all(_looks_non_narrative(l)
+                    and len(l.split()) >= _COLOPHON_MIN_WORDS_PER_LINE
+                    for l in lines))
+
 
 def _looks_non_narrative(line: str) -> bool:
     """Simple per-line signal: short, all-caps, or title-case lines are the
@@ -177,15 +204,25 @@ def trim_trailing_backmatter(text: str) -> tuple[str, Optional[dict]]:
       sits in the final ~5% of the text (a mid-text marker is never trusted),
     * at least ``TAIL_NONPROSE_RATIO`` of the post-marker lines read as
       non-narrative (short / title-case / all-caps), and
-    * at least ``TAIL_MIN_VOCAB_HITS`` distinct catalog-vocabulary terms
-      corroborate.
+    * EITHER at least ``TAIL_MIN_VOCAB_HITS`` distinct catalog-vocabulary
+      terms corroborate (a publisher's catalog blurb + title list), OR the
+      post-marker lines are a short printer's-colophon-shaped block (see
+      ``_looks_like_colophon``) -- a press/printer imprint carries no
+      catalog vocabulary at all, so it needs its own, purely structural,
+      corroboration instead.
 
     In any doubt the text is returned unchanged: a false trim (losing real
     prose, e.g. an epilogue or author's note after the marker) is worse than
-    keeping ads. The marker line itself is kept; material BEFORE the marker
-    (e.g. Dracula's closing NOTE by Harker) is untouched. Returns
-    ``(text, note)`` where ``note`` is a sidecar-ready record of what was
-    trimmed and why, or None when nothing was trimmed.
+    keeping ads. Material BEFORE the marker (e.g. Dracula's closing NOTE by
+    Harker) is untouched. A catalog trim keeps the marker line itself (it
+    reads as the story's own closing note -- c.f. Emma's bare "FINIS" with
+    nothing after it at all, left untouched by the early-return above -- with
+    only publisher ephemera following); a colophon trim removes the marker
+    too, since there it is paired with a press/printer imprint and both are
+    the printer's apparatus rather than the author's, so the last real prose
+    line becomes the true close. Returns ``(text, note)`` where ``note`` is a
+    sidecar-ready record of what was trimmed and why, or None when nothing
+    was trimmed.
     """
     matches = list(_END_MARKER.finditer(text))
     if not matches:
@@ -199,20 +236,31 @@ def trim_trailing_backmatter(text: str) -> tuple[str, Optional[dict]]:
         return text, None  # nothing after the marker
     nonprose_ratio = sum(1 for l in lines if _looks_non_narrative(l)) / len(lines)
     vocab_hits = [t for t in _CATALOG_VOCAB if t in after.lower()]
-    if nonprose_ratio < TAIL_NONPROSE_RATIO or len(vocab_hits) < TAIL_MIN_VOCAB_HITS:
+    is_colophon = _looks_like_colophon(lines)
+    if nonprose_ratio < TAIL_NONPROSE_RATIO:
         return text, None  # could be prose (epilogue, note): in doubt, keep
+    catalog_trim = len(vocab_hits) >= TAIL_MIN_VOCAB_HITS
+    if not catalog_trim and not is_colophon:
+        return text, None  # no catalog vocab and not colophon-shaped: keep
+    cut = m.end() if catalog_trim else m.start()
     note = {
         "marker": text[m.start():m.end()].strip(),
         "trimmed_words": word_count(after),
         "trimmed_lines": len(lines),
         "non_narrative_line_ratio": round(nonprose_ratio, 3),
         "vocabulary_hits": vocab_hits,
-        "reason": ("end-marker line in the last 5% of the text followed by "
-                   "non-narrative catalog material; trimmed at the marker "
-                   "(marker line kept)"),
+        "colophon": is_colophon,
+        "marker_kept": catalog_trim,
+        "reason": (
+            "end-marker line in the last 5% of the text followed by "
+            "non-narrative catalog material; trimmed at the marker "
+            "(marker line kept)" if catalog_trim else
+            "printer's colophon block (short, non-narrative press/printer "
+            "imprint, no catalog vocabulary) after the end-marker line; "
+            "marker and colophon both trimmed as printer's apparatus"),
     }
     logger.info("trailing back-matter trimmed: %s", note)
-    return text[:m.end()].rstrip(), note
+    return text[:cut].rstrip(), note
 
 
 # --- page-anchor noise -------------------------------------------------------------

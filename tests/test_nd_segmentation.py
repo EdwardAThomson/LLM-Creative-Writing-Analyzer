@@ -329,6 +329,24 @@ def test_tail_trim_marker_with_nothing_after_is_a_no_op():
     assert out == text
 
 
+def test_tail_trim_removes_generic_printer_colophon():
+    # A printer's colophon (Pride and Prejudice/Chiswick Press evidence)
+    # carries no publisher vocabulary at all: just a bare END marker
+    # followed by a couple of short all-caps press/printer-imprint lines.
+    # General texture, not book-specific: any "PRESS:--...AND CO." /
+    # address-shaped pair of lines after a standalone END should trim.
+    text = (_LONG_PROSE + "last sentence.\n\nEND\n\n"
+            "   SOME PRESS:--PRINTER AND CO.\n   ADDRESS, CITY.\n")
+    out, note = seg.trim_trailing_backmatter(text)
+    assert note is not None
+    assert note["colophon"] is True
+    assert note["marker_kept"] is False
+    assert "SOME PRESS" not in out
+    assert "PRINTER AND CO" not in out
+    assert out.rstrip().endswith("last sentence.")
+    assert "END" not in out.rsplit("last sentence.", 1)[1]
+
+
 def test_segment_records_tail_trim_and_final_chapter_is_clean():
     # chapters long enough that the marker sits inside the last-5% zone
     body = "\n\n".join(f"CHAPTER {c}\n\n" + _words(f"c{c}", 800) for c in (1, 2, 3))
