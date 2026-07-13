@@ -354,10 +354,21 @@ _CHAPTER_PATTERNS = [
                rf"|(?:THE|the)\s+(?:[A-Z]+|{_SPELLED_ORDINAL_TITLE})"
                rf"(?:\s*[.:—-]\s*\S.*)?"
                rf")\.?$"),
-    # bare roman numeral heading lines: "IV." / "XII"
-    re.compile(rf"^{_ROMAN}\.?$"),
-    # numbered headings: "12." on a line of its own
-    re.compile(r"^\d{1,3}\.?$"),
+    # bare roman numeral heading lines: "IV." / "XII", or the same numeral
+    # with an inline title after a colon: "IV: A TITLE". Eddison's Worm
+    # Ouroboros evidence: the body chapter headings are "I: THE CASTLE OF
+    # LORD JUSS" .. "XXXIII: QUEEN SOPHONISBA IN GALING" (colon, no CHAPTER
+    # keyword), which matched nothing here before. Deliberately narrow: only
+    # a colon separator gets a title suffix, the period form stays bare
+    # (matches this pattern only with nothing after it) -- the period form
+    # WITH a title ("IV. A TITLE") occurs in this same book's table of
+    # contents and must stay unmatched/invisible, exactly as before this
+    # change (see the module docstring / extract.py's proposer framing).
+    re.compile(rf"^{_ROMAN}(?:\.|:\s+\S.*)?$"),
+    # numbered headings: "12." on a line of its own, or "12: A TITLE" (the
+    # same colon-titled shape as the roman form above, kept symmetric for
+    # generality; period-with-title stays unmatched here too).
+    re.compile(r"^\d{1,3}(?:\.|:\s+\S.*)?$"),
     # named structural units. PRELUDE/FINALE per the Middlemarch shakedown:
     # without them the Prelude fell into front matter and the Finale fused
     # into Chapter 86. PREFACE per Bleak House (the preface merged into the

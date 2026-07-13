@@ -1200,3 +1200,30 @@ def test_truncate_middle_long_text_keeps_head_and_tail():
     assert out.startswith("w0 ")
     assert out.endswith(" w999")
     assert "[... middle omitted: about 800 words ...]" in out
+
+
+# --- CRLF + roman-colon inline headings (Eddison's Worm Ouroboros evidence) --------------
+
+def test_crlf_and_roman_colon_headings_segment_as_chapters():
+    # Worm Ouroboros shape: CRLF line endings throughout, and body chapter
+    # headings of the form "<roman>: <TITLE>" (colon, no CHAPTER keyword,
+    # e.g. "I: THE CASTLE OF LORD JUSS" .. "XXXIII: QUEEN SOPHONISBA IN
+    # GALING") -- a form `is_chapter_heading` did not recognize at all before
+    # this fix, so the whole book fell back to fixed windows. A third
+    # heading with a thin body is included so the fixture clears
+    # MIN_CHAPTERS (3 detectable headings) the same way real chapter I/II
+    # survive and the runt drops (mirrors
+    # test_segment_chapters_drops_heading_only_fragments).
+    body_a = _words("a", 80)
+    body_b = _words("b", 80)
+    text = (
+        "I: FIRST TITLE\r\n\r\n" + body_a + "\r\n\r\n"
+        "II: SECOND TITLE\r\n\r\n" + body_b + "\r\n\r\n"
+        "III: THIRD TITLE\r\n\r\ntiny runt body\r\n"
+    )
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_used"] == "chapters"  # not "windows (fallback...)"
+    assert [u["label"] for u in out["units"]] == ["I: FIRST TITLE", "II: SECOND TITLE"]
+    assert [u["text"] for u in out["units"]] == [body_a, body_b]
+    assert all("w000" not in u["label"] and "w001" not in u["label"]
+               for u in out["units"])
