@@ -2,6 +2,45 @@
 
 A chronological narrative of development. Newest entries first.
 
+## 2026-07-12
+
+A big single-day push that added two new benchmark families and then hardened
+the machinery that feeds them. First came the Narrative Dynamics benchmark
+(`nd1`): a scoring-only, no-generation series that measures the long-range
+structure of one arbitrary-length text (tension trajectory, block rhythm,
+thread architecture) over ordered units from a new segmentation layer (chapter
+detection or ~1500-word windows, with Gutenberg trimming). All LLM traffic sits
+behind a single judge seam (real via `ai_helper`, `FakeJudge` for tests,
+dry-run for zero-spend rehearsals), and its rubrics were ported from
+StoryDaemon as versioned provenance artifacts whose reliability numbers must be
+re-verified here. Next, the single-text series (`st1`): a frozen selection over
+the shared v2 metric library aimed at ONE segmented text rather than N runs of
+one prompt, including within-text adaptations of the cross-run metrics
+(chapter-to-chapter `self_similarity`, `opening_formula`, a local `entity_census`).
+Its `self_similarity` duplication detector was proven against a planted
+duplicated chapter, the exact defect a generated novel had actually shipped.
+
+The rest of the day was spent making segmentation trustworthy on real books.
+The heading heuristics were reframed as a one-time PROPOSER that emits canonical
+Markdown (via a new `extract` command with a verification sidecar and an
+`--expected-units` gate so extraction fleets can be checked mechanically), after
+which analysis consumes a trivial, round-trip-identical splitter. Three rounds
+of fixes followed, each driven by a growing ledger of wild-shaped real books
+(Pride & Prejudice, Middlemarch, War & Peace, The Moonstone, Dracula, Steps):
+TOC-density screening, illustration-block and front-matter handling, worded
+"Book" ordinals, wrapped headings, orphan-tail stripping, and census hardening
+(NFKD folding so names like Kutuzov and Natasha survive, plus a deterministic
+capitalized-token census riding alongside spaCy NER to surface its false
+negatives). Endpoint: a six-book proposer acceptance run at 10/10, 27/27, 61/61,
+88/88, 60/60, and 365/365 units.
+
+**Decisions & notes:** both new series share the existing metric library but the
+frozen v1/v2/nd1 manifests stay untouched, with tests guarding manifest
+resolution and name collisions, so the longitudinal series is preserved. The
+`narrative_dynamics` package deliberately imports only the stdlib until a real
+LLM call, so it runs in the minimal test venv (unlike the eagerly-heavy `utils`
+package).
+
 ## 2026-06-21
 
 Gave the repo its first test suite: a pytest harness covering the five
