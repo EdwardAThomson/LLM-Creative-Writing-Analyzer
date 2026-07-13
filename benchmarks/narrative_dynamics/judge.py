@@ -135,17 +135,55 @@ def extract_json_array(text: str) -> list:
     return json.loads(_UNTERMINATED.sub(r': "\1"\2', m.group(0)), strict=False)
 
 
-def ask_json(judge, prompt: str, parse: Callable[[str], object], tries: int = 2):
+def ask_json(judge, prompt: str, parse: Callable[[str], object], tries: int = 2,
+             ctx: Optional[dict] = None):
     """Call the judge and parse; one re-ask on a malformed response (study protocol).
 
     Raises ``JudgeError`` after ``tries`` failures. Callers that prefer holes over
     hard failure catch it and record the error per unit/batch.
+
+    Cache-aware when ``ctx`` carries a cache/budget (see ``cache.py``); ``ctx`` is
+    optional and ``None`` reproduces the original uncached behaviour exactly, so
+    existing callers are unaffected:
+
+    * ``ctx["cache"]`` (a ``JudgeCache``): looked up by a hash of
+      ``(prompt, describe_judge(judge))`` before calling the judge at all. A hit
+      re-runs ``parse`` on the cached raw text and returns with zero judge calls.
+      A miss falls through to the normal retry loop; only a response that parses
+      is written back (a failed attempt is never cached, so it is retried on the
+      next run). A cached entry that fails to (re-)parse -- e.g. ``parse`` changed
+      since it was written -- is treated as a miss rather than raised.
+    * ``ctx["budget"]`` (a ``CallBudget``): consumed once per real (cache-miss)
+      call, immediately before it is made; raises ``BudgetExhausted`` (not a
+      ``JudgeError``) when the cap is reached, so it propagates past the
+      per-unit ``except JudgeError`` in the metrics instead of becoming a hole.
     """
+    ctx = ctx or {}
+    cache = ctx.get("cache")
+    budget = ctx.get("budget")
+    judge_id = describe_judge(judge) if cache is not None else None
+
+    key = None
+    if cache is not None:
+        key = cache.make_key(prompt, judge_id)
+        cached = cache.get(key)
+        if cached is not None:
+            try:
+                return parse(cached)
+            except Exception:
+                pass  # stale/corrupt cache entry: fall through and re-ask for real
+
     last = None
     for _ in range(tries):
+        if budget is not None:
+            budget.consume(cache.path if cache is not None else None)
         raw = judge(prompt)
         try:
-            return parse(raw)
+            result = parse(raw)
         except Exception as e:  # malformed response: re-ask once
             last = e
+            continue
+        if cache is not None:
+            cache.put(key, judge_id, raw)
+        return result
     raise JudgeError(f"judge response unparseable after {tries} tries: {last}")

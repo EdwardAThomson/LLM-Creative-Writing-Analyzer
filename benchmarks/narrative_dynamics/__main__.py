@@ -8,6 +8,7 @@
         [--aliases aliases.json] [--reference ref.json]
         [--make-reference OUT.json]
         [--out-dir DIR] [--list]
+        [--max-calls N] [--no-cache]
 
 Analyzes user-supplied text (one file, or every ``*.txt``/``*.md`` in a
 directory) and writes, per document, a self-describing JSON sidecar
@@ -21,6 +22,14 @@ directory) and writes, per document, a self-describing JSON sidecar
 ``--make-reference`` additionally aggregates this run's documents into a
 reference-distribution JSON for later ``--reference`` comparisons (this is how
 the masters reference data gets built when a real run happens).
+
+Every judge call is cached by default at ``<out-dir>/<stem>.nd.cache.jsonl``
+(one line per successful call, backend-agnostic); re-running the same command
+skips whatever already completed, so a crash or an intentional ``--max-calls``
+stop loses at most the one in-flight call and is resumed simply by re-running.
+Pass ``--no-cache`` to disable. ``--max-calls N`` stops cleanly after N real
+(cache-miss) judge calls this run and does not write the (incomplete)
+``<stem>.nd.json`` -- the cache already holds everything completed so far.
 """
 from __future__ import annotations
 
@@ -32,6 +41,7 @@ import sys
 
 from . import (DEFAULT_BENCHMARK, SCHEMA, available, compute_document,
                resolve_benchmark, segmentation)
+from .cache import BudgetExhausted, CallBudget, JudgeCache
 from .judge import DEFAULT_JUDGE_MODEL, AiHelperJudge, DryRunJudge, describe_judge
 from .reference import compare, load_reference, make_reference
 from .report import render_text
@@ -83,9 +93,21 @@ def score_file(path: str, names, ctx: dict, args, benchmark_version) -> dict:
     seg_info = {k: v for k, v in seg.items() if k != "units"}
     seg_info["front_matter"] = non_story["front_matter"]
     seg_info["apparatus"] = non_story["apparatus"]
+
+    out_dir = args.out_dir or os.path.dirname(path) or "."
+    os.makedirs(out_dir, exist_ok=True)
+    stem = os.path.join(out_dir, _title_from_path(path))
+
     doc_ctx = dict(ctx)  # fresh per document: unit_tensions must not leak across
     doc_ctx["title"] = _title_from_path(path)
-    metrics = compute_document(units, names, doc_ctx)
+    cache = None if args.no_cache else JudgeCache(stem + ".nd.cache.jsonl")
+    if cache is not None:
+        doc_ctx["cache"] = cache
+    try:
+        metrics = compute_document(units, names, doc_ctx)
+    finally:
+        if cache is not None:
+            cache.close()
     result = {
         "schema": SCHEMA,
         "source": os.path.basename(path),
@@ -100,9 +122,6 @@ def score_file(path: str, names, ctx: dict, args, benchmark_version) -> dict:
         comparison = compare(metrics, args.reference)
         result["comparison"] = comparison
 
-    out_dir = args.out_dir or os.path.dirname(path) or "."
-    os.makedirs(out_dir, exist_ok=True)
-    stem = os.path.join(out_dir, _title_from_path(path))
     with open(stem + ".nd.json", "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
     with open(stem + ".nd.txt", "w", encoding="utf-8") as f:
@@ -155,6 +174,13 @@ def main(argv=None) -> int:
     parser.add_argument("--out-dir", help="Output directory (default: next to each input)")
     parser.add_argument("--list", action="store_true",
                         help="List available metrics and exit")
+    parser.add_argument("--max-calls", type=int, default=None, metavar="N",
+                        help="Stop cleanly after N real (cache-miss) judge calls "
+                             "this run; the incomplete .nd.json is not written. "
+                             "Re-run the same command to continue (default: no cap)")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Disable the judge-call cache (default: on, at "
+                             "<out-dir>/<stem>.nd.cache.jsonl, for durability/resume)")
     args = parser.parse_args(argv)
 
     if args.list or not args.path:
@@ -182,6 +208,7 @@ def main(argv=None) -> int:
 
     ctx: dict = {}
     ctx["judge"] = DryRunJudge() if args.dry_run else AiHelperJudge(args.judge_model)
+    ctx["budget"] = CallBudget(args.max_calls)  # shared across all documents this run
     if args.aliases:
         with open(args.aliases) as f:
             ctx["aliases"] = json.load(f)
@@ -210,6 +237,11 @@ def main(argv=None) -> int:
         try:
             scored[_title_from_path(path)] = score_file(
                 path, names, ctx, args, benchmark_version)
+        except BudgetExhausted as e:
+            # A clean, resumable stop: completed calls are already durable in
+            # the cache, so nothing is lost and nothing incomplete is written.
+            print(f"  {e}", file=sys.stderr)
+            return 3
         except Exception as e:  # keep the batch alive; report at the end
             failures += 1
             print(f"  FAILED: {type(e).__name__}: {e}", file=sys.stderr)

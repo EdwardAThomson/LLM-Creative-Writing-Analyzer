@@ -26,6 +26,8 @@ import os
 import pkgutil
 from typing import Iterable, Optional
 
+from .cache import BudgetExhausted  # stdlib-only; safe to import eagerly
+
 SCHEMA = "narrative_dynamics/1"
 DEFAULT_BENCHMARK = "nd1"
 
@@ -34,7 +36,7 @@ DEFAULT_BENCHMARK = "nd1"
 METRIC_ORDER = ["tension_trajectory", "block_rhythm", "thread_architecture"]
 
 _NON_METRIC_MODULES = {"segmentation", "judge", "clustering", "reference",
-                       "report", "rubrics", "extract", "__main__"}
+                       "report", "rubrics", "extract", "__main__", "cache"}
 
 _BENCHMARKS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -74,6 +76,8 @@ def compute_document(units: list[dict], names: Optional[Iterable[str]] = None,
     for name in requested:
         try:
             results[name] = _load(name).compute(units, ctx)
+        except BudgetExhausted:
+            raise  # a budget stop is a run-level event, not a per-metric failure
         except Exception as e:  # resilient: isolate per-metric failures
             results[name] = {"error": f"{type(e).__name__}: {e}"}
     return results

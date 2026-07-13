@@ -47,7 +47,7 @@ def extract_casts(units: list[dict], ctx: dict, title: str) -> list[dict]:
             title=title, label=u["label"],
             text=segmentation.truncate_middle(u["text"], HEAD_WORDS, TAIL_WORDS))
         try:
-            rec = ask_json(judge, prompt, _parse)
+            rec = ask_json(judge, prompt, _parse, ctx=ctx)
         except JudgeError as e:
             rec = {"pov": "", "principal_cast": [], "strand": "", "error": str(e)}
         out.append(rec)

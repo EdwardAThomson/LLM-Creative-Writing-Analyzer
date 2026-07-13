@@ -64,7 +64,8 @@ def annotate_unit(paragraphs: list[str], ctx: dict) -> list[Optional[dict]]:
         batch = paragraphs[start:start + BATCH_SIZE]
         prompt = block_types.render_annotation_prompt(batch)
         try:
-            labels.extend(ask_json(judge, prompt, lambda raw: _parse_batch(raw, len(batch))))
+            labels.extend(ask_json(judge, prompt,
+                                    lambda raw: _parse_batch(raw, len(batch)), ctx=ctx))
         except JudgeError:
             labels.extend([None] * len(batch))
     return labels

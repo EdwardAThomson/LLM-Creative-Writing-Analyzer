@@ -54,7 +54,7 @@ def score_units(units: list[dict], ctx: dict, title: str) -> list[dict]:
             title=title, label=u["label"],
             text=segmentation.truncate_middle(u["text"], HEAD_WORDS, TAIL_WORDS))
         try:
-            rec = ask_json(judge, prompt, _parse)
+            rec = ask_json(judge, prompt, _parse, ctx=ctx)
         except JudgeError as e:
             rec = {"tension": None, "rationale": None, "error": str(e)}
         rec.update({"index": u["index"], "label": u["label"], "words": u["words"]})
