@@ -180,6 +180,47 @@ def test_cli_include_front_scores_the_front_unit(tmp_path):
     assert per_unit[0]["label"] == "(front)"
 
 
+def _novel_with_preface():
+    """The synthetic novel plus a PREFACE heading before CHAPTER I: author
+    apparatus, not story."""
+    preface = ("This edition has been prepared with care. " * 20)
+    return SYNTHETIC_NOVEL.replace(
+        "***\n\nCHAPTER I", f"***\n\nPREFACE\n\n{preface}\n\nCHAPTER I")
+
+
+def test_cli_apparatus_excluded_by_default_and_recorded(tmp_path):
+    p = tmp_path / "mini.txt"
+    p.write_text(_novel_with_preface(), encoding="utf-8")
+    rc = main([str(p), "--dry-run", "--metrics", "tension_trajectory"])
+    assert rc == 0
+    result = json.loads((tmp_path / "mini.nd.json").read_text())
+    seg_info = result["segmentation"]
+    assert seg_info["n_units"] == 4  # segmentation truth: PREFACE + 3 chapters
+    ap = seg_info["apparatus"]
+    assert ap["excluded"] is True
+    assert ap["apparatus_units"] == [{"index": 0, "label": "PREFACE", "words": 140}]
+    assert ap["n_units_scored"] == 3
+    per_unit = result["metrics"]["tension_trajectory"]["per_unit"]
+    assert [u["label"] for u in per_unit] == ["CHAPTER I", "CHAPTER II", "CHAPTER III"]
+    report = (tmp_path / "mini.nd.txt").read_text()
+    assert "excluded from scoring" in report
+    assert "--include-apparatus" in report
+
+
+def test_cli_include_apparatus_scores_the_preface(tmp_path):
+    p = tmp_path / "mini.txt"
+    p.write_text(_novel_with_preface(), encoding="utf-8")
+    rc = main([str(p), "--dry-run", "--include-apparatus",
+               "--metrics", "tension_trajectory"])
+    assert rc == 0
+    result = json.loads((tmp_path / "mini.nd.json").read_text())
+    ap = result["segmentation"]["apparatus"]
+    assert ap["excluded"] is False
+    assert ap["n_units_scored"] == 4
+    per_unit = result["metrics"]["tension_trajectory"]["per_unit"]
+    assert per_unit[0]["label"] == "PREFACE"
+
+
 def test_cli_tail_trim_recorded_in_sidecar_and_report(tmp_path):
     p = tmp_path / "mini.txt"
     p.write_text(_novel_with_front_and_catalog(), encoding="utf-8")

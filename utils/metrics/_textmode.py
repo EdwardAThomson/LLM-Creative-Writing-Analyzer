@@ -53,7 +53,7 @@ def sidecar_path(path: str, group: str) -> str:
 
 
 def segment_units(text: str, strategy: str, window_words: int = 1500,
-                  include_front: bool = False):
+                  include_front: bool = False, include_apparatus: bool = False):
     """Segment one document into units via the narrative_dynamics layer (reused,
     not duplicated). Returns ``(segmentation_info, unit_labels, unit_texts)``.
 
@@ -65,25 +65,31 @@ def segment_units(text: str, strategy: str, window_words: int = 1500,
 
     Strategies: ``chapters`` (heading heuristics; a one-time proposer, see
     ``benchmarks/narrative_dynamics/extract.py``), ``windows`` (fixed ~N-word
-    windows; note that windows-mode performs NO front-matter exclusion, so any
-    title page / TOC is scored inside the first window(s), which the
-    segmentation info records in its ``note`` field), and ``md`` (canonical
-    extracted Markdown split on ``# `` headings, no heuristics; auto-selected
-    by the CLI for ``.md`` inputs).
+    windows; note that windows-mode performs NO front-matter/apparatus
+    exclusion -- it has no headings to exclude by -- so any title page / TOC /
+    preface is scored inside the first window(s), which the segmentation info
+    records in its ``note`` field), and ``md`` (canonical extracted Markdown
+    split on ``# `` headings, no heuristics; auto-selected by the CLI for
+    ``.md`` inputs).
 
     The pre-first-heading ``(front)`` unit is excluded from scoring unless
     ``include_front`` (the ``--include-front`` flag): the shakedown showed it
-    polluting per-unit stats (Dracula's TOC/title page). The exclusion is
-    recorded in ``segmentation_info["front_matter"]`` so the sidecar states
-    what was left out; any trailing back-matter trim is likewise recorded in
-    ``segmentation_info["tail_trim"]``.
+    polluting per-unit stats (Dracula's TOC/title page). Author-apparatus
+    units (prefaces, editorial notes, footnotes, ...) are likewise excluded
+    unless ``include_apparatus`` (``--include-apparatus``): they are not
+    story, generalizing the same exclusion. Both exclusions are recorded in
+    ``segmentation_info["front_matter"]`` / ``["apparatus"]`` so the sidecar
+    states what was left out; any trailing back-matter trim is likewise
+    recorded in ``segmentation_info["tail_trim"]``.
     """
     from benchmarks.narrative_dynamics import segmentation as seg  # local, stdlib
 
     res = seg.segment(text, strategy=strategy, window_words=window_words)
-    units, front_record = seg.exclude_front_matter(
-        res["units"], include_front=include_front)
+    units, non_story = seg.exclude_non_story(
+        res["units"], include_front=include_front,
+        include_apparatus=include_apparatus)
     info = {k: v for k, v in res.items() if k != "units"}
-    info["front_matter"] = front_record
+    info["front_matter"] = non_story["front_matter"]
+    info["apparatus"] = non_story["apparatus"]
     labels = [u["label"] for u in units]
     return info, labels, [u["text"] for u in units]

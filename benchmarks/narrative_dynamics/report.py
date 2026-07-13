@@ -137,6 +137,12 @@ def render_text(source: str, result: dict, comparison: Optional[dict] = None) ->
         lines.append(f"Front matter: {len(fm['front_units'])} \"(front)\" unit(s) "
                      f"excluded from scoring ({fm['n_units_scored']}/"
                      f"{fm['n_units_segmented']} units scored; --include-front to keep)")
+    ap = seg.get("apparatus")
+    if ap and ap.get("excluded"):
+        labels = ", ".join(u["label"] for u in ap["apparatus_units"])
+        lines.append(f"Apparatus: {len(ap['apparatus_units'])} unit(s) excluded "
+                     f"from scoring ({labels}) ({ap['n_units_scored']}/"
+                     f"{ap['n_units_segmented']} units scored; --include-apparatus to keep)")
     tt = seg.get("tail_trim")
     if tt:
         lines.append(f"Tail trim: {tt['trimmed_words']} words of back-matter "

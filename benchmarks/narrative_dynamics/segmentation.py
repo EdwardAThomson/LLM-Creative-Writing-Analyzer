@@ -68,6 +68,15 @@ FRONT_LABEL = "(front)"      # label of the kept pre-first-heading unit
 # with a substantial body must survive).
 TOC_BODY_EXEMPT_WORDS = MIN_UNIT_WORDS * 2
 
+# NON_STORY: two parallel categories of labeled unit that extraction keeps
+# (nothing is silently dropped from the canonical Markdown) but that the
+# SCORING layer excludes by default because they are not narrative: the
+# pre-first-heading ``(front)`` unit (see ``FRONT_LABEL``/``exclude_front_matter``)
+# and author-apparatus units such as prefaces or footnotes (see
+# ``is_apparatus_label``/``exclude_apparatus``). Both are opt-in-able back into
+# scoring (``--include-front`` / ``--include-apparatus``) and both record their
+# exclusion in the sidecar so it is never silent.
+
 # --- Gutenberg trimming -----------------------------------------------------------
 
 _GUT_START = re.compile(r"^\s*\*{3}\s*START OF (THE|THIS) PROJECT GUTENBERG.*$", re.M | re.I)
@@ -936,6 +945,101 @@ def exclude_front_matter(units: list[dict],
         "n_units_scored": len(kept),
     }
     return kept, record
+
+
+# --- apparatus scoring policy --------------------------------------------------------
+
+# Closed vocabulary of author-apparatus labels (prefaces, editorial notes,
+# footnotes, ...): not story, generalizing the ``(front)`` policy above to
+# labeled headings anywhere in the document. Matched case-insensitively
+# against the FULL trimmed label -- anchored, never a substring search -- so
+# real story sections that happen to contain apparatus-ish vocabulary words
+# never match: The Woman in White's narrator headings ("The Story Begun by
+# Walter Hartright", "1. The Narrative of Hester Pinhorn") ARE the epistolary
+# novel and must stay scored. PROLOGUE/EPILOGUE/INTRODUCTION/INTERLUDE/ENVOI
+# are deliberately NOT in this vocabulary: they are frequently narrative, none
+# appear in the current corpus, and this is a conservative default, not a
+# proven boundary.
+_APPARATUS_EXACT = frozenset({
+    "PREFACE", "FOREWORD", "AFTERWORD", "DEDICATION", "FOOTNOTES", "APPENDIX",
+    "ERRATA", "GLOSSARY", "EPIGRAPH", "CONTENTS", "NOTE",
+    "TRANSLATOR'S NOTE", "AUTHOR'S NOTE", "PUBLISHER'S NOTE",
+    "INTRODUCTORY NOTE",
+})
+# Prefix forms: "NOTE TO THE THIRD EDITION" (Jane Eyre), "APPENDIX A", and the
+# "PREFACE TO THE ..." shape some editions use for a revised-edition preface.
+_APPARATUS_PREFIXES = ("NOTE TO THE ", "PREFACE TO THE ", "APPENDIX ")
+
+
+def is_apparatus_label(label: str) -> bool:
+    """True when ``label`` is author apparatus (front/back matter), not story.
+
+    Whole-label match only, case-insensitive, with curly apostrophes
+    normalized and an optional trailing period stripped (editions vary on
+    ``PREFACE`` vs ``PREFACE.``). See the module-level vocabulary comment for
+    what is and is not included, and why the match is anchored rather than a
+    substring search.
+    """
+    s = label.strip().upper().replace("’", "'").replace("‘", "'")
+    if s.endswith("."):
+        s = s[:-1]
+    if s in _APPARATUS_EXACT:
+        return True
+    return s.startswith(_APPARATUS_PREFIXES)
+
+
+def exclude_apparatus(units: list[dict],
+                      include_apparatus: bool = False) -> tuple[list[dict], Optional[dict]]:
+    """Scoring-layer policy for author-apparatus units (see ``is_apparatus_label``).
+
+    Same shape and rationale as ``exclude_front_matter``, generalized from the
+    single pre-first-heading unit to any labeled apparatus heading anywhere in
+    the document: extraction keeps these units (nothing silently dropped from
+    the canonical Markdown), but scoring an editorial preface, a translator's
+    note, or a footnotes appendix alongside real chapters distorts per-unit
+    stats the same way the shakedown showed for the ``(front)`` unit. Excluded
+    from scoring by default; ``include_apparatus=True`` (the
+    ``--include-apparatus`` CLI flag) opts back in.
+
+    Returns ``(units_to_score, record)``. The record lists the apparatus
+    unit(s), whether they were excluded, and the units-in/units-out counts for
+    THIS call (i.e. of the units passed in -- typically already past
+    ``exclude_front_matter``, so these counts compose rather than duplicate
+    that record's). None when none of the input units is apparatus. Kept units
+    retain their original ``index`` values.
+    """
+    apparatus = [u for u in units if is_apparatus_label(u["label"])]
+    if not apparatus:
+        return units, None
+    kept = units if include_apparatus \
+        else [u for u in units if not is_apparatus_label(u["label"])]
+    record = {
+        "apparatus_units": [{"index": u["index"], "label": u["label"], "words": u["words"]}
+                            for u in apparatus],
+        "excluded": not include_apparatus,
+        "policy": ("excluded from scoring by default; pass --include-apparatus to score it"
+                   if not include_apparatus else "scored: --include-apparatus"),
+        "n_units_segmented": len(units),
+        "n_units_scored": len(kept),
+    }
+    return kept, record
+
+
+def exclude_non_story(units: list[dict], include_front: bool = False,
+                      include_apparatus: bool = False) -> tuple[list[dict], dict]:
+    """Apply both scoring-layer exclusions in sequence: front matter, then
+    apparatus. Convenience wrapper so callers (the ``nd`` CLI, ``utils.metrics``
+    single-text mode) don't duplicate the two-call chain.
+
+    Returns ``(units_to_score, records)`` where ``records`` is
+    ``{"front_matter": ..., "apparatus": ...}`` -- each either the record shape
+    documented on the matching function, or None when that category was
+    absent. Callers embed both under those two keys in the sidecar; existing
+    ``front_matter`` readers are unaffected, ``apparatus`` is additive.
+    """
+    units, front_record = exclude_front_matter(units, include_front=include_front)
+    units, apparatus_record = exclude_apparatus(units, include_apparatus=include_apparatus)
+    return units, {"front_matter": front_record, "apparatus": apparatus_record}
 
 
 # --- canonical Markdown ingestion ----------------------------------------------------

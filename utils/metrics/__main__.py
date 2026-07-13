@@ -120,6 +120,13 @@ def main(argv: list[str] | None = None) -> int:
         "(excluded by default: front matter distorts per-unit stats; the "
         "sidecar records the exclusion).",
     )
+    parser.add_argument(
+        "--include-apparatus",
+        action="store_true",
+        help="With --segment: score author-apparatus units too (prefaces, "
+        "translator's/author's notes, footnotes, appendices, etc.; excluded "
+        "by default -- not story; the sidecar records the exclusion).",
+    )
     args = parser.parse_args(argv)
 
     if args.list or not args.results_json:
@@ -177,7 +184,8 @@ def main(argv: list[str] | None = None) -> int:
                       file=sys.stderr)
             segmentation, sources, texts = segment_units(
                 texts[0], strategy, args.window_words,
-                include_front=args.include_front)
+                include_front=args.include_front,
+                include_apparatus=args.include_apparatus)
         print(f"  scoring {group} ({len(texts)} text{'s' if len(texts) != 1 else ''})...",
               file=sys.stderr)
         out = {

@@ -3,7 +3,7 @@
     python -m benchmarks.narrative_dynamics <text-file | directory>
         [--benchmark nd1 | --metrics name,name]
         [--segmentation chapters|windows|md] [--window-words 1500]
-        [--no-gutenberg-trim] [--include-front]
+        [--no-gutenberg-trim] [--include-front] [--include-apparatus]
         [--judge-model MODEL | --dry-run]
         [--aliases aliases.json] [--reference ref.json]
         [--make-reference OUT.json]
@@ -74,12 +74,15 @@ def score_file(path: str, names, ctx: dict, args, benchmark_version) -> dict:
         text, strategy=_effective_strategy(path, args.segmentation),
         window_words=args.window_words,
         trim_gutenberg=not args.no_gutenberg_trim)
-    # scoring-layer policy: the "(front)" unit is excluded unless --include-front;
-    # the record lands in the sidecar so the exclusion is never silent
-    units, front_record = segmentation.exclude_front_matter(
-        seg["units"], include_front=args.include_front)
+    # scoring-layer policy: the "(front)" unit and author-apparatus units
+    # (prefaces, notes, footnotes...) are excluded unless --include-front /
+    # --include-apparatus; both exclusions land in the sidecar so neither is silent
+    units, non_story = segmentation.exclude_non_story(
+        seg["units"], include_front=args.include_front,
+        include_apparatus=args.include_apparatus)
     seg_info = {k: v for k, v in seg.items() if k != "units"}
-    seg_info["front_matter"] = front_record
+    seg_info["front_matter"] = non_story["front_matter"]
+    seg_info["apparatus"] = non_story["apparatus"]
     doc_ctx = dict(ctx)  # fresh per document: unit_tensions must not leak across
     doc_ctx["title"] = _title_from_path(path)
     metrics = compute_document(units, names, doc_ctx)
@@ -133,6 +136,11 @@ def main(argv=None) -> int:
                         help="Score the pre-first-heading \"(front)\" unit too "
                              "(excluded by default: front matter distorts "
                              "per-unit stats; the sidecar records the exclusion)")
+    parser.add_argument("--include-apparatus", action="store_true",
+                        help="Score author-apparatus units too (prefaces, "
+                             "translator's/author's notes, footnotes, appendices, "
+                             "etc.; excluded by default -- not story; the sidecar "
+                             "records the exclusion)")
     parser.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL,
                         help="ai_helper model key for the judge (default: %(default)s)")
     parser.add_argument("--dry-run", action="store_true",

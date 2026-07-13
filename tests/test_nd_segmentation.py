@@ -382,6 +382,89 @@ def test_exclude_front_matter_without_front_unit_is_silent():
     assert record is None
 
 
+# --- apparatus scoring policy --------------------------------------------------------
+
+def test_is_apparatus_label_matches_the_closed_vocabulary():
+    for label in ("PREFACE", "preface", "  Preface  ", "NOTE TO THE THIRD EDITION",
+                  "note to the third edition", "FOOTNOTES", "DEDICATION",
+                  "APPENDIX B", "APPENDIX", "FOREWORD", "AFTERWORD", "ERRATA",
+                  "GLOSSARY", "EPIGRAPH", "CONTENTS", "NOTE",
+                  "TRANSLATOR'S NOTE", "AUTHOR'S NOTE", "PUBLISHER'S NOTE",
+                  "INTRODUCTORY NOTE", "PREFACE TO THE READER", "PREFACE."):
+        assert seg.is_apparatus_label(label), label
+
+
+def test_is_apparatus_label_does_not_match_story_sections():
+    # The critical negative gate: labels containing apparatus-ish vocabulary
+    # words that ARE the story (The Woman in White's epistolary narrators)
+    # must never match, nor must ordinary chapter/structural headings, nor
+    # the conservatively-deferred PROLOGUE/EPILOGUE.
+    for label in ("The Story Begun by Walter Hartright",
+                  "The Story Continued by Marian Halcombe",
+                  "1. The Narrative of Hester Pinhorn",
+                  "The Story Continued by Isidor, Ottavio, Baldassare Fosco",
+                  "CHAPTER I.", "CHAPTER I", "Chapter 12.", "IV", "12.",
+                  "PROLOGUE", "EPILOGUE", "INTRODUCTION", "INTERLUDE", "ENVOI"):
+        assert not seg.is_apparatus_label(label), label
+
+
+def _units_with_apparatus():
+    text = ("CHAPTER I\n\n" + _words("one", 120)
+            + "\n\nPREFACE\n\n" + _words("pref", 120)
+            + "\n\nCHAPTER II\n\n" + _words("two", 120)
+            + "\n\nCHAPTER III\n\n" + _words("three", 120))
+    units = seg.segment_chapters(text)
+    assert [u["label"] for u in units] == ["CHAPTER I", "PREFACE", "CHAPTER II", "CHAPTER III"]
+    return units
+
+
+def test_exclude_apparatus_default_excludes_and_records():
+    units = _units_with_apparatus()
+    kept, record = seg.exclude_apparatus(units)
+    assert [u["label"] for u in kept] == ["CHAPTER I", "CHAPTER II", "CHAPTER III"]
+    assert [u["index"] for u in kept] == [0, 2, 3]  # original indices kept
+    assert record["excluded"] is True
+    assert record["apparatus_units"] == [{"index": 1, "label": "PREFACE", "words": 120}]
+    assert record["n_units_segmented"] == 4
+    assert record["n_units_scored"] == 3
+    assert "--include-apparatus" in record["policy"]
+
+
+def test_exclude_apparatus_opt_in_keeps_apparatus():
+    units = _units_with_apparatus()
+    kept, record = seg.exclude_apparatus(units, include_apparatus=True)
+    assert kept == units
+    assert record["excluded"] is False
+    assert record["n_units_scored"] == 4
+
+
+def test_exclude_apparatus_without_apparatus_unit_is_silent():
+    units = seg.segment_chapters(_chaptered_text(3))
+    kept, record = seg.exclude_apparatus(units)
+    assert kept == units
+    assert record is None
+
+
+def test_exclude_non_story_chains_front_and_apparatus():
+    text = (_words("front", 220) + "\n\nPREFACE\n\n" + _words("pref", 120)
+            + "\n\n" + _chaptered_text(3))
+    units = seg.segment_chapters(text)
+    assert [u["label"] for u in units] == [
+        seg.FRONT_LABEL, "PREFACE", "CHAPTER 1.", "CHAPTER 2.", "CHAPTER 3."]
+    kept, records = seg.exclude_non_story(units)
+    assert [u["label"] for u in kept] == ["CHAPTER 1.", "CHAPTER 2.", "CHAPTER 3."]
+    assert records["front_matter"]["excluded"] is True
+    assert records["apparatus"]["excluded"] is True
+    assert records["apparatus"]["apparatus_units"] == [
+        {"index": 1, "label": "PREFACE", "words": 120}]
+    # both opt back in independently
+    kept_all, records_all = seg.exclude_non_story(
+        units, include_front=True, include_apparatus=True)
+    assert kept_all == units
+    assert records_all["front_matter"]["excluded"] is False
+    assert records_all["apparatus"]["excluded"] is False
+
+
 # --- TOC density screen ------------------------------------------------------------
 
 def test_toc_density_screen_is_the_only_standing_guard():

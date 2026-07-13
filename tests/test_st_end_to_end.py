@@ -109,6 +109,36 @@ def test_segment_units_records_absent_front_and_tail_trim():
     assert info["tail_trim"] is None
 
 
+def _fixture_book_with_preface():
+    """The fixture book with a PREFACE heading before CHAPTER I: author
+    apparatus, not story (generalizes the (front) exclusion above)."""
+    text, block = _fixture_book()
+    preface = " ".join(f"prefaceword{i}" for i in range(80))
+    return text.replace(
+        "***\n\nCHAPTER I", f"***\n\nPREFACE\n\n{preface}\n\nCHAPTER I"), block
+
+
+def test_segment_units_excludes_apparatus_by_default_and_records_it():
+    text, _ = _fixture_book_with_preface()
+    info, labels, units = tm.segment_units(text, "chapters")
+    assert labels == ["CHAPTER I", "CHAPTER II", "CHAPTER III", "CHAPTER IV"]
+    assert all("prefaceword" not in u for u in units)
+    ap = info["apparatus"]
+    assert ap["excluded"] is True
+    assert ap["apparatus_units"] == [{"index": 0, "label": "PREFACE", "words": 80}]
+    assert ap["n_units_scored"] == 4
+    assert info["n_units"] == 5  # segmentation truth is untouched
+
+
+def test_segment_units_include_apparatus_opts_back_in():
+    text, _ = _fixture_book_with_preface()
+    info, labels, units = tm.segment_units(text, "chapters", include_apparatus=True)
+    assert labels[0] == "PREFACE"
+    assert len(units) == 5
+    assert info["apparatus"]["excluded"] is False
+    assert info["apparatus"]["n_units_scored"] == 5
+
+
 def test_full_st1_pure_pass_over_segmented_fixture():
     text, block = _fixture_book()
     _, _, units = tm.segment_units(text, "chapters")
