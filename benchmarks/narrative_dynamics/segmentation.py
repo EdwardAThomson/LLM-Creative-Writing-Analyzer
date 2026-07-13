@@ -401,18 +401,51 @@ def _match_override_lines(lines: list[str], overrides) -> dict[int, dict]:
             if line.strip() in by_text}
 
 
+# TOC-style inline chapter-entry line: keyword + number + a MULTI-SPACE
+# columnar gap + a title, all on one line ("CHAPTER I      Five Years
+# Later"). ``is_chapter_heading`` deliberately does not match this shape (its
+# own inline-title form requires a punctuation separator: ". "/": "/"-"/"--",
+# see the CHAPTER pattern above), so a TOC block built from these lines is
+# invisible to the density measure in ``_screen_toc_runs``: the entries read
+# as ordinary prose words between the surrounding Book headings, the run
+# never registers as dense, and the Book heading survives with the whole
+# entry list as its fake body. Tale of Two Cities evidence: Book the
+# Second/Third's 24/15-line inline TOC entries (2-4 space gaps in the wild
+# file) each contribute a few "prose" words, comfortably clearing
+# MIN_UNIT_WORDS across the block, while Book the First's shorter 6-entry
+# block stays under it and already dropped as a runt. The 2-space floor
+# matches the tightest gap actually observed ("CHAPTER XVIII  Nine Days");
+# a single space is the ordinary "keyword number title" prose/heading shape
+# and must not match. This predicate feeds ONLY the density measurement
+# (below); it never adds a line to ``hits``, so a real chapter heading using
+# this columnar layout is unaffected unless it is also short enough to fail
+# the body-exemption, the same safety net every other TOC case relies on.
+_TOC_INLINE_ENTRY = re.compile(
+    rf"^(?:CHAPTER|Chapter|BOOK|Book|PART|Part|VOLUME|Volume)\s+"
+    rf"(?:{_ROMAN}|\d+|{_SPELLED_NUMBER})\.?\s{{2,}}\S.*$")
+
+
+def _is_toc_entry_line(line: str) -> bool:
+    """True for a TOC-style inline chapter/book entry (see ``_TOC_INLINE_ENTRY``)."""
+    s = line.strip()
+    if not s or len(s) > MAX_HEADING_CHARS:
+        return False
+    return bool(_TOC_INLINE_ENTRY.match(s))
+
+
 def _screen_toc_runs(lines: list[str], hits: list[int],
                      report: Optional[dict] = None,
                      extra_latent: Optional[set[int]] = None) -> list[int]:
     """Drop dense runs of heading-like lines (a table of contents, not structure).
 
-    Density is measured over ALL lines matching the heading patterns (not only
-    the context-guard-passing candidates): a Contents block whose entries sit
-    on adjacent lines fails the blank-line guards entry by entry, yet its first
-    and last entries can pass them and read as boundaries (the Middlemarch TOC:
-    " PRELUDE." and " FINALE." pass, the 94 packed " CHAPTER n." lines between
-    them do not). A run is ``TOC_MIN_RUN`` or more consecutive heading-like
-    lines with fewer than ``MIN_UNIT_WORDS`` words between each adjacent pair.
+    Density is measured over ALL lines matching the heading patterns, PLUS
+    TOC-style inline entry lines (not only the context-guard-passing
+    candidates): a Contents block whose entries sit on adjacent lines fails
+    the blank-line guards entry by entry, yet its first and last entries can
+    pass them and read as boundaries (the Middlemarch TOC: " PRELUDE." and
+    " FINALE." pass, the 94 packed " CHAPTER n." lines between them do not).
+    A run is ``TOC_MIN_RUN`` or more consecutive heading-like lines with
+    fewer than ``MIN_UNIT_WORDS`` words between each adjacent pair.
 
     Body exemption (War and Peace / Moonstone shakedown): a candidate inside a
     dense run is NOT dropped when at least ``TOC_BODY_EXEMPT_WORDS`` of text
@@ -432,7 +465,8 @@ def _screen_toc_runs(lines: list[str], hits: list[int],
     if not hits:
         return hits
     latent = [i for i, line in enumerate(lines)
-              if is_chapter_heading(line) or (extra_latent and i in extra_latent)]
+              if is_chapter_heading(line) or _is_toc_entry_line(line)
+              or (extra_latent and i in extra_latent)]
     if len(latent) < TOC_MIN_RUN:
         return hits
     dense: set[int] = set()
@@ -467,6 +501,31 @@ def _screen_toc_runs(lines: list[str], hits: list[int],
     return kept
 
 
+def _raw_heading_hits(lines: list[str], override_lines: dict[int, dict]) -> list[int]:
+    """Context-guarded heading-candidate indices, BEFORE TOC-run screening.
+
+    A heading counts when preceded by a blank line (or the text edge) and
+    followed by either a blank line / the text edge, or a short standalone
+    title line (see ``_is_title_line``): Gutenberg editions commonly set the
+    chapter title directly under the heading with no intervening blank. The
+    blank-before guard still screens roman numerals and short phrases inside
+    running prose. This is the raw candidate list ``detect_chapter_lines``
+    screens with ``_screen_toc_runs``; ``segment_chapters`` also uses it
+    directly (unscreened) to anchor the front-matter boundary, see there.
+    """
+    n = len(lines)
+    hits = []
+    for i, line in enumerate(lines):
+        if not (is_chapter_heading(line) or i in override_lines):
+            continue
+        if i > 0 and lines[i - 1].strip():
+            continue  # no blank line (or edge) above
+        next_blank = i == n - 1 or not lines[i + 1].strip()
+        if next_blank or _is_title_line(lines, i + 1):
+            hits.append(i)
+    return hits
+
+
 def detect_chapter_lines(text: str, report: Optional[dict] = None,
                          overrides: Optional[list[dict]] = None) -> list[int]:
     """Indices of heading lines in ``text.split('\\n')``.
@@ -488,16 +547,7 @@ def detect_chapter_lines(text: str, report: Optional[dict] = None,
     """
     lines = text.split("\n")
     override_lines = _match_override_lines(lines, overrides)
-    n = len(lines)
-    hits = []
-    for i, line in enumerate(lines):
-        if not (is_chapter_heading(line) or i in override_lines):
-            continue
-        if i > 0 and lines[i - 1].strip():
-            continue  # no blank line (or edge) above
-        next_blank = i == n - 1 or not lines[i + 1].strip()
-        if next_blank or _is_title_line(lines, i + 1):
-            hits.append(i)
+    hits = _raw_heading_hits(lines, override_lines)
     hits = _screen_toc_runs(lines, hits, report,
                             extra_latent=set(override_lines) or None)
     if report is not None and overrides:
@@ -627,9 +677,36 @@ def segment_chapters(text: str, min_unit_words: int = MIN_UNIT_WORDS,
     units: list[dict] = []
     followed_by_boundary: list[bool] = []
     # Text before the first heading is kept only if it is substantial (a preface
-    # or unlabeled opening); tiny scraps of front matter are dropped.
-    pre = "\n".join(lines[: idxs[0]]).strip()
-    if word_count(pre) >= min_unit_words * 4:
+    # or unlabeled opening); tiny scraps of front matter are dropped. ``pre``
+    # spans everything up to the first SURVIVING heading (idxs[0]) exactly as
+    # before -- nothing before it is ever silently discarded from accounting,
+    # it is either kept whole as the "(front)" unit or dropped whole as a
+    # reported scrap (Monte Cristo evidence: its 586-word front unit, kept,
+    # legitimately contains its own screened 117-chapter TOC plus a "VOLUME
+    # ONE" divider; that content must stay put, not vanish into a gap between
+    # a separate "front boundary" and idxs[0]).
+    #
+    # The KEEP/DROP decision, however, excludes ``_is_toc_entry_line`` matches
+    # from the word count: a columnar TOC entry list inflates the raw count
+    # with structural filler, not prose. Tale of Two Cities evidence: its
+    # screened TOC (all 3 Books' inline chapter lists, ~215 words of entry
+    # lines) sits before the first surviving heading, so raw ``pre`` is 245
+    # words -- over the keep threshold -- while the real, non-entry-line
+    # content in that span (title, "CONTENTS", the 3 Book headings, ~30
+    # words) is not. Judging the threshold on the raw count would keep a
+    # "(front)" unit whose "content" is almost entirely the TOC entries the
+    # fix just screened out of the chapter list. Deliberately narrower than
+    # excluding every ``is_chapter_heading`` match too: Monte Cristo's own
+    # 117-entry TOC uses the ordinary punctuation-separated heading form
+    # ("Chapter 103. Maximilian"), which the *existing* density screen
+    # already handles on its own terms (see ``_screen_toc_runs``), and its
+    # 586-word front unit is deliberately KEPT (frozen corpus) -- excluding
+    # ``is_chapter_heading`` lines too would gut that count and drop it.
+    pre_lines = lines[: idxs[0]]
+    pre = "\n".join(pre_lines).strip()
+    pre_prose_words = word_count(" ".join(
+        l for l in pre_lines if not _is_toc_entry_line(l)))
+    if pre_prose_words >= min_unit_words * 4:
         units.append({"label": FRONT_LABEL, "text": pre})
         followed_by_boundary.append(True)
     elif pre and report is not None:

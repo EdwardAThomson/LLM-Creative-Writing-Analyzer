@@ -941,6 +941,51 @@ def test_totc_shape_book_boundaries_end_to_end():
     assert out["units"][1]["text"].endswith("The end of the first book.")
 
 
+def test_totc_shape_long_inline_toc_no_longer_leaks_as_chapter_units():
+    # Wild-file-scale regression for the actual Tale of Two Cities bug: Book
+    # the Second/Third's TOC chapter lists are long enough (15 entries, ~75
+    # words each) to clear MIN_UNIT_WORDS as a whole block, so BEFORE the fix
+    # they survived as two spurious "chapter" units whose entire "body" was
+    # nothing but their own TOC entries -- is_chapter_heading never matches
+    # the inline "CHAPTER <n>      <title>" TOC format (a whitespace-gap, not
+    # punctuation, separates the number from the title), so those entries
+    # were invisible to the TOC density screen and never registered as a
+    # dense run. Book the First's TOC block is kept short (6 entries, ~24
+    # words) so it still drops as a plain runt, exactly like the compact
+    # fixture above; this test isolates the long-block leak that the compact
+    # one is too small to reproduce.
+    def toc_section(book, n):
+        entries = "\n".join(f"     CHAPTER {r}      Title Words {r}"
+                            for r in range(1, n + 1))
+        return f"     {book}\n\n{entries}"
+    toc = "\n\n".join([toc_section(TOTC_BOOKS[0], 6),
+                       toc_section(TOTC_BOOKS[1], 15),
+                       toc_section(TOTC_BOOKS[2], 15)])
+    # bodies exceed TOC_BODY_EXEMPT_WORDS so the real chapters keep their
+    # existing body-exemption protection (War and Peace / Moonstone shape)
+    body = (TOTC_BOOKS[0] + "\n\n\n"
+            "CHAPTER 1.\nThe Period\n\n"
+            + _words("c1", seg.TOC_BODY_EXEMPT_WORDS + 50) + "\n\n"
+            + TOTC_BOOKS[1] + "\n\n\n"
+            "CHAPTER 1.\nFive Years Later\n\n"
+            + _words("c2", seg.TOC_BODY_EXEMPT_WORDS + 50) + "\n\n"
+            + TOTC_BOOKS[2] + "\n\n\n"
+            "CHAPTER 1.\nIn Secret\n\n"
+            + _words("c3", seg.TOC_BODY_EXEMPT_WORDS + 50))
+    text = "A TALE OF TWO CITIES\n\nCONTENTS\n\n" + toc + "\n\n" + body
+    out = seg.segment(text, strategy="chapters")
+    assert out["strategy_used"] == "chapters"
+    # exactly the 3 real chapters: no spurious Book-heading units, and no
+    # "(front)" unit either (the TOC dropped as a scrap like before the fix)
+    assert [u["label"] for u in out["units"]] == [
+        "CHAPTER 1.", "CHAPTER 1.", "CHAPTER 1."]
+    assert "c10 " in out["units"][0]["text"]
+    assert "c20 " in out["units"][1]["text"]
+    assert "c30 " in out["units"][2]["text"]
+    assert all("Title Words" not in u["text"] and "Book the" not in u["text"]
+              for u in out["units"])
+
+
 # --- suspects: connective exemption after a structural keyword (ToTC evidence) ----------
 
 def test_suspect_cap_ratio_exempts_connectives_after_keyword():
