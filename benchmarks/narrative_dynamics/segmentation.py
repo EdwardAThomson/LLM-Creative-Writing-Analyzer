@@ -1008,9 +1008,15 @@ def exclude_front_matter(units: list[dict],
 # are deliberately NOT in this vocabulary: they are frequently narrative, none
 # appear in the current corpus, and this is a conservative default, not a
 # proven boundary.
+#
+# Bare "NOTE" is deliberately EXCLUDED from this set (Dracula evidence): the
+# novel's final unit is a standalone "NOTE" that is Jonathan Harker's in-world
+# epilogue ("Seven years ago..."), i.e. story, not editorial apparatus. Only
+# QUALIFIED note forms are apparatus: the "NOTE TO THE ... EDITION" prefix
+# (Jane Eyre) and the possessive "TRANSLATOR'S / AUTHOR'S / PUBLISHER'S NOTE".
 _APPARATUS_EXACT = frozenset({
     "PREFACE", "FOREWORD", "AFTERWORD", "DEDICATION", "FOOTNOTES", "APPENDIX",
-    "ERRATA", "GLOSSARY", "EPIGRAPH", "CONTENTS", "NOTE",
+    "ERRATA", "GLOSSARY", "EPIGRAPH", "CONTENTS",
     "TRANSLATOR'S NOTE", "AUTHOR'S NOTE", "PUBLISHER'S NOTE",
     "INTRODUCTORY NOTE",
 })

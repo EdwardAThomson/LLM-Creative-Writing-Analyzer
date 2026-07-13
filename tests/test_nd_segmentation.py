@@ -406,7 +406,7 @@ def test_is_apparatus_label_matches_the_closed_vocabulary():
     for label in ("PREFACE", "preface", "  Preface  ", "NOTE TO THE THIRD EDITION",
                   "note to the third edition", "FOOTNOTES", "DEDICATION",
                   "APPENDIX B", "APPENDIX", "FOREWORD", "AFTERWORD", "ERRATA",
-                  "GLOSSARY", "EPIGRAPH", "CONTENTS", "NOTE",
+                  "GLOSSARY", "EPIGRAPH", "CONTENTS",
                   "TRANSLATOR'S NOTE", "AUTHOR'S NOTE", "PUBLISHER'S NOTE",
                   "INTRODUCTORY NOTE", "PREFACE TO THE READER", "PREFACE."):
         assert seg.is_apparatus_label(label), label
@@ -417,11 +417,15 @@ def test_is_apparatus_label_does_not_match_story_sections():
     # words that ARE the story (The Woman in White's epistolary narrators)
     # must never match, nor must ordinary chapter/structural headings, nor
     # the conservatively-deferred PROLOGUE/EPILOGUE.
+    # Bare "NOTE" is story, not apparatus (Dracula's Harker epilogue note);
+    # only qualified note forms ("NOTE TO THE ... EDITION", "AUTHOR'S NOTE")
+    # are apparatus.
     for label in ("The Story Begun by Walter Hartright",
                   "The Story Continued by Marian Halcombe",
                   "1. The Narrative of Hester Pinhorn",
                   "The Story Continued by Isidor, Ottavio, Baldassare Fosco",
                   "CHAPTER I.", "CHAPTER I", "Chapter 12.", "IV", "12.",
+                  "NOTE", "NOTE.", "Note",
                   "PROLOGUE", "EPILOGUE", "INTRODUCTION", "INTERLUDE", "ENVOI"):
         assert not seg.is_apparatus_label(label), label
 
