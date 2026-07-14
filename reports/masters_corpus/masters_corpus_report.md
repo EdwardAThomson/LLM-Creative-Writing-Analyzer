@@ -1,35 +1,183 @@
 # The Masters Corpus: Benchmark Findings (v1, provisional)
 
-*Draft. Scope: 26 public-domain masterworks extracted to canonical Markdown; scored
-locally with **st1** (26/26) and with the LLM-judged **nd1** narrative-dynamics
-benchmark (21/26 — the 5 largest works are pending a deliberate run and will be
-folded in). Single nd1 judge: DeepSeek (`deepseek/deepseek-chat` via OpenRouter),
-validated against Claude Haiku 4.5 (see Methodology). Regenerate from
+*Draft. Single nd1 judge: DeepSeek (`deepseek/deepseek-chat` via OpenRouter), validated
+against Claude Haiku 4.5 (Section 11). See the Introduction below for motivation and
+scope, and Section 12 for the current 21/26 nd1 boundary. Regenerate from
 `corpus_dataset.csv` when the giants land.*
 
 ---
 
-## 1. What this is
+## 1. Introduction
 
-A reference corpus of 26 canonical novels (Austen, Dickens, Conrad, Collins, Wells,
-Haggard, Buchan, Sabatini, Dunsany, Eddison, Bronte, Dumas, Eliot, Tolstoy, Stoker,
-Childers), each extracted to verified canonical Markdown and scored by two benchmarks:
+Judging machine-generated creative writing is hard without a yardstick: a number like
+"lexical diversity 91" or "cliché density 0.05 per 1k words" only means something once
+you know what range real, acknowledged good prose occupies. This report builds that
+yardstick empirically instead of by intuition.
+
+It scores a corpus of 26 canonical, public-domain masterworks (Austen, Dickens, Conrad,
+Collins, Wells, Haggard, Buchan, Sabatini, Dunsany, Eddison, Bronte, Dumas, Eliot,
+Tolstoy, Stoker, Childers) on the same two benchmarks used elsewhere in this project.
+The result is a **reference band**: the range of values skilled, published prose
+actually falls in. Machine-generated text can then be measured against real literature,
+not against a guess about what "good" should look like.
+
+Two benchmarks, deliberately different in cost and in what they can see:
+
+- **st1** is cheap and deterministic — lexical, stylistic, and structural statistics
+  computed with no LLM in the loop (lexical diversity, cliché/slop-word density,
+  duplication, punctuation habits, dialogue ratio, cast census, and more). It runs
+  cheaply over the whole corpus and acts as a broad, fast screen for gross departures
+  from published prose: does the text repeat itself, drown in stock phrasing, or
+  collapse in vocabulary?
+- **nd1** is LLM-judged and looks at *narrative dynamics* — things a word-frequency
+  count structurally cannot see: whether a story's dramatic tension actually rises and
+  falls, whether the prose alternates between action, dialogue, and interiority in a
+  shape that reads like a novel rather than one mode throughout, and whether a
+  multi-character cast's plotlines run in parallel and converge the way real narratives
+  do. It is more expensive to run (per-paragraph and per-chapter LLM calls), so it
+  currently covers 21 of the 26 books; the five longest ("giants") are pending a
+  dedicated run (Section 12).
+
+Together the two benchmarks answer complementary questions: st1 flags surface-craft
+failures; nd1 checks whether the underlying *story shape* behaves like a story.
+
+### What this is
+
+A reference corpus of 26 canonical novels, each extracted to verified canonical
+Markdown and scored by both benchmarks:
 
 - **st1** — local, deterministic prose metrics (lexical diversity, cliche/slop
-  density, duplication, dialogue ratio, cast census, etc.). No LLM.
+  density, duplication, dialogue ratio, cast census, etc.). No LLM. **26/26 books.**
 - **nd1** — LLM-judged *narrative dynamics*: a per-chapter tension trajectory
   (0-10 anchored rubric), a 7-type block-rhythm annotation of every paragraph, and a
-  cast-based thread architecture.
-
-The purpose is a **quantified "what good prose looks like" baseline** — a reference
-band that machine-generated writing can later be measured against.
+  cast-based thread architecture. **21/26 books** — the 5 largest works are pending a
+  deliberate run and will be folded in (Section 12).
 
 Collated data: `corpus_dataset.csv` (26 rows x 63 columns, st1 joined to nd1),
 plus `st1_corpus_table.md` / `nd1_corpus_table.md` and their flag reports.
 
 ---
 
-## 2. Headline findings
+## 2. The metrics
+
+What each metric measures, grouped by benchmark, with a pointer to where it's
+discussed. Only metrics this report actually narrates are listed below (a few more
+exist as raw columns in `corpus_dataset.csv` but aren't discussed here).
+
+### st1 — deterministic, no LLM (26/26 books)
+
+| Metric | What it measures | See |
+|---|---|---|
+| MTLD | lexical diversity: vocabulary variety, controlled for text length | Section 3, Section 5 |
+| Cliché density (per 1k words) | rate of stock-phrase hits against a cliché lexicon | Section 3, Section 5 |
+| Slop density (per 1k words) | rate of hits against a lexicon of words LLMs are known to overuse (*gleaming*, *shimmering*, *tapestry*...) | Section 3, Section 5 |
+| Dialogue ratio | deterministic share of prose inside quotation marks (a different measurement from nd1's LLM-judged dialogue share below — see the note under Section 3) | Section 3 |
+| Duplication / self-similarity | max pairwise chapter similarity and longest verbatim overlap; flags copy-pasted passages | Section 3, Section 5 |
+| Em-dash rate (per 1k words) | punctuation-tic frequency | Section 5 |
+| Cast census | named-entity counts (cast size, recurring cast, mentions/1k) | Section 12 (coreference caveat) |
+| Opening formula | similarity between a book's chapter/section openings | Section 12 (contamination caveat) |
+
+### nd1 — LLM-judged narrative dynamics (21/26 books, giants pending)
+
+| Metric | What it measures | See |
+|---|---|---|
+| Tension trajectory (mean, peak, peak position, calm/high share, deciles) | per-unit 0-10 dramatic-tension rating on an anchored rubric, plus its shape across the book | Section 3, Sections 6-7 |
+| Block rhythm (7 modes — setting, character-desc, lore, dialogue, action, interiority, transition — plus 4 structural gauges) | per-paragraph prose-mode classification, and the resulting share/switch-rate/segment-length signatures | Section 3, Section 8 |
+| Thread architecture (threads, convergence events, run length) | cast-based narrative-thread segmentation: how many story threads a book runs, how long each stays uninterrupted before switching, and how/when threads merge | Section 3, Section 9 |
+
+---
+
+## 3. The corpus at a glance (authors x metrics)
+
+A curated slice of the full dataset — the metrics most discussed in this report —
+mirroring the models x metrics table format used in the companion cohort reports
+(`report_2026_cohort.md`), but with **books** as rows instead of models. Every value
+below is read directly from `corpus_dataset.csv`; nothing is recomputed or estimated.
+
+Split into two tables rather than one wide one, because the two benchmarks have
+different scope (26 books vs. 21) and because a combined ~10-column table over 26 rows
+stops being readable. Rows are grouped by author (multi-book authors — Austen, Conrad,
+Buchan, Collins, Dickens, Haggard, Sabatini, Wells — read together) so per-author
+patterns are visible at a glance.
+
+### 3.1 st1 — quality baseline, all 26 books
+
+| Author | Book | Words | MTLD | Cliché/1k | Slop/1k | Em-dash/1k | Dialogue ratio | Max verbatim (chars) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Austen | emma | 157.3k | 91.2 | 0.03 | 0.01 | 18.32 | 0.466 | 34 |
+| Austen | persuasion | 83.2k | 95.9 | 0.05 | 0.01 | 1.52 | 0.307 | 30 |
+| Austen | pride | 126.5k | 102.2 | 0.02 | 0.02 | 3.71 | 0.454 | 32 |
+| Bronte | janeeyre | 185.3k | 98.8 | 0.05 | 0.11 | 10.36 | 0.416 | 31 |
+| Buchan | greenmantle | 98.7k | 95.9 | 0.00 | 0.03 | 2.82 | 0.328 | 33 |
+| Buchan | thirtyninesteps | 40.8k | 91.0 | 0.02 | 0.02 | 2.80 | 0.279 | 29 |
+| Childers | riddlesands | 108.4k | 105.8 | 0.05 | 0.12 | 7.51 | 0.325 | 36 |
+| Collins | moonstone | 194.6k | 82.0 | 0.03 | 0.03 | 9.39 | 0.307 | 60 |
+| Collins | womaninwhite | 244.4k | 83.0 | 0.05 | 0.03 | 9.67 | 0.264 | 79 |
+| Conrad | heartofdarkness | 37.9k | 90.4 | 0.02 | 0.05 | 16.12 | 0.948 | 34 |
+| Conrad | lordjim | 129.9k | 97.4 | 0.07 | 0.06 | 10.84 | 0.191 | 34 |
+| Conrad | secretagent | 90.2k | 100.6 | 0.10 | 0.03 | 5.49 | 0.275 | 31 |
+| Dickens | bleakhouse | 353.3k | 81.4 | 0.05 | 0.04 | 6.06 | 0.383 | 45 |
+| Dickens | taleoftwocities | 135.5k | 75.7 | 0.04 | 0.05 | 5.17 | 0.350 | 44 |
+| Dumas | montecristo | 460.0k | 91.5 | 0.08 | 0.03 | 6.15 | 0.546 | 60 |
+| Dunsany | elfland | 69.6k | 70.4 | 0.05 | 0.41 | 0.10 | 0.050 | 40 |
+| Eddison | ouroboros | 170.0k | 102.7 | 0.05 | 0.08 | 0.32 | 0.476 | 51 |
+| Eliot | middlemarch | 316.2k | 105.9 | 0.10 | 0.05 | 7.64 | 0.357 | 29 |
+| Haggard | ksm | 82.2k | 103.4 | 0.02 | 0.07 | 3.93 | 0.290 | 33 |
+| Haggard | she | 112.1k | 93.3 | 0.03 | 0.08 | 6.26 | 0.283 | 31 |
+| Sabatini | captainblood | 112.9k | 103.8 | 0.15 | 0.08 | 4.24 | 0.316 | 36 |
+| Sabatini | scaramouche | 124.3k | 91.2 | 0.14 | 0.06 | 5.74 | 0.422 | 39 |
+| Stoker | dracula | 161.0k | 86.0 | 0.06 | 0.06 | 8.83 | 0.360 | 45 |
+| Tolstoy | warandpeace | 562.5k | 81.9 | 0.12 | 0.06 | 3.78 | 0.209 | 56 |
+| Wells | timemachine | 32.4k | 84.4 | 0.00 | 0.06 | 5.40 | 0.124 | 39 |
+| Wells | warofworlds | 59.8k | 86.3 | 0.06 | 0.02 | 4.57 | 0.060 | 34 |
+
+`duplication_suspected` is `False` for all 26 (omitted as a column since it's
+constant); "max verbatim (chars)" is the strongest indication of near-duplication and
+tops out at 79 characters against a 500-character flag threshold (Section 5).
+
+### 3.2 nd1 — narrative dynamics, 21 scored books (5 giants pending)
+
+| Author | Book | Tension mean | Peak position | Dialogue share | Threads | Convergence events |
+|---|---|---:|---:|---:|---:|---:|
+| Austen | emma | 2.96 | 0.845 | 65.9% | 4 | 24 |
+| Austen | persuasion | 3.38 | 0.812 | 49.9% | 4 | 0 |
+| Austen | pride | 3.51 | 0.549 | 64.0% | 5 | 33 |
+| Bronte | janeeyre | 5.05 | 0.671 | 68.4% | 5 | 0 |
+| Buchan | greenmantle | 6.27 | 0.250 | 46.8% | 4 | 2 |
+| Buchan | thirtyninesteps | 6.90 | 0.050 | 38.4% | 7 | 0 |
+| Childers | riddlesands | 4.68 | 0.982 | 62.8% | 11 | 7 |
+| Collins | moonstone | 4.62 | 0.742 | 52.8% | 20 | 20 |
+| Collins | womaninwhite | — | — | — | — | — *(pending)* |
+| Conrad | heartofdarkness | 4.00 | 0.833 | 39.4% | 2 | 0 |
+| Conrad | lordjim | 5.18 | 0.678 | 46.0% | 14 | 2 |
+| Conrad | secretagent | 4.54 | 0.808 | 56.5% | 9 | 0 |
+| Dickens | bleakhouse | — | — | — | — | — *(pending)* |
+| Dickens | taleoftwocities | 6.00 | 0.611 | 63.3% | 24 | 10 |
+| Dumas | montecristo | — | — | — | — | — *(pending)* |
+| Dunsany | elfland | 4.56 | 0.074 | 29.6% | 14 | 3 |
+| Eddison | ouroboros | 6.91 | 0.045 | 62.1% | 12 | 8 |
+| Eliot | middlemarch | — | — | — | — | — *(pending)* |
+| Haggard | ksm | 6.00 | 0.548 | 50.8% | 2 | 0 |
+| Haggard | she | 6.59 | 0.293 | 48.2% | 5 | 12 |
+| Sabatini | captainblood | 7.00 | 0.081 | 55.9% | 11 | 0 |
+| Sabatini | scaramouche | 6.08 | 0.097 | 63.7% | 10 | 7 |
+| Stoker | dracula | 6.46 | 0.554 | 48.1% | 6 | 12 |
+| Tolstoy | warandpeace | — | — | — | — | — *(pending)* |
+| Wells | timemachine | 5.25 | 0.719 | 32.8% | 2 | 1 |
+| Wells | warofworlds | 6.33 | 0.352 | 25.7% | 8 | 0 |
+
+The 5 giants (Woman in White, Bleak House, Monte Cristo, Middlemarch, War & Peace) are
+fully scored by st1 (Table 3.1) but have no nd1 data yet — their row is shown with
+`—` throughout the nd1 table rather than omitted, so the pending scope is visible in
+place. "Dialogue share" here is nd1's LLM-judged block-rhythm share, **not** the same
+metric as st1's deterministic "dialogue ratio" in Table 3.1 — the two use different
+methods (quote-mark detection vs. paragraph-mode classification) and can diverge for
+the same book; they are discussed separately in Sections 3(2)/8 and Section 5/3.1
+respectively.
+
+---
+
+## 4. Headline findings
 
 1. **The masters are a clean quality baseline.** Across all 26 books: **zero
    duplication** flagged (max verbatim overlap 79 characters against a 500-char
@@ -41,19 +189,19 @@ plus `st1_corpus_table.md` / `nd1_corpus_table.md` and their flag reports.
 2. **Tension discriminates by genre, cleanly.** Mean dramatic tension spans
    **2.96 to 7.00** across the 21 nd1 books, and the ordering is defensible top to
    bottom — the three Austen domestic novels occupy the three lowest slots; the
-   adventure/peril books top out (Section 4).
+   adventure/peril books top out (Section 6).
 
 3. **Peak *position* anti-correlates with tension (r = -0.70).** High-tension books
    front-load their climax; low-tension books delay it. A real structural regularity,
-   quantified (Section 5).
+   quantified (Section 7).
 
 4. **Block rhythm separates dialogue-driven from narration-driven prose** (dialogue
    share 26%-68%), and the masters' four structural gauges mostly, but not
-   universally, sit inside the reference envelope from the source study (Section 6).
+   universally, sit inside the reference envelope from the source study (Section 8).
 
 ---
 
-## 3. The quality baseline (st1, 26 books)
+## 5. The quality baseline (st1, 26 books)
 
 | metric | min | median | max | note |
 |---|---|---|---|---|
@@ -93,30 +241,32 @@ plus `st1_corpus_table.md` / `nd1_corpus_table.md` and their flag reports.
 
 ---
 
-## 4. Tension trajectory: genre discrimination (nd1, 21 books)
+## 6. Tension trajectory: genre discrimination (nd1, 21 books)
 
-Mean dramatic tension, sorted:
+Mean dramatic tension, sorted. **Register tags are illustrative genre labels assigned
+by hand for readability — a rough shorthand, not measured data** (unlike every other
+column in this report, they do not come from a benchmark run).
 
 | book | mean tension | register |
 |---|---|---|
 | sabatini-captainblood | 7.00 | swashbuckler |
 | eddison-ouroboros | 6.91 | heroic fantasy |
 | buchan-thirtyninesteps | 6.90 | chase thriller |
-| haggard-she | 6.59 | peril-adventure |
+| haggard-she | 6.59 | peril adventure |
 | stoker-dracula | 6.46 | horror |
 | wells-warofworlds | 6.33 | invasion sci-fi |
 | buchan-greenmantle | 6.27 | spy adventure |
 | sabatini-scaramouche | 6.08 | revolution adventure |
 | dickens-taleoftwocities | 6.00 | historical drama |
 | haggard-ksm | 6.00 | quest adventure |
-| wells-timemachine | 5.25 | sci-fi (reflective frame) |
+| wells-timemachine | 5.25 | sci-fi (frame narrative) |
 | conrad-lordjim | 5.18 | moral crisis |
-| bronte-janeeyre | 5.05 | gothic bildungsroman |
+| bronte-janeeyre | 5.05 | gothic romance |
 | childers-riddlesands | 4.68 | slow-burn spy |
 | collins-moonstone | 4.62 | detective (epistolary) |
 | dunsany-elfland | 4.56 | lyrical fantasy |
 | conrad-secretagent | 4.54 | ironic political |
-| conrad-heartofdarkness | 4.00 | psychological (3 units) |
+| conrad-heartofdarkness | 4.00 | psychological drama |
 | austen-pride | 3.51 | domestic romance |
 | austen-persuasion | 3.38 | domestic romance |
 | austen-emma | 2.96 | domestic comedy |
@@ -155,7 +305,7 @@ document) show three distinct shapes:
 
 ---
 
-## 5. Structure: the peak-position regularity (r = -0.70)
+## 7. Structure: the peak-position regularity (r = -0.70)
 
 Tension **mean** and tension **peak position** (0 = start, 1 = end) correlate at
 **-0.70** across the 21 books. Concretely, ranked by peak position:
@@ -182,7 +332,7 @@ So the benchmark captures two orthogonal things: **how hot** a book runs (mean) 
 
 ---
 
-## 6. Block rhythm (7-type prose modes, 21 books)
+## 8. Block rhythm (7-type prose modes, 21 books)
 
 Dialogue share spans **25.7%** (Wells's *War of the Worlds*) to **68.4%** (Bronte's
 *Jane Eyre*), median 50.8%. (Correcting the earlier draft here: the narration-heaviest
@@ -237,7 +387,7 @@ long, digressive frame narration are exactly the registers likely to sit outside
 
 ---
 
-## 7. Thread architecture (cast-based, 21 books)
+## 9. Thread architecture (cast-based, 21 books)
 
 Threads per book range **2-24** (median 7); convergence events **0-33** (median 2).
 
@@ -284,9 +434,9 @@ already flagged.
 
 ---
 
-## 8. Cross-metric notes
+## 10. Cross-metric notes
 
-- **tension vs peak-position: r = -0.70** (the structural law, Section 5).
+- **tension vs peak-position: r = -0.70** (the structural law, Section 7).
 - **tension vs dialogue: r = -0.25** — mildly, tenser books lean slightly less on
   dialogue.
 - **tension vs cliche: r = +0.23** — weak; the pulpier high-tension adventures carry
@@ -304,12 +454,12 @@ exploratory — treat as suggestive, not settled):
   *lowest* interiority share (1.9%) — action and dialogue crowd out reflection when
   the stakes are constantly high.
 - **convergence events vs unit/chapter count: r = +0.77** — already discussed in
-  Section 7 as the quantified version of the length-normalization caveat; restated
+  Section 9 as the quantified version of the length-normalization caveat; restated
   here because it's the strongest of the "new" correlations found.
 
 ---
 
-## 9. Methodology and validation
+## 11. Methodology and validation
 
 - **Extraction-first.** Raw Gutenberg text -> verified canonical Markdown (one-time
   heading-proposer + human-checkable gates), frozen. Analysis consumes the frozen MD,
@@ -328,12 +478,12 @@ exploratory — treat as suggestive, not settled):
 
 ---
 
-## 10. Limitations and honest caveats
+## 12. Limitations and honest caveats
 
 - **Scope: 21/26 for nd1.** The 5 largest works (Woman in White, Bleak House, Monte
   Cristo, Middlemarch, War & Peace — ~4,000 judge calls between them) are pending a
-  deliberate, sleep-prevented run. All nd1 findings above (Sections 4-8) are on the
-  21; st1 findings (Section 3) already cover all 26.
+  deliberate, sleep-prevented run. All nd1 findings above (Sections 6-10) are on the
+  21; st1 findings (Section 5, and Table 3.1) already cover all 26.
 - **Single judge.** nd1 numbers are DeepSeek's. The A/B says DeepSeek tracks Haiku
   well on tension; block/thread were spot-checked, not fully A/B'd.
 - **One incomplete book.** `austen-pride` is at 2079/2095 paragraphs (99.24%) — a
@@ -341,17 +491,20 @@ exploratory — treat as suggestive, not settled):
   don't fix it). Tension and thread metrics are complete; only ~16 paragraphs of block
   labels are missing. Flagged in `nd1_corpus_flags.md`.
 - **Metric caveats to remember when reading:** `slop_per_1k` reads *register* not
-  *quality* (Section 3); `opening_formula` (st1) is contaminated by chapter
+  *quality* (Section 5); `opening_formula` (st1) is contaminated by chapter
   titles/epistolary headers/epigraphs and should not be read as prose formulaicity;
   thread convergence/count scale with book length, now quantified at r = +0.77
-  against unit count (Section 7); the entity census does not coreference names (Van
+  against unit count (Section 9); the entity census does not coreference names (Van
   Helsing -> van/helsing) so cast sizes are inflated; the four block-rhythm
-  structural gauges have real masters-corpus exceptions (Section 6), so "inside the
+  structural gauges have real masters-corpus exceptions (Section 8), so "inside the
   reference band" is a tendency, not a guarantee, for any single book.
+- **Register tags are hand-assigned.** The genre labels in Section 6's table (and
+  echoed elsewhere) are illustrative shorthand for readability, not a scored metric —
+  treat them as descriptive color, not data.
 
 ---
 
-## 11. Next
+## 13. Next
 
 1. **Finish the giants** -> refresh every table and this report (a one-command
    regenerate; scope becomes 26/26).
