@@ -312,8 +312,13 @@ def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temp
         return None
 
 
-def send_prompt_openrouter(prompt, model_name=None, max_tokens=16384, temperature=0.7,
+def send_prompt_openrouter(prompt, model_name=None, max_tokens=4096, temperature=0.7,
                            role_description="You are a helpful fiction writing assistant. You will create original text only."):
+    # max_tokens default lowered from 16384: OpenRouter gates requests on the
+    # reserved max_tokens (a 402 fires if the balance can't cover the *max*
+    # possible output), and the nd1 judge's outputs are tiny (a tension rating
+    # ~50 tokens, a 20-paragraph block batch ~800). 4096 is ~5x the largest real
+    # response, so it never truncates, while not over-reserving credit.
     """
     Sends a prompt to an upstream model via OpenRouter (https://openrouter.ai), a
     hosted OpenAI-compatible router over many providers (DeepSeek, Anthropic,
