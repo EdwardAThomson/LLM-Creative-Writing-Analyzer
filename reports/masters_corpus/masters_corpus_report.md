@@ -60,30 +60,35 @@ plus `st1_corpus_table.md` / `nd1_corpus_table.md` and their flag reports.
 
 ## 2. The metrics
 
-What each metric measures, grouped by benchmark, with a pointer to where it's
-discussed. Only metrics this report actually narrates are listed below (a few more
-exist as raw columns in `corpus_dataset.csv` but aren't discussed here).
+What each metric measures, grouped by benchmark, with a pointer to where it is
+discussed and to its full per-book values. **Every metric we compute is listed here
+and tabled in [Appendix A](#appendix-a-full-metric-tables)** ("App A" below); the
+analysis sections narrate the ones with the most to say.
 
 ### st1 — deterministic, no LLM (26/26 books)
 
 | Metric | What it measures | See |
 |---|---|---|
-| MTLD | lexical diversity: vocabulary variety, controlled for text length | Section 3, Section 5 |
-| Cliché density (per 1k words) | rate of stock-phrase hits against a cliché lexicon | Section 3, Section 5 |
-| Slop density (per 1k words) | rate of hits against a lexicon of words LLMs are known to overuse (*gleaming*, *shimmering*, *tapestry*...) | Section 3, Section 5 |
-| Dialogue ratio | deterministic share of prose inside quotation marks (a different measurement from nd1's LLM-judged dialogue share below — see the note under Section 3) | Section 3 |
-| Duplication / self-similarity | max pairwise chapter similarity and longest verbatim overlap; flags copy-pasted passages | Section 3, Section 5 |
-| Em-dash rate (per 1k words) | punctuation-tic frequency | Section 5 |
-| Cast census | named-entity counts (cast size, recurring cast, mentions/1k) | Section 12 (coreference caveat) |
-| Opening formula | similarity between a book's chapter/section openings | Section 12 (contamination caveat) |
+| Text size | total words, and average words per chapter | App A |
+| MTLD | lexical diversity: vocabulary variety, controlled for text length | Sec 3, 5; App A |
+| Burstiness | how uneven the sentence lengths are (bursty vs. steady rhythm) | App A |
+| N-gram diversity | distinct-trigram ratio and self-BLEU — how much a book reuses its own phrasing | App A |
+| Intra-text repetition | unigram / bigram / trigram self-repetition rates | App A |
+| Cliché density (per 1k words) | rate of stock-phrase hits against a cliché lexicon | Sec 3, 5; App A |
+| Slop density (per 1k words) | rate of hits against a lexicon of words LLMs are known to overuse (*gleaming*, *shimmering*, *tapestry*...) | Sec 3, 5; App A |
+| Em-dash rate (per 1k words) | punctuation-tic frequency | Sec 5; App A |
+| Dialogue ratio | deterministic share of prose inside quotation marks (a *different* measurement from nd1's LLM-judged dialogue share — see the note under Section 3) | Sec 3; App A |
+| Duplication / self-similarity | max pairwise chapter similarity and longest verbatim overlap; flags copy-pasted passages | Sec 3, 5; App A |
+| Opening formula | similarity between a book's chapter/section openings (title-contaminated — see caveat) | Sec 12; App A |
+| Cast / character count | how many distinct named characters a book has — total, recurring, and mentions per 1k words. NER-based and **not** coreference-merged (Van Helsing → van/helsing), so counts run high; useful as a *relative* ensemble-size signal | Sec 3, App A; Sec 12 caveat |
 
 ### nd1 — LLM-judged narrative dynamics (21/26 books, giants pending)
 
 | Metric | What it measures | See |
 |---|---|---|
-| Tension trajectory (mean, peak, peak position, calm/high share, deciles) | per-unit 0-10 dramatic-tension rating on an anchored rubric, plus its shape across the book | Section 3, Sections 6-7 |
-| Block rhythm (7 modes — setting, character-desc, lore, dialogue, action, interiority, transition — plus 4 structural gauges) | per-paragraph prose-mode classification, and the resulting share/switch-rate/segment-length signatures | Section 3, Section 8 |
-| Thread architecture (threads, convergence events, run length) | cast-based narrative-thread segmentation: how many story threads a book runs, how long each stays uninterrupted before switching, and how/when threads merge | Section 3, Section 9 |
+| Tension trajectory | per-unit 0-10 dramatic-tension rating on an anchored rubric — reported as mean, std, min/max, peak height & position, calm/high share, volatility, and the tail behaviour | Sec 3, 6-7; App A |
+| Block rhythm | per-paragraph classification into 7 prose modes (setting, character-desc, lore, dialogue, action, interiority, transition), plus four structural gauges (switch rate, words per mode-segment, interiority self-transition, secondary-shading rate, setting-touch rate) | Sec 3, 8; App A |
+| Thread architecture | cast-based narrative-thread segmentation: thread count (total and multi-unit), how long each runs before switching (run length), and how/when threads converge (convergence events + first-convergence position) | Sec 3, 9; App A |
 
 ---
 
