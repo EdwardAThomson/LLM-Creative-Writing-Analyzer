@@ -2,6 +2,45 @@
 
 A chronological narrative of development. Newest entries first.
 
+## 2026-07-13
+
+Continued the previous day's push to make the two new benchmarks (`nd1` and
+`st1`) usable at corpus scale, splitting the day between extraction/scoring
+hygiene and three larger pieces of infrastructure. On the extraction side, a
+run of fixes tightened what counts as "story" across real Gutenberg books:
+inline-title TOC chapter lists are now screened out generally (fixing Tale of
+Two Cities), the trailing printer's colophon is trimmed off the final unit,
+roman/digit colon-titled headings are detected (Eddison's Worm Ouroboros), and
+a bare "NOTE" is now treated as story rather than editorial apparatus (Dracula's
+Harker epilogue). Building on that, scoring gained a general policy to exclude
+author apparatus (preface, foreword, footnotes, dedication, etc.) via a closed,
+anchored label vocabulary deliberately narrow enough never to fire on story
+sections that merely contain words like "Story" or "Narrative" (Woman in
+White's epistolary narrator units), with a symmetric `--include-apparatus` opt-
+back-in and every exclusion recorded in the sidecar, never silent.
+
+The three infrastructure pieces: a durable judge cache making long `nd1` runs
+resumable and boundable (append-only JSONL keyed by judge identity + prompt, so
+resume is just re-running the same command, a `--max-calls N` budget stops
+cleanly for running giants like War and Peace in windows, and only the last
+call can ever be lost on a crash); an OpenRouter backend for the judge, opening
+up DeepSeek and any OpenRouter-proxied model via one key and an
+`openrouter:<id>` prefix that needs no code changes per model; and an `st1`
+cross-corpus aggregator that loads all sidecars in a directory and emits a
+per-book table plus an integrity/anomaly flags report for human triage (run
+clean over the 26-book masters corpus: zero integrity findings, no duplication).
+
+**Decisions & notes:** The cache keys on `sha256(describe_judge + prompt)`, so a
+prompt/rubric change auto-invalidates only affected entries and dry-run vs real
+identities never collide; only successfully-parsed calls are cached, so failures
+retry on resume. `BudgetExhausted` is deliberately not a `JudgeError` so the
+per-unit "holes not failures" handlers don't swallow a budget stop. The
+aggregator validates each sidecar against its own recorded exclusions, so it
+cannot yet detect a sidecar gone stale against current scoring policy — a
+noted follow-up needing scored counts re-derived from live code.
+PROLOGUE/EPILOGUE/INTRODUCTION are treated as story for now (usually narrative;
+none in the corpus yet).
+
 ## 2026-07-12
 
 A big single-day push that added two new benchmark families and then hardened
