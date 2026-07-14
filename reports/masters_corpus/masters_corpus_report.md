@@ -464,6 +464,46 @@ exploratory — treat as suggestive, not settled):
   Section 9 as the quantified version of the length-normalization caveat; restated
   here because it's the strongest of the "new" correlations found.
 
+### Genre view
+
+The tension-by-genre pattern from Section 6 formalizes cleanly if the 21 nd1 books
+are grouped into broad genre buckets. This is a synthesis of metrics already
+reported, not a new measurement — and it doubles as a **face-validity check**: does
+the benchmark place genres where a reader's intuition would?
+
+| Genre bucket | n | Tension | Peak pos | Dialogue | Calm% | High% | Threads |
+|---|---|---|---|---|---|---|---|
+| Adventure / thriller | 7 | 6.22 | 0.33 | 52% | 17% | 31% | 7.1 |
+| Sci-fi & fantasy | 4 | 5.76 | 0.30 | 38% | 26% | 32% | 9.0 |
+| Horror / gothic | 2 | 5.75 | 0.61 | 58% | 24% | 32% | 5.5 |
+| Mystery / ironic / psychological | 5 | 4.87 | 0.73 | 52% | 42% | 16% | 13.8 |
+| Domestic (Austen) | 3 | 3.28 | 0.74 | 60% | 72% | 1% | 4.3 |
+
+It does, on more than one axis:
+
+- **Tension** descends monotonically from adventure (6.22) to Austen (3.28) — the
+  "horror/action runs hotter" intuition, quantified.
+- **Peak position** separates the *same* way: action and speculative fiction
+  front-load the climax (~0.30), while mystery/psychological and domestic novels
+  delay it (~0.73). The Section-7 peak-position regularity is, at root, a genre
+  regularity.
+- **Calm vs high share** is the starkest split: Austen runs 72% calm with ~1%
+  high-tension chapters, while the adventure/horror/sci-fi clusters sit near ~31% high.
+
+Three caveats keep this **descriptive, not statistical**:
+
+1. **Small n per bucket** (2-7). Horror is n=2 and gets diluted by Jane Eyre
+   (gothic-ish, not really horror).
+2. **The buckets are a judgment call** — Jane Eyre horror-vs-bildungsroman, Lord Jim
+   adventure-vs-psychological; different assignments would nudge the small buckets.
+3. **The corpus isn't a balanced genre sample** — it's public-domain masters skewed
+   toward adventure and Victorian fiction. So this is "how the genres *in this
+   corpus* stack up," not a claim about genres in general.
+
+*(Based on the 21 nd1 books in this report; Woman in White and Middlemarch just
+completed and, with the remaining three giants, fold into the buckets at the next
+full 26-book regeneration.)*
+
 ---
 
 ## 11. Methodology and validation
