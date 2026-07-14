@@ -339,7 +339,7 @@ segmentation recorded; the input file is never touched.
 │       ├── _textmode.py       # raw-text input for scoring-only mode (--text)
 │       ├── __main__.py        # retroactive scorer CLI (file, directory, or --text)
 │       └── <metric>.py        # one module per metric
-├── benchmarks/                # frozen metric manifests (v1/v2/nd1.yaml) + benchmark packages
+├── benchmarks/                # frozen metric manifests (v1/v2/st1/nd1.yaml) + benchmark packages
 │   └── narrative_dynamics/    # long-range structure benchmark (scoring-only; own README)
 ├── tests/                     # pytest suite (pure modules + fakes; no LLM calls)
 └── results/                   # Output: v1 JSON + v2 .metrics.json sidecars
