@@ -2,8 +2,13 @@
 
 Each unit's paragraphs are annotated with the 7-type block rubric
 (``rubrics/block_types.py``, ported from StoryDaemon with provenance) by an LLM
-judge, in batches of 20, one re-ask per malformed batch; a batch that fails twice
-becomes a hole (unlabeled paragraphs), never a hard failure.
+judge, in batches of 20. Batch parsing is lenient: a response with some
+recoverable per-paragraph objects is accepted as a partial success (the
+unrecovered paragraphs become holes) rather than discarded outright, so a
+persistently-malformed batch stops re-triggering identical failures. Only a
+totally unusable response (no array at all, or zero recoverable objects)
+triggers the one re-ask; a batch that still fails after that becomes a full
+hole (unlabeled paragraphs), never a hard failure.
 
 The aggregations are the source study's *validated* findings, in their robust
 forms:
@@ -20,6 +25,8 @@ Runs and transitions never cross a unit boundary (study convention).
 """
 from __future__ import annotations
 
+import json
+import re
 from typing import Optional
 
 from . import segmentation
@@ -33,27 +40,88 @@ SCHEMA = "block_rhythm/1"
 BATCH_SIZE = 20  # source-study batching
 LABELS = block_types.LABELS
 
+_FENCE_RE = re.compile(r"```(json)?", re.I)
+_TRAILING_COMMA_RE = re.compile(r",(\s*[\]}])")
+
 
 def _round(x: Optional[float], nd: int = 3) -> Optional[float]:
     return round(x, nd) if x is not None else None
 
 
-def _parse_batch(raw: str, expected_n: int) -> list[dict]:
-    arr = extract_json_array(raw)
-    if len(arr) != expected_n:
-        raise ValueError(f"expected {expected_n} items, got {len(arr)}")
-    out = []
+def _extract_array_lenient(raw: str) -> Optional[list]:
+    """Best-effort JSON-array extraction: fences and trailing commas tolerated.
+
+    Tries the strict extractor first (identical behaviour to before, including
+    its fenced-block and unterminated-label repairs); on failure, falls back to
+    a locally-repaired parse (dropping trailing commas) of the same bracketed
+    span. Returns ``None`` (never raises) when no array can be recovered at all.
+    """
+    try:
+        arr = extract_json_array(raw)
+        if isinstance(arr, list):
+            return arr
+    except Exception:
+        pass
+
+    text = _FENCE_RE.sub("", raw)
+    m = re.search(r"\[.*\]", text, re.S)
+    if not m:
+        return None
+    candidate = _TRAILING_COMMA_RE.sub(r"\1", m.group(0))
+    try:
+        parsed = json.loads(candidate, strict=False)
+    except Exception:
+        return None
+    return parsed if isinstance(parsed, list) else None
+
+
+def _parse_batch(raw: str, expected_n: int) -> list[Optional[dict]]:
+    """Best-effort per-paragraph label recovery for one batch.
+
+    Returns a list of length ``expected_n`` (one slot per paragraph). A
+    well-formed object (valid ``primary``, and valid ``secondary`` if present)
+    is placed at the position given by its 1-based ``n`` when that's a valid
+    index into the batch; otherwise it falls back to its array position.
+    Anything that can't be recovered (wrong type, bad/missing label, position
+    out of range, or a duplicate already claiming that slot) is left ``None``
+    rather than failing the whole batch.
+
+    Raises ``ValueError`` only when *nothing at all* is recoverable (no JSON
+    array in the response, or zero valid objects in it) -- that's the signal
+    ``ask_json`` needs to keep retrying a truly garbled response, per the
+    return-vs-raise contract in ``judge.ask_json``: a return here is cached as
+    success (even a partial one), a raise triggers the retry loop.
+
+    A fully-valid, correctly-ordered, correct-length array parses to exactly
+    what the old strict parser produced (this is a strict superset of it).
+    """
+    arr = _extract_array_lenient(raw)
+    if arr is None:
+        raise ValueError("no JSON array in response")
+
+    slots: list[Optional[dict]] = [None] * expected_n
+    n_recovered = 0
     for i, item in enumerate(arr):
-        if item.get("n") != i + 1:
-            raise ValueError(f"item {i}: n mismatch ({item.get('n')})")
+        if not isinstance(item, dict):
+            continue
         prim = item.get("primary")
         if prim not in LABELS:
-            raise ValueError(f"item {i}: bad primary {prim!r}")
+            continue
         sec = item.get("secondary")
         if sec is not None and sec not in LABELS:
-            raise ValueError(f"item {i}: bad secondary {sec!r}")
-        out.append({"primary": prim, "secondary": sec})
-    return out
+            continue
+
+        n = item.get("n")
+        pos = n - 1 if isinstance(n, int) and 1 <= n <= expected_n else i
+        if pos >= expected_n or slots[pos] is not None:
+            continue
+
+        slots[pos] = {"primary": prim, "secondary": sec}
+        n_recovered += 1
+
+    if n_recovered == 0:
+        raise ValueError("no valid per-paragraph objects recovered")
+    return slots
 
 
 def annotate_unit(paragraphs: list[str], ctx: dict) -> list[Optional[dict]]:

@@ -80,12 +80,140 @@ def test_bad_label_rejected_then_retried():
     assert ctx["judge"].calls == 2
 
 
-def test_wrong_count_rejected():
-    short = _labels_resp([("ACTION", None)])  # 1 item for a 2-paragraph batch
+def test_wrong_count_recovers_partial_no_retry():
+    # 1 item for a 2-paragraph batch: the lenient parser now recovers the one
+    # valid label instead of discarding the whole batch, and does NOT re-ask
+    # (a partial recovery is accepted as success, per the return-vs-raise
+    # contract in judge.ask_json) -- this is the behavior change under test.
+    short = _labels_resp([("ACTION", None)])
     good = _labels_resp([("ACTION", None), ("ACTION", None)])
     ctx = {"judge": FakeJudge([short, good])}
     out = br.compute([_unit([_para(5), _para(5)])], ctx)
-    assert out["aggregate"]["n_unlabeled"] == 0
+    assert out["aggregate"]["n_unlabeled"] == 1
+    assert out["per_unit"][0]["labels"] == [["ACTION", None], [None, None]]
+    assert ctx["judge"].calls == 1  # accepted first try; "good" left unconsumed
+
+
+# --- _parse_batch leniency (unit-level) ------------------------------------------------
+
+def test_parse_batch_fully_valid_matches_strict_output():
+    """Regression guard: a clean, complete, correct-length array must produce
+    exactly the same labels as before this change -- a strict superset."""
+    raw = _labels_resp(FOUR_PARA_LABELS)
+    out = br._parse_batch(raw, 4)
+    assert out == [
+        {"primary": "DIALOGUE", "secondary": None},
+        {"primary": "DIALOGUE", "secondary": None},
+        {"primary": "INTERIORITY", "secondary": "SETTING"},
+        {"primary": "ACTION", "secondary": None},
+    ]
+
+
+def test_parse_batch_wrong_length_recovers_present_items():
+    # 17 well-formed objects for a 20-paragraph batch.
+    raw = json.dumps([
+        {"n": i + 1, "primary": "ACTION", "secondary": None} for i in range(17)
+    ])
+    out = br._parse_batch(raw, 20)
+    assert len(out) == 20
+    assert out[:17] == [{"primary": "ACTION", "secondary": None}] * 17
+    assert out[17:] == [None, None, None]
+
+
+def test_parse_batch_mixed_malformed_and_valid():
+    raw = json.dumps([
+        {"n": 1, "primary": "ACTION", "secondary": None},
+        {"n": 2, "primary": "ACTION"},  # missing secondary key entirely: fine, treated as null
+        "not an object",
+        {"n": 4, "primary": "DIALOGUE", "secondary": None},
+        {"n": 5},  # missing primary
+    ])
+    out = br._parse_batch(raw, 5)
+    assert out[0] == {"primary": "ACTION", "secondary": None}
+    assert out[1] == {"primary": "ACTION", "secondary": None}
+    assert out[2] is None
+    assert out[3] == {"primary": "DIALOGUE", "secondary": None}
+    assert out[4] is None
+
+
+def test_parse_batch_invalid_primary_label_becomes_hole():
+    raw = json.dumps([
+        {"n": 1, "primary": "MUSING", "secondary": None},  # not in LABELS
+        {"n": 2, "primary": "ACTION", "secondary": None},
+    ])
+    out = br._parse_batch(raw, 2)
+    assert out == [None, {"primary": "ACTION", "secondary": None}]
+
+
+def test_parse_batch_invalid_secondary_label_becomes_hole():
+    raw = json.dumps([
+        {"n": 1, "primary": "ACTION", "secondary": "NONSENSE"},
+        {"n": 2, "primary": "ACTION", "secondary": None},
+    ])
+    out = br._parse_batch(raw, 2)
+    assert out == [None, {"primary": "ACTION", "secondary": None}]
+
+
+def test_parse_batch_json_fenced_valid_array():
+    inner = _labels_resp([("ACTION", None), ("DIALOGUE", None)])
+    raw = f"Here are the labels:\n```json\n{inner}\n```\nThanks."
+    out = br._parse_batch(raw, 2)
+    assert out == [{"primary": "ACTION", "secondary": None},
+                   {"primary": "DIALOGUE", "secondary": None}]
+
+
+def test_parse_batch_tolerates_trailing_commas():
+    raw = ('[{"n": 1, "primary": "ACTION", "secondary": null,}, '
+           '{"n": 2, "primary": "DIALOGUE", "secondary": null},]')
+    out = br._parse_batch(raw, 2)
+    assert out == [{"primary": "ACTION", "secondary": None},
+                   {"primary": "DIALOGUE", "secondary": None}]
+
+
+def test_parse_batch_total_garbage_raises():
+    import pytest
+    with pytest.raises(ValueError):
+        br._parse_batch("I'm sorry, I can't help with that.", 3)
+
+
+def test_parse_batch_no_recoverable_objects_raises():
+    import pytest
+    # a syntactically valid array, but every element is unusable
+    raw = json.dumps([{"n": 1, "primary": "NOT_A_LABEL"}, "garbage", {}])
+    with pytest.raises(ValueError):
+        br._parse_batch(raw, 3)
+
+
+def test_parse_batch_out_of_range_n_falls_back_positionally():
+    raw = json.dumps([
+        {"n": 99, "primary": "ACTION", "secondary": None},
+        {"n": 2, "primary": "DIALOGUE", "secondary": None},
+    ])
+    out = br._parse_batch(raw, 2)
+    # item 0's n is out of range -> falls back to its array position (0)
+    assert out == [{"primary": "ACTION", "secondary": None},
+                   {"primary": "DIALOGUE", "secondary": None}]
+
+
+# --- return-vs-raise contract with ask_json (integration-ish) -------------------------
+
+def test_ask_json_accepts_partial_recovery_as_success_no_retry():
+    """A partial (some-None) return from the parse callback must be treated by
+    ask_json as a SUCCESS: cached, no retry -- confirming the design contract
+    (return = accepted outcome, raise = retry) holds end to end for the
+    lenient batch parser, not just in isolation."""
+    from benchmarks.narrative_dynamics.judge import ask_json
+
+    short = _labels_resp([("ACTION", None)])  # 1 of 2 expected
+    calls = {"n": 0}
+
+    def counting_judge(prompt):
+        calls["n"] += 1
+        return short
+
+    result = ask_json(counting_judge, "prompt", lambda raw: br._parse_batch(raw, 2))
+    assert result == [{"primary": "ACTION", "secondary": None}, None]
+    assert calls["n"] == 1  # no retry triggered by the partial result
 
 
 # --- aggregations ---------------------------------------------------------------------
