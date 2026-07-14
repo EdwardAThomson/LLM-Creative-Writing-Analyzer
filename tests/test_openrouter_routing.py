@@ -55,9 +55,11 @@ class _FakeOpenAIClient:
     """Stands in for the real openai.OpenAI client — records constructor args
     and every chat.completions.create() call, makes no network request."""
 
-    def __init__(self, base_url=None, api_key=None):
+    def __init__(self, base_url=None, api_key=None, max_retries=None, timeout=None):
         self.base_url = base_url
         self.api_key = api_key
+        self.max_retries = max_retries
+        self.timeout = timeout
         self.completions = _FakeCompletions()
         self.chat = _FakeChat(self.completions)
 
@@ -185,6 +187,10 @@ def test_get_openrouter_client_uses_openrouter_base_url_and_key(monkeypatch):
     assert isinstance(client, _FakeOpenAIClient)
     assert client.base_url == "https://openrouter.ai/api/v1"
     assert client.api_key == "test-openrouter-key"
+    # Retry/backoff config above SDK defaults, to ride out rate-limit bursts
+    # under concurrent fan-out (see get_openrouter_client docstring).
+    assert client.max_retries == 6
+    assert client.timeout == 120.0
     # The plain OpenAI client singleton must be untouched by the OpenRouter path.
     assert ai_helper._openai_client is None
 

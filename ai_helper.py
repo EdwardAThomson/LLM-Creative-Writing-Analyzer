@@ -33,13 +33,28 @@ def get_openrouter_client():
     OPENROUTER_API_KEY. Kept as its own singleton, distinct from the plain
     OpenAI client above (different base_url + key), so the two backends can
     coexist in one process.
+
+    ``max_retries``/``timeout`` are set above the SDK defaults (2 / 600s): under
+    concurrent fan-out (several books scored at once) the aggregate token rate
+    trips OpenRouter's rate limit, and the SDK's exponential backoff needs more
+    than two attempts to ride out a 429 burst. Evidence: at 4-way concurrency
+    block-annotation calls dropped ~20-26%% of paragraphs to holes; the loss
+    scaled cleanly with concurrent book count. The SDK already retries the right
+    error classes (429/timeout/5xx, with jittered backoff and Retry-After); we
+    just give it more room. Belt-and-suspenders with the nd1 judge cache, which
+    makes any residual holes cheaply resumable.
     """
     global _openrouter_client
     if _openrouter_client is None:
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise ValueError("OPENROUTER_API_KEY environment variable not set")
-        _openrouter_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+        _openrouter_client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            max_retries=6,
+            timeout=120.0,
+        )
     return _openrouter_client
 
 def get_gemini_configured():
