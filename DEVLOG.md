@@ -2,6 +2,46 @@
 
 A chronological narrative of development. Newest entries first.
 
+## 2026-07-14
+
+Harvest day for the masters-corpus effort: the scoring pipeline was hardened
+enough to finish the run, the results were collated into a single dataset, and
+the human-facing report went from first draft to a reviewed v1.1 in one sitting.
+Two operational fixes kept the OpenRouter/DeepSeek judge alive under load:
+scoring several books concurrently was tripping OpenRouter's rate limit and
+silently dropping 20-26% of block annotations to holes, fixed by giving the SDK
+client real backoff room (max_retries=6, 120s timeout); and 402 errors near the
+end of a run turned out to be OpenRouter reserving the judge's full 16384-token
+max against the account balance when real responses are ~50-800 tokens, so the
+default was cut to 4096. A third fix attacked a persistent-failure class: one
+Pride & Prejudice batch that DeepSeek malforms on every attempt used to cost
+the whole 20-paragraph batch; the block-rhythm parser is now lenient, recovering
+every well-formed per-paragraph object and holing only the truly broken slots,
+while still raising (and so retrying) when nothing is recoverable.
+
+With scoring stable, `aggregate_nd1.py` landed as the nd1 sibling of the st1
+corpus aggregator: per-book table, an integrity/outlier flags report that
+surfaces anomalies without deciding anything, and `corpus_dataset.csv`, a
+LEFT JOIN of st1 (26 books) with nd1 (21 scored; the five giants get explicit
+blanks). That dataset fed the day's main deliverable, the masters corpus
+benchmark report under `reports/masters_corpus/`: v1 established the findings
+(the tension-by-genre spread, the tension~peak-position correlation at
+r=-0.70, block and thread signals, methodology and caveats), then successive
+passes added per-book detail, a motivation-first introduction, a complete
+metrics guide with authors-by-metrics tables, a genre-bucket face-validity
+view, and finally a data-verified review that corrected several superlatives
+and overclaims (including reframing the secondary-shading gauge as band
+miscalibration, with 11 of 21 books below the floor). Bulky raw artifacts stay
+gitignored and regenerable; only the ~84 KB of report and tables are
+version-controlled. Also added GitHub Sponsors config and a README badge.
+
+**Decisions & notes:** The lenient parser deliberately accepts a wrong-length
+judge response as a best-effort partial rather than retrying it to full; that
+trade recovers persistent-fail batches but means a recovered partial is cached
+as-is. The max_tokens cut changes reservation only, not spend. Report is
+provisional at 21/26 nd1 books; the giants' judged outputs await aggregation.
+Operationally, run 2-3 books in parallel, not 4.
+
 ## 2026-07-13
 
 Continued the previous day's push to make the two new benchmarks (`nd1` and
