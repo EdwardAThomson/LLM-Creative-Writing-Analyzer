@@ -1082,3 +1082,11 @@ caches at ~13 MB) are kept durable-local and gitignored under
 aggregators over the sidecars (nd1 from `nd1_ab/deepseek/`, the full 26-book DeepSeek
 run), regenerate the Appendix and genre tables via `scripts/gen_appendix_tables.py`
 and `scripts/gen_genre_view.py`, and copy the small outputs back here.
+
+The **nd1 reference band** derived from this corpus lives in `nd1_reference.json`
+(tracked, a few KB): per-metric min/max/mean/std plus the raw 26-value distributions
+for tension, block-rhythm, and thread-architecture aggregates. It is the range an
+LLM's own nd1 scores get compared against (via `narrative_dynamics ... --reference
+nd1_reference.json`). Rebuild it from the sidecars with
+`scripts/gen_nd1_reference.py --date YYYY-MM-DD` (pure local aggregation, no judge
+calls; refuses to run if the sidecars mix judges).
