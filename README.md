@@ -2,7 +2,7 @@
 
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/EdwardAThomson)
 
-![LLM Creative Writing Analyzer: the same prompt, run many times and measured for repetition and variation](images/llm_creative_writing_analyzer.png)
+![LLM Creative Writing Analyzer: the same prompt, run many times and measured for repetition and variation](images/llm_creative_writing_analyzer.webp)
 
 A tool for testing and analyzing creative writing capabilities of various Large Language Models (LLMs).
 
