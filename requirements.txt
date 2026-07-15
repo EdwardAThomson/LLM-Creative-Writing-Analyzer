@@ -1,3 +1,10 @@
+# Shared LLM backend layer (model registry, provider clients, hardened CLI
+# backends). PINNED to an exact tag: this repo is a longitudinal benchmark and
+# its generation path must stay frozen; upgrade only deliberately, between
+# scoring campaigns, and re-run tests/test_payload_equality.py.
+# For day-to-day development a sibling checkout works too:
+#   pip install -e ../llm-backends
+llm-backends @ git+https://github.com/EdwardAThomson/llm-backends@v0.1.1
 openai>=1.60.0
 python-dotenv>=1.0.0
 google-generativeai>=0.8.0

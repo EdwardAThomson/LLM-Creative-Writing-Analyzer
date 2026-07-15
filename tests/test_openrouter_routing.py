@@ -5,20 +5,29 @@ other provider) network calls are made. The OpenAI SDK client construction is
 either monkeypatched with a fake, or exercised against a deliberately-unset
 env var to confirm the clear error path. Nothing here spends money or touches
 the live nd1 pilot / work/corpus/scores/nd1_pilot data.
+
+Since the llm-backends adoption, ai_helper is a compatibility layer: the
+OpenRouter/OpenAI/Anthropic clients and singletons live in
+llm_backends.multi_provider_llm (_mpl below), so client fakes and singleton
+resets target that module. The asserted BEHAVIOR (routing, payload, ValueError
+on a missing key, hardened client construction) is unchanged from the
+pre-package implementation — payload equality with it is separately proven in
+tests/test_payload_equality.py.
 """
 from __future__ import annotations
 
 import pytest
 
 import ai_helper
+from llm_backends import multi_provider_llm as _mpl
 
 
 @pytest.fixture(autouse=True)
 def _reset_openrouter_singleton(monkeypatch):
     """Each test gets a clean lazy-client singleton, regardless of run order."""
-    monkeypatch.setattr(ai_helper, "_openrouter_client", None)
+    monkeypatch.setattr(_mpl, "_openrouter_client", None)
     yield
-    monkeypatch.setattr(ai_helper, "_openrouter_client", None)
+    monkeypatch.setattr(_mpl, "_openrouter_client", None)
 
 
 class _FakeMessage:
@@ -178,9 +187,9 @@ def test_send_prompt_via_prefix_raises_when_key_unset(monkeypatch):
 
 def test_get_openrouter_client_uses_openrouter_base_url_and_key(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter-key")
-    monkeypatch.setattr(ai_helper, "OpenAI", _FakeOpenAIClient)
+    monkeypatch.setattr(_mpl, "OpenAI", _FakeOpenAIClient)
     # Ensure the plain OpenAI singleton is untouched by this call.
-    monkeypatch.setattr(ai_helper, "_openai_client", None)
+    monkeypatch.setattr(_mpl, "_openai_client", None)
 
     client = ai_helper.get_openrouter_client()
 
@@ -192,15 +201,15 @@ def test_get_openrouter_client_uses_openrouter_base_url_and_key(monkeypatch):
     assert client.max_retries == 6
     assert client.timeout == 120.0
     # The plain OpenAI client singleton must be untouched by the OpenRouter path.
-    assert ai_helper._openai_client is None
+    assert _mpl._openai_client is None
 
 
 def test_openrouter_client_is_a_separate_singleton_from_openai_client(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
     monkeypatch.setenv("OPENAI_API_KEY", "oai-key")
-    monkeypatch.setattr(ai_helper, "OpenAI", _FakeOpenAIClient)
-    monkeypatch.setattr(ai_helper, "_openai_client", None)
-    monkeypatch.setattr(ai_helper, "_anthropic_client", None)
+    monkeypatch.setattr(_mpl, "OpenAI", _FakeOpenAIClient)
+    monkeypatch.setattr(_mpl, "_openai_client", None)
+    monkeypatch.setattr(_mpl, "_anthropic_client", None)
 
     or_client = ai_helper.get_openrouter_client()
     oai_client = ai_helper.get_openai_client()
@@ -214,12 +223,12 @@ def test_openrouter_client_is_a_separate_singleton_from_openai_client(monkeypatc
 
 def test_send_prompt_openrouter_full_flow_uses_fake_client_no_network(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.setattr(ai_helper, "OpenAI", _FakeOpenAIClient)
+    monkeypatch.setattr(_mpl, "OpenAI", _FakeOpenAIClient)
 
     result = ai_helper.send_prompt_openrouter("write a scene", model_name="deepseek/deepseek-chat")
 
     assert result == "fake openrouter reply"
-    client = ai_helper._openrouter_client
+    client = _mpl._openrouter_client
     assert isinstance(client, _FakeOpenAIClient)
     assert len(client.completions.calls) == 1
     call_kwargs = client.completions.calls[0]
@@ -261,8 +270,10 @@ def test_openrouter_routing_does_not_touch_openai_or_anthropic_clients(monkeypat
 
     monkeypatch.setattr(ai_helper, "get_openai_client", fail_if_called)
     monkeypatch.setattr(ai_helper, "get_anthropic_client", fail_if_called)
+    monkeypatch.setattr(_mpl, "_get_openai_client", fail_if_called)
+    monkeypatch.setattr(_mpl, "_get_anthropic_client", fail_if_called)
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.setattr(ai_helper, "OpenAI", _FakeOpenAIClient)
+    monkeypatch.setattr(_mpl, "OpenAI", _FakeOpenAIClient)
 
     result = ai_helper.send_prompt("hi", model="openrouter:deepseek/deepseek-chat")
 

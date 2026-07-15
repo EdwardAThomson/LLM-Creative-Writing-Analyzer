@@ -26,7 +26,8 @@ python -m utils.metrics --text <file.txt|dir/> --benchmark v2
 python -m benchmarks.narrative_dynamics <file.txt|dir/> [--dry-run]
 # Single-text series (one book segmented into units; fully local, zero LLM)
 python -m utils.metrics --text book.txt --segment chapters --benchmark st1
-# Tests (fakes only, no LLM calls; minimal venv/ has just pytest)
+# Tests (fakes only, no LLM calls; minimal venv/ has just pytest + the
+# zero-dependency llm-backends package, installed editable from ../llm-backends)
 venv/bin/python -m pytest -q
 ```
 
@@ -82,33 +83,53 @@ Rules that keep it sane:
 
 ## Backends (the important part)
 
-All model dispatch goes through `ai_helper.send_prompt(prompt, model=...)`, which
-holds a single `model -> callable` registry. Two families:
+All model dispatch goes through `ai_helper.send_prompt(prompt, model=...)`.
+Since July 2026 `ai_helper.py` is a **compatibility layer over the shared
+`llm-backends` package** (pinned in `requirements.txt` to
+`llm-backends @ git+https://github.com/EdwardAThomson/llm-backends@v0.1.1`; a
+sibling checkout via `pip install -e ../llm-backends` works for dev). The
+analyzer's per-model payload profile (model id, system prompt, max_tokens,
+temperature presence/absence, reasoning_effort) stays defined HERE, in
+`ai_helper.MODEL_CONFIG` — this repo is a longitudinal benchmark, so
+`tests/test_payload_equality.py` proves the request kwargs are byte-equal to
+the pre-package implementation (frozen snapshot in `tests/_snapshots/`).
+Change a default only knowingly, updating that test. Upgrade the package pin
+only between scoring campaigns, then re-run the payload test. Two families:
 
-- **API backends** — OpenAI / Gemini / Anthropic SDKs. Need keys in `.env`
-  (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`).
-- **CLI backends** (`cli_backends/`) — shell out to locally-installed agent CLIs
-  (`codex`, `claude`, `gemini`) in headless mode, **no API key**. Model keys:
-  `codex-cli`, `claude-cli{,-opus,-sonnet,-haiku,-fable}`, `gemini-cli-pro`,
-  `gemini-cli-flash`. Each runs from a neutral empty cwd (`agent_cwd.neutral_cwd`)
-  so the agent generates text instead of acting on this repo.
+- **API backends** — OpenAI / Anthropic / OpenRouter calls delegate to
+  `llm_backends.multi_provider_llm`; Gemini stays local in `ai_helper.py`
+  because the package's Gemini path has no `top_p`/`top_k` and the frozen
+  payload sends `top_p=1, top_k=40`. Need keys in `.env` (`OPENAI_API_KEY`,
+  `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`). The package
+  also ships a Venice backend (`venice.ai`, OpenAI-compatible, uncensored
+  open-weight models, `VENICE_API_KEY`) — available but not wired into the
+  analyzer registry; adding it would be a new-key decision, not a code port.
+- **CLI backends** — the `*-cli` keys construct the PACKAGE's interfaces
+  (`llm_backends.{codex,claude_cli,gemini_cli}_interface`); the repo's
+  `cli_backends/` modules are now import-path shims over them (equivalence
+  with the pre-package code: `tests/test_cli_backend_equivalence.py`).
+  Model keys: `codex-cli`, `claude-cli{,-opus,-sonnet,-haiku,-fable}`,
+  `gemini-cli-pro`, `gemini-cli-flash`. No API key; each runs from a neutral
+  empty cwd (`llm_backends.agent_cwd.neutral_cwd`) so the agent generates
+  text instead of acting on this repo.
 
-  **Billing gotcha:** `claude_interface.py` strips `ANTHROPIC_API_KEY` from the
-  subprocess env so `claude -p` authenticates via the subscription login
-  (`~/.claude`), not a metered API key. Without this, the key from `.env`
-  (loaded into `os.environ` by `load_dotenv()`) is inherited by the subprocess
-  and Claude Code bills *that* instead of the subscription — i.e. the "no API
-  key" CLI path silently charges the API. All three CLI backends do this:
-  `claude_interface.py` strips `ANTHROPIC_API_KEY`, `codex_interface.py` strips
-  `OPENAI_API_KEY`, and `gemini_cli_interface.py` strips `GEMINI_API_KEY` +
-  `GOOGLE_API_KEY` from their subprocess env. Keep this when editing them — an
-  env-var key outranks the CLI's configured subscription/login default, so a key
-  loaded from `.env` would otherwise shadow the subscription inside the subprocess.
+  **Billing gotcha (now enforced by the package):** the CLI interfaces strip
+  provider keys from the subprocess env so the CLIs authenticate via their
+  subscription/login (`~/.claude`, `~/.codex`), not a metered API key
+  inherited from `.env` via `load_dotenv()` — an env-var key outranks the
+  CLI's configured login default, so the "no API key" CLI path would
+  otherwise silently charge the API. Stripping defaults ON in llm-backends:
+  claude strips `ANTHROPIC_API_KEY` (+ deprecated `CLAUDE_API_KEY`), codex
+  strips `OPENAI_API_KEY`, gemini strips `GEMINI_API_KEY` + `GOOGLE_API_KEY`.
+  Each interface has a `strip_provider_keys=False` opt-out; the analyzer
+  never passes it.
 
-When adding/removing a model, keep three places in sync: the registry in
-`ai_helper.py`, `DEFAULT_MODELS` in `llm_creative_tester.py`, and
-`AVAILABLE_MODELS` in `llm_tester_ui.py`. (There's a 1:1 check — registry keys
-must equal `AVAILABLE_MODELS`.)
+When adding/removing a model, edit `ai_helper.MODEL_CONFIG` (and, for API
+models, confirm the key resolves in the llm-backends registry —
+`tests/test_registry_parity.py` enforces this). The old "three places in
+sync" rule is now structural: `AVAILABLE_MODELS` in `llm_tester_ui.py` IS
+`ai_helper.get_supported_models()`, and `DEFAULT_MODELS` in
+`llm_creative_tester.py` is validated against the registry at import time.
 
 ## codex-cli on hardened Linux (gotcha)
 
@@ -117,7 +138,9 @@ unprivileged user namespace. Ubuntu 23.10+ blocks that by default
 (`kernel.apparmor_restrict_unprivileged_userns=1`), so codex's own sandbox fails
 with *"bubblewrap … needs access to create user namespaces."*
 
-Rather than weaken the host, `cli_backends/codex_interface.py` detects the
+Rather than weaken the host, the codex interface (now
+`llm_backends/codex_interface.py`; this workaround was developed in this repo
+and merged upstream) detects the
 restriction (a cheap `unshare --map-root-user` probe) and, when blocked, runs
 codex inside an **identity-mapped user namespace** via `unshare`, using the
 setuid `newuidmap`/`newgidmap` helpers (which are allowed to write the uid_map),

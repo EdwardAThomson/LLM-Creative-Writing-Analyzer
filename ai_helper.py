@@ -1,61 +1,78 @@
 # ai_helper.py
-# https://developers.openai.com/api/docs/models
+#
+# Compatibility layer over the shared llm-backends package
+# (https://github.com/EdwardAThomson/llm-backends, pinned in requirements.txt).
+#
+# This repo is a LONGITUDINAL BENCHMARK: the request payload each model key
+# produces is part of the frozen measurement contract. This module therefore
+# keeps the analyzer's exact public surface and per-model parameter profile
+# (model id, system prompt, max_tokens, temperature presence/absence,
+# reasoning_effort) while delegating the actual provider calls to
+# llm_backends.multi_provider_llm and the CLI backends to the package's
+# hardened interfaces (which carry this repo's own ported key-stripping and
+# codex userns workaround).
+#
+# Payload equality with the pre-package implementation (frozen at commit
+# 22898ef, snapshot in tests/_snapshots/ai_helper_pre_llm_backends.py) is
+# enforced by tests/test_payload_equality.py. If you change any default here,
+# that test MUST be updated knowingly — silent default drift forks the
+# longitudinal series.
+#
+# One deliberate NON-delegation: the Gemini API path stays local. The
+# package's send_prompt_gemini_meta does not accept top_p/top_k, and this
+# repo's frozen Gemini payload sends top_p=1, top_k=40. Delegating would
+# silently change the request. Revisit only if llm-backends grows those
+# params (and then re-verify with the payload test).
 
-from openai import OpenAI
 import os
-from dotenv import load_dotenv
-import google.generativeai as genai
-from anthropic import Anthropic
+
+from llm_backends import multi_provider_llm as _mpl
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # minimal test venv: no python-dotenv, env comes from the shell
+    def load_dotenv(*_args, **_kwargs):
+        return False
+
+try:
+    import google.generativeai as genai
+except ImportError:  # only needed when a gemini-* API model is actually called
+    genai = None
 
 
 load_dotenv()  # This will load environment variables from the .env file
 
-# Lazy-initialized API clients
-_openai_client = None
-_anthropic_client = None
-_openrouter_client = None
+# Gemini keeps its own lazy-config flag because its payload path stays local
+# (see header note). The other providers' client singletons now live in
+# llm_backends.multi_provider_llm (shared, one per process).
 _gemini_configured = False
 
+
 def get_openai_client():
-    global _openai_client
-    if _openai_client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
-        _openai_client = OpenAI(api_key=api_key)
-    return _openai_client
+    """Return the shared OpenAI client (owned by llm_backends).
+
+    Keeps the analyzer's historical error surface: a missing key raises
+    ValueError with the original message (the package alone would raise
+    RuntimeError).
+    """
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise ValueError("OPENAI_API_KEY environment variable not set")
+    return _mpl._get_openai_client()
+
 
 def get_openrouter_client():
-    """Return a shared OpenAI-SDK client pointed at OpenRouter (https://openrouter.ai).
+    """Return the shared OpenAI-SDK client pointed at OpenRouter (https://openrouter.ai).
 
-    OpenRouter is a hosted, OpenAI-compatible router over many upstream models
-    (DeepSeek, Anthropic, and others, proxied). Configured from
-    OPENROUTER_API_KEY. Kept as its own singleton, distinct from the plain
-    OpenAI client above (different base_url + key), so the two backends can
-    coexist in one process.
-
-    ``max_retries``/``timeout`` are set above the SDK defaults (2 / 600s): under
-    concurrent fan-out (several books scored at once) the aggregate token rate
-    trips OpenRouter's rate limit, and the SDK's exponential backoff needs more
-    than two attempts to ride out a 429 burst. Evidence: at 4-way concurrency
-    block-annotation calls dropped ~20-26%% of paragraphs to holes; the loss
-    scaled cleanly with concurrent book count. The SDK already retries the right
-    error classes (429/timeout/5xx, with jittered backoff and Retry-After); we
-    just give it more room. Belt-and-suspenders with the nd1 judge cache, which
-    makes any residual holes cheaply resumable.
+    The client itself (base_url, OPENROUTER_API_KEY, and the hardened
+    max_retries=6 / timeout=120s construction — see the evidence comment on
+    OPENROUTER_MAX_RETRIES in llm_backends.multi_provider_llm, which was
+    ported verbatim from this file) now lives in llm_backends. This wrapper
+    keeps the analyzer's ValueError on a missing key.
     """
-    global _openrouter_client
-    if _openrouter_client is None:
-        api_key = os.environ.get("OPENROUTER_API_KEY")
-        if not api_key:
-            raise ValueError("OPENROUTER_API_KEY environment variable not set")
-        _openrouter_client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-            max_retries=6,
-            timeout=120.0,
-        )
-    return _openrouter_client
+    if not os.environ.get("OPENROUTER_API_KEY"):
+        raise ValueError("OPENROUTER_API_KEY environment variable not set")
+    return _mpl._get_openrouter_client()
+
 
 def get_gemini_configured():
     global _gemini_configured
@@ -63,23 +80,135 @@ def get_gemini_configured():
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable not set")
+        if genai is None:
+            raise RuntimeError(
+                "google-generativeai package is not installed. "
+                "Install it with 'pip install google-generativeai'."
+            )
         genai.configure(api_key=api_key)
         _gemini_configured = True
 
+
 def get_anthropic_client():
-    global _anthropic_client
-    if _anthropic_client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-        _anthropic_client = Anthropic(api_key=api_key)
-    return _anthropic_client
+    """Return the shared Anthropic client (owned by llm_backends).
+
+    Keeps the analyzer's historical surface: only ANTHROPIC_API_KEY is
+    accepted (no CLAUDE_API_KEY fallback here), and a missing key raises
+    ValueError with the original message.
+    """
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+    return _mpl._get_anthropic_client()
+
+
+# --- Model registry ---------------------------------------------------------------
+# Module-level (previously built inside send_prompt) so llm_creative_tester /
+# llm_tester_ui can derive their model lists structurally instead of keeping
+# hand-synced copies. Keys are the analyzer's frozen model keys; the API keys
+# are also the llm-backends primary keys (assumption A6), which
+# tests/test_registry_parity.py verifies. The lambdas late-bind the module
+# functions (looked up in globals() at call time), so monkeypatching
+# ai_helper.send_prompt_openrouter etc. still intercepts dispatch.
+#
+# Three families of backend:
+#   * API backends   -> send_prompt_oai / _gemini / _claude (need API keys)
+#   * OpenRouter      -> convenience keys route to send_prompt_openrouter
+#                       (needs OPENROUTER_API_KEY; see the "openrouter:" prefix
+#                       in send_prompt for the general passthrough form)
+#   * CLI backends   -> *-cli keys route to locally-installed agent CLIs via
+#                       llm_backends' hardened interfaces (no API keys)
+
+def _gpt(model_name):
+    return lambda prompt: send_prompt_oai(
+        prompt=prompt,
+        model=model_name,
+        max_tokens=16384,
+        temperature=0.7,
+        reasoning_effort="high",
+        role_description="You are an expert storyteller focused on character relationships."
+    )
+
+
+def _gemini(model_name):
+    return lambda prompt: send_prompt_gemini(
+        prompt=prompt,
+        model_name=model_name,
+        max_output_tokens=8192,
+        temperature=0.7,
+        top_p=1,
+        top_k=40
+    )
+
+
+def _claude(model_name, max_tokens=16384, temperature=0.7):
+    # Fable 5 / Opus 4.8 / 4.7 removed the sampling params: sending
+    # temperature/top_p/top_k returns a 400. Pass temperature=None for those
+    # so send_prompt_claude omits it (steer via prompt instead).
+    return lambda prompt: send_prompt_claude(
+        prompt=prompt,
+        model=model_name,
+        max_tokens=max_tokens,
+        temperature=temperature
+    )
+
+
+MODEL_CONFIG = {
+    # --- OpenAI GPT-5 family (API) ---
+    "gpt-5.5": _gpt("gpt-5.5"),
+    "gpt-5.4": _gpt("gpt-5.4"),
+    "gpt-5.4-mini": _gpt("gpt-5.4-mini"),
+    "gpt-5.2": _gpt("gpt-5.2"),
+    # --- Google Gemini (API) ---
+    "gemini-3.1-pro-preview": _gemini("gemini-3.1-pro-preview"),
+    "gemini-3.1-flash-preview": _gemini("gemini-3.1-flash-preview"),
+    "gemini-3-pro-preview": _gemini("gemini-3-pro-preview"),
+    "gemini-3-flash-preview": _gemini("gemini-3-flash-preview"),
+    "gemini-2.5-pro": _gemini("gemini-2.5-pro"),
+    "gemini-2.5-flash": _gemini("gemini-2.5-flash"),
+    # --- Anthropic Claude (API) ---
+    # Fable 5 and Opus 4.8 reject sampling params -> temperature=None (omitted).
+    "claude-fable-5": _claude("claude-fable-5", max_tokens=8192, temperature=None),
+    "claude-opus-4-8": _claude("claude-opus-4-8", temperature=None),
+    "claude-sonnet-4-6": _claude("claude-sonnet-4-6"),
+    "claude-haiku-4-5": _claude("claude-haiku-4-5", max_tokens=8192),
+
+    # --- OpenRouter convenience keys (API; needs OPENROUTER_API_KEY) ---
+    # For any other OpenRouter model, use the "openrouter:<upstream-model-id>"
+    # passthrough form handled in send_prompt instead of adding a new key here.
+    "openrouter-deepseek": lambda prompt: send_prompt_openrouter(
+        prompt, model_name="deepseek/deepseek-chat"
+    ),
+    "openrouter-haiku": lambda prompt: send_prompt_openrouter(
+        prompt, model_name="anthropic/claude-haiku-4.5"
+    ),
+
+    # --- Local CLI backends (no API keys; require the CLI on PATH) ---
+    "codex-cli": lambda prompt: _send_via_codex_cli(prompt),
+    "claude-cli": lambda prompt: _send_via_claude_cli(prompt, model=None),
+    "claude-cli-opus": lambda prompt: _send_via_claude_cli(prompt, model="opus"),
+    "claude-cli-sonnet": lambda prompt: _send_via_claude_cli(prompt, model="sonnet"),
+    "claude-cli-haiku": lambda prompt: _send_via_claude_cli(prompt, model="haiku"),
+    "claude-cli-fable": lambda prompt: _send_via_claude_cli(prompt, model="fable"),
+    "gemini-cli-pro": lambda prompt: _send_via_gemini_cli(prompt, model="gemini-3-pro-preview"),
+    "gemini-cli-flash": lambda prompt: _send_via_gemini_cli(prompt, model="gemini-3-flash-preview"),
+}
+
+
+def get_supported_models():
+    """The analyzer's model keys, in registry (dropdown) order.
+
+    llm_tester_ui.AVAILABLE_MODELS and the DEFAULT_MODELS validation in
+    llm_creative_tester derive from this, so the old "keep three places in
+    sync" rule is now structural.
+    """
+    return list(MODEL_CONFIG.keys())
+
 
 def send_prompt(prompt, model="gpt-5.5"):
     # General OpenRouter passthrough: "openrouter:<upstream-model-id>" routes to
     # OpenRouter with the upstream id verbatim (e.g. "openrouter:deepseek/deepseek-chat",
     # "openrouter:anthropic/claude-haiku-4.5"), so any OpenRouter model works without
-    # a code change. Checked BEFORE the exact-match model_config lookup below.
+    # a code change. Checked BEFORE the exact-match MODEL_CONFIG lookup below.
     if model.startswith("openrouter:"):
         upstream_model = model[len("openrouter:"):]
         if not upstream_model:
@@ -89,121 +218,45 @@ def send_prompt(prompt, model="gpt-5.5"):
         print(f"trying:{model}")
         return send_prompt_openrouter(prompt, model_name=upstream_model)
 
-    # Define configurations for each model. Three families of backend:
-    #   * API backends   -> send_prompt_oai / _gemini / _claude (need API keys)
-    #   * OpenRouter      -> convenience keys below route to send_prompt_openrouter
-    #                       (needs OPENROUTER_API_KEY; see the "openrouter:" prefix above
-    #                       for the general passthrough form)
-    #   * CLI backends   -> *-cli keys route to locally-installed agent CLIs via
-    #                       cli_backends/ (no API keys; see _send_via_*_cli below)
-    def _gpt(model_name):
-        return lambda prompt: send_prompt_oai(
-            prompt=prompt,
-            model=model_name,
-            max_tokens=16384,
-            temperature=0.7,
-            reasoning_effort="high",
-            role_description="You are an expert storyteller focused on character relationships."
-        )
-
-    def _gemini(model_name):
-        return lambda prompt: send_prompt_gemini(
-            prompt=prompt,
-            model_name=model_name,
-            max_output_tokens=8192,
-            temperature=0.7,
-            top_p=1,
-            top_k=40
-        )
-
-    def _claude(model_name, max_tokens=16384, temperature=0.7):
-        # Fable 5 / Opus 4.8 / 4.7 removed the sampling params: sending
-        # temperature/top_p/top_k returns a 400. Pass temperature=None for those
-        # so send_prompt_claude omits it (steer via prompt instead).
-        return lambda prompt: send_prompt_claude(
-            prompt=prompt,
-            model=model_name,
-            max_tokens=max_tokens,
-            temperature=temperature
-        )
-
-    model_config = {
-        # --- OpenAI GPT-5 family (API) ---
-        "gpt-5.5": _gpt("gpt-5.5"),
-        "gpt-5.4": _gpt("gpt-5.4"),
-        "gpt-5.4-mini": _gpt("gpt-5.4-mini"),
-        "gpt-5.2": _gpt("gpt-5.2"),
-        # --- Google Gemini (API) ---
-        "gemini-3.1-pro-preview": _gemini("gemini-3.1-pro-preview"),
-        "gemini-3.1-flash-preview": _gemini("gemini-3.1-flash-preview"),
-        "gemini-3-pro-preview": _gemini("gemini-3-pro-preview"),
-        "gemini-3-flash-preview": _gemini("gemini-3-flash-preview"),
-        "gemini-2.5-pro": _gemini("gemini-2.5-pro"),
-        "gemini-2.5-flash": _gemini("gemini-2.5-flash"),
-        # --- Anthropic Claude (API) ---
-        # Fable 5 and Opus 4.8 reject sampling params -> temperature=None (omitted).
-        "claude-fable-5": _claude("claude-fable-5", max_tokens=8192, temperature=None),
-        "claude-opus-4-8": _claude("claude-opus-4-8", temperature=None),
-        "claude-sonnet-4-6": _claude("claude-sonnet-4-6"),
-        "claude-haiku-4-5": _claude("claude-haiku-4-5", max_tokens=8192),
-
-        # --- OpenRouter convenience keys (API; needs OPENROUTER_API_KEY) ---
-        # For any other OpenRouter model, use the "openrouter:<upstream-model-id>"
-        # passthrough form handled above instead of adding a new key here.
-        "openrouter-deepseek": lambda prompt: send_prompt_openrouter(
-            prompt, model_name="deepseek/deepseek-chat"
-        ),
-        "openrouter-haiku": lambda prompt: send_prompt_openrouter(
-            prompt, model_name="anthropic/claude-haiku-4.5"
-        ),
-
-        # --- Local CLI backends (no API keys; require the CLI on PATH) ---
-        "codex-cli": lambda prompt: _send_via_codex_cli(prompt),
-        "claude-cli": lambda prompt: _send_via_claude_cli(prompt, model=None),
-        "claude-cli-opus": lambda prompt: _send_via_claude_cli(prompt, model="opus"),
-        "claude-cli-sonnet": lambda prompt: _send_via_claude_cli(prompt, model="sonnet"),
-        "claude-cli-haiku": lambda prompt: _send_via_claude_cli(prompt, model="haiku"),
-        "claude-cli-fable": lambda prompt: _send_via_claude_cli(prompt, model="fable"),
-        "gemini-cli-pro": lambda prompt: _send_via_gemini_cli(prompt, model="gemini-3-pro-preview"),
-        "gemini-cli-flash": lambda prompt: _send_via_gemini_cli(prompt, model="gemini-3-flash-preview"),
-    }
-
     # Check if the model is supported
-    if model not in model_config:
+    if model not in MODEL_CONFIG:
         raise ValueError(f"Unsupported model: {model}")
 
     print(f"trying:{model}")
     # Call the corresponding function by looking up the dictionary
-    return model_config[model](prompt)
+    return MODEL_CONFIG[model](prompt)
 
 
 # --- Local CLI backends -----------------------------------------------------------
 # These shell out to locally-installed agent CLIs (codex / claude / gemini) in
-# headless mode. Imports are lazy so the API-only path never pays for them and a
-# missing CLI only errors when that model is actually selected.
+# headless mode, via the llm-backends package interfaces (which contain this
+# repo's ported key-stripping and the codex userns workaround; equivalence with
+# the pre-package cli_backends/ is enforced by tests/test_cli_backend_equivalence.py).
+# Imports are lazy so the API-only path never pays for them and a missing CLI
+# only errors when that model is actually selected.
 
 def _send_via_codex_cli(prompt):
     """Generate text via the local `codex` CLI (GPT-5)."""
-    from cli_backends import CodexInterface
+    from llm_backends import CodexInterface
     return CodexInterface().generate_with_retry(prompt)
 
 
 def _send_via_claude_cli(prompt, model=None):
     """Generate text via the local `claude` CLI in headless mode."""
-    from cli_backends import ClaudeCliInterface
+    from llm_backends import ClaudeCliInterface
     return ClaudeCliInterface(model=model).generate_with_retry(prompt)
 
 
 def _send_via_gemini_cli(prompt, model="gemini-3-flash-preview"):
     """Generate text via the local `gemini` CLI."""
-    from cli_backends import GeminiCliInterface
+    from llm_backends import GeminiCliInterface
     return GeminiCliInterface(model=model).generate_with_retry(prompt)
 
 
 def send_prompt_oai(prompt, model="gpt-5.4", max_tokens=16384, temperature=0.7,
                 reasoning_effort="high",
                 role_description="You are a helpful fiction writing assistant. You will create original text only."):
-    """Send prompts to OpenAI GPT-5.4 family models.
+    """Send prompts to OpenAI GPT-5.4 family models (via llm_backends).
 
     Args:
         prompt: The text prompt to send.
@@ -213,20 +266,17 @@ def send_prompt_oai(prompt, model="gpt-5.4", max_tokens=16384, temperature=0.7,
         reasoning_effort: Reasoning effort level (none, low, medium, high, xhigh).
         role_description: System prompt that sets the context for the model.
     """
-    client = get_openai_client()
-    response = client.chat.completions.create(
-        messages=[
-            {"role": "system", "content": role_description},
-            {"role": "user", "content": prompt},
-        ],
+    get_openai_client()  # analyzer error surface: ValueError on a missing key
+    content = _mpl.send_prompt_openai(
+        prompt,
         model=model,
         max_tokens=max_tokens,
         temperature=temperature,
+        role_description=role_description,
         reasoning_effort=reasoning_effort,
     )
 
     print("model used: ", model)
-    content = response.choices[0].message.content
 
     return content
 
@@ -234,6 +284,10 @@ def send_prompt_oai(prompt, model="gpt-5.4", max_tokens=16384, temperature=0.7,
 def send_prompt_gemini(prompt, model_name="gemini-3.1-pro-preview", max_output_tokens=8192, temperature=0.7, top_p=1, top_k=40):
     """
     Sends a prompt to the Gemini API and returns the response.
+
+    NOT delegated to llm_backends: the package's Gemini function has no
+    top_p/top_k, and this frozen payload sends top_p=1, top_k=40 (see the
+    header note).
 
     Args:
         prompt: The text prompt to send.
@@ -275,7 +329,7 @@ def send_prompt_gemini(prompt, model_name="gemini-3.1-pro-preview", max_output_t
 def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temperature=0.7,
                      role_description="You are a skilled creative writer focused on producing original fiction."):
     """
-    Sends a prompt to Anthropic's Claude API and returns the generated text.
+    Sends a prompt to Anthropic's Claude API (via llm_backends) and returns the text.
 
     Args:
         prompt: The text prompt to send.
@@ -290,22 +344,19 @@ def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temp
         The generated text, or None if there was an error.
     """
     try:
-        anthropic_client = get_anthropic_client()
-        create_kwargs = dict(
+        get_anthropic_client()  # analyzer error surface: ValueError on a missing key,
+        # swallowed below into a None return, exactly as before.
+        text = _mpl.send_prompt_claude(
+            prompt,
             model=model,
             max_tokens=max_tokens,
-            system=role_description,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+            temperature=temperature,
+            role_description=role_description,
         )
-        if temperature is not None:
-            create_kwargs["temperature"] = temperature
-        response = anthropic_client.messages.create(**create_kwargs)
 
         print("Used model: ", model)
 
-        return response.content[0].text
+        return text
 
     except Exception as e:
         print(f"Error generating content with Claude: {e}")
@@ -314,15 +365,14 @@ def send_prompt_claude(prompt, model="claude-sonnet-4-6", max_tokens=16384, temp
 
 def send_prompt_openrouter(prompt, model_name=None, max_tokens=4096, temperature=0.7,
                            role_description="You are a helpful fiction writing assistant. You will create original text only."):
-    # max_tokens default lowered from 16384: OpenRouter gates requests on the
-    # reserved max_tokens (a 402 fires if the balance can't cover the *max*
-    # possible output), and the nd1 judge's outputs are tiny (a tension rating
-    # ~50 tokens, a 20-paragraph block batch ~800). 4096 is ~5x the largest real
-    # response, so it never truncates, while not over-reserving credit.
+    # max_tokens default kept at 4096 (lowered from 16384 pre-OpenRouter-adoption):
+    # OpenRouter gates requests on the reserved max_tokens (a 402 fires if the
+    # balance can't cover the *max* possible output), and the nd1 judge's outputs
+    # are tiny. 4096 is ~5x the largest real response, so it never truncates,
+    # while not over-reserving credit.
     """
-    Sends a prompt to an upstream model via OpenRouter (https://openrouter.ai), a
-    hosted OpenAI-compatible router over many providers (DeepSeek, Anthropic,
-    and others, proxied through OpenRouter's own upstream model ids).
+    Sends a prompt to an upstream model via OpenRouter (https://openrouter.ai),
+    delegating to llm_backends (whose hardened client was ported from this file).
 
     Args:
         prompt: The text prompt to send.
@@ -343,27 +393,20 @@ def send_prompt_openrouter(prompt, model_name=None, max_tokens=4096, temperature
     # Not wrapped in the try/except below: a missing OPENROUTER_API_KEY should
     # raise clearly (same as get_gemini_configured()'s precedent in this file),
     # not be swallowed into a silent None return.
-    client = get_openrouter_client()
+    get_openrouter_client()
 
     try:
-        response = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": role_description},
-                {"role": "user", "content": prompt},
-            ],
+        text = _mpl.send_prompt_openrouter(
+            prompt,
             model=model_name,
             max_tokens=max_tokens,
             temperature=temperature,
-            # Note: unlike a single-provider backend, no provider-specific
-            # extra_body is set here. OpenRouter fans out to many different
-            # upstream backends, so a hack tuned for one of them would be
-            # silently ignored by most others and would be misleading to carry
-            # as a default.
+            role_description=role_description,
         )
 
         print("Used model (openrouter): ", model_name)
 
-        return response.choices[0].message.content
+        return text
 
     except Exception as e:
         print(f"Error generating content with OpenRouter: {e}")

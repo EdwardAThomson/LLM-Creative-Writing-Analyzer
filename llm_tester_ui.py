@@ -14,39 +14,13 @@ from utils import (
     create_prompt,
     ensure_output_dir
 )
-from ai_helper import send_prompt
+from ai_helper import send_prompt, get_supported_models
 from llm_creative_tester import run_tests, DEFAULT_OUTPUT_DIR, DEFAULT_REPEATS, DEFAULT_WORD_COUNT, DEFAULT_PAUSE
 
-# List of available models from ai_helper.py.
+# Available models, derived structurally from ai_helper's (llm-backends-backed)
+# registry — no hand-synced copy, so the 1:1 registry check can never drift.
 # API backends need the matching API key; *-cli backends need the CLI on PATH.
-AVAILABLE_MODELS = [
-    # OpenAI (API)
-    "gpt-5.5",
-    "gpt-5.4",
-    "gpt-5.4-mini",
-    "gpt-5.2",
-    # Gemini (API)
-    "gemini-3.1-pro-preview",
-    "gemini-3.1-flash-preview",
-    "gemini-3-pro-preview",
-    "gemini-3-flash-preview",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    # Claude (API)
-    "claude-fable-5",
-    "claude-opus-4-8",
-    "claude-sonnet-4-6",
-    "claude-haiku-4-5",
-    # Local CLI backends (no API key required)
-    "codex-cli",
-    "claude-cli",
-    "claude-cli-opus",
-    "claude-cli-sonnet",
-    "claude-cli-haiku",
-    "claude-cli-fable",
-    "gemini-cli-pro",
-    "gemini-cli-flash",
-]
+AVAILABLE_MODELS = get_supported_models()
 
 class RedirectText:
     """Class to redirect stdout to a tkinter Text widget"""

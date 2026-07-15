@@ -23,10 +23,19 @@ from utils import (
     count_successful_responses
 )
 
+from ai_helper import get_supported_models
+
 # Default settings
 DEFAULT_OUTPUT_DIR = "results"
 DEFAULT_REPEATS = 3
 DEFAULT_MODELS = ["gpt-5.5", "gemini-3.1-pro-preview"]
+# Structural sync with the (llm-backends-backed) registry in ai_helper: a
+# default that isn't a registry key fails at import, not mid-run.
+_unknown_defaults = [m for m in DEFAULT_MODELS if m not in get_supported_models()]
+if _unknown_defaults:
+    raise ValueError(
+        f"DEFAULT_MODELS contains keys missing from the ai_helper registry: {_unknown_defaults}"
+    )
 DEFAULT_WORD_COUNT = 1500
 DEFAULT_PAUSE = 1  # seconds between API calls
 
