@@ -77,7 +77,12 @@ and `results/codex_cli_10x/`.
    OPENAI_API_KEY=your_openai_api_key
    GEMINI_API_KEY=your_gemini_api_key
    ANTHROPIC_API_KEY=your_anthropic_api_key
+   OPENROUTER_API_KEY=your_openrouter_api_key
    ```
+   `OPENROUTER_API_KEY` is optional: it is only used by the OpenRouter-proxied
+   judge models (`openrouter-deepseek`, `openrouter-haiku`, or the
+   `openrouter:<upstream-model-id>` passthrough), e.g. as `--judge-model` for
+   the Narrative Dynamics benchmark.
    The local CLI backends (`codex-cli`, `claude-cli*`, `gemini-cli-*`) don't use
    these keys — they instead require the corresponding agent CLI (`codex`,
    `claude`, `gemini`) installed and authenticated on your `PATH`.
@@ -279,6 +284,14 @@ There is no generation step, and the analysis pipeline runs at zero LLM spend in
 python -m benchmarks.narrative_dynamics path/to/book.txt
 python -m benchmarks.narrative_dynamics corpus/ --make-reference masters_ref.json
 python -m benchmarks.narrative_dynamics my_story.txt --reference masters_ref.json
+
+# Long runs are resumable: successful judge calls go to a durable per-document
+# cache, so re-running the same command continues where it stopped.
+# --max-calls N pauses cleanly after N real judge calls; --no-cache opts out.
+python -m benchmarks.narrative_dynamics big_book.txt --max-calls 200
+
+# Cross-corpus aggregation of scored *.nd.json sidecars into tables + anomaly flags
+python -m utils.metrics.aggregate_nd1 --input-dir scored/ --outdir tables/
 ```
 
 Outputs per document: `<stem>.nd.json` + `<stem>.nd.txt` (inputs never touched).
@@ -309,6 +322,10 @@ phonetic name inventory) with new single-text modules:
 ```bash
 python -m utils.metrics --text book.txt --segment chapters --benchmark st1
 python -m utils.metrics --text story.txt --segment windows --window-words 1500 --benchmark st1
+
+# Cross-corpus aggregation of scored *.st1.metrics.json sidecars (plus the
+# *.extract.json extraction sidecars) into a table + anomaly flags
+python -m utils.metrics.aggregate_corpus --input-dir scored/ --extract-dir extracts/ --outdir tables/
 ```
 
 Writes the usual self-describing sidecar (`book.metrics.json`) with the
