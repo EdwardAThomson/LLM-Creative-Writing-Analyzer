@@ -44,6 +44,18 @@ python -m benchmarks.narrative_dynamics book.txt --dry-run
 # Judge model (any ai_helper key; default claude-haiku-4-5, the study family)
 python -m benchmarks.narrative_dynamics book.txt --judge-model claude-haiku-4-5
 
+# OpenRouter-proxied judges (need OPENROUTER_API_KEY in .env): a named registry
+# key, or an "openrouter:<upstream-id>" passthrough for any OpenRouter model
+python -m benchmarks.narrative_dynamics book.txt --judge-model openrouter-deepseek
+python -m benchmarks.narrative_dynamics book.txt --judge-model openrouter:deepseek/deepseek-chat
+
+# Long runs are durable: successful judge calls append to a per-document cache
+# (<stem>.nd.cache.jsonl, next to the output), so re-running the same command
+# IS resume — only calls that never completed are retried. --max-calls N stops
+# cleanly after N real (cache-miss) judge calls (the incomplete .nd.json is not
+# written); --no-cache disables the cache.
+python -m benchmarks.narrative_dynamics big_book.txt --max-calls 200
+
 # Build a reference distribution from a scored corpus, then compare against it
 python -m benchmarks.narrative_dynamics masters/ --make-reference masters_ref.json
 python -m benchmarks.narrative_dynamics my_story.txt --reference masters_ref.json
@@ -74,6 +86,8 @@ benchmarks/narrative_dynamics/
                               thread clustering + convergence detection
   judge.py                    the one LLM seam: ai_helper routing, FakeJudge (tests),
                               DryRunJudge (--dry-run), JSON parse + one-retry protocol
+  cache.py                    durable judge-call cache (append-only JSONL of successful
+                              calls; re-run = resume) + the --max-calls budget governor
   rubrics/                    versioned rubric artifacts with provenance headers
     tension_anchors.py        the 0-10 anchored tension rubric
     block_types.py            the 7-type block rubric + master reference bands
@@ -175,10 +189,16 @@ per rubric. Every result JSON carries the provenance block and this caveat.
 and adds a `comparison` block (value, reference mean/range, `within_range`) to
 the JSON and a MASTERS COMPARISON table to the text report. Out-of-range is a
 flag for attention, not a verdict. No reference data ships with the code; the
-intended first reference is the 26-work masters corpus, generated when a real
-judged run happens.
+intended first reference is the 26-work masters corpus, which has now been
+scored (see `reports/masters_corpus/`), though a committed reference JSON is
+still pending.
 
-## Cost of the first masters run (estimate, not executed)
+## Cost of the first masters run (estimate; the run has since been executed)
+
+The run happened in July 2026 with an OpenRouter DeepSeek judge: st1 covered
+26/26 books, nd1 covered 21/26 (the five largest works pending). Results,
+tables, and the write-up live under `reports/masters_corpus/`. The original
+estimate is kept below for the record.
 
 The 26-work Gutenberg corpus is ~4.3M words. At chapter granularity that is
 roughly 1,200-1,500 units, so approximately:
