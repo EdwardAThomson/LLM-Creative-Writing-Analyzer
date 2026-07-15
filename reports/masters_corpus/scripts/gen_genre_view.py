@@ -4,12 +4,14 @@ import csv, sys
 SC=sys.argv[1] if len(sys.argv)>1 else '/home/edward/Projects/StoryDaemon/work/corpus/scores'
 rows={r['book']:r for r in csv.DictReader(open(f'{SC}/corpus_dataset.csv'))}
 BUCKETS=[
- ('Adventure / thriller',['sabatini-captainblood','buchan-thirtyninesteps','buchan-greenmantle','sabatini-scaramouche','haggard-ksm','haggard-she','childers-riddlesands']),
+ ('Adventure / thriller',['sabatini-captainblood','buchan-thirtyninesteps','buchan-greenmantle','sabatini-scaramouche','haggard-ksm','haggard-she','childers-riddlesands','dumas-montecristo']),
  ('Sci-fi & fantasy',['eddison-ouroboros','wells-warofworlds','wells-timemachine','dunsany-elfland']),
  ('Horror / gothic',['stoker-dracula','bronte-janeeyre']),
  ('Mystery / ironic / psychological',['collins-moonstone','conrad-secretagent','conrad-heartofdarkness','conrad-lordjim','dickens-taleoftwocities','collins-womaninwhite']),
- ('Domestic / social realism',['austen-emma','austen-persuasion','austen-pride','eliot-middlemarch']),
-]  # giants (womaninwhite, middlemarch) added to buckets here; they populate once in corpus_dataset.csv
+ ('Domestic / social realism',['austen-emma','austen-persuasion','austen-pride','eliot-middlemarch','dickens-bleakhouse']),
+ ('Historical / epic',['tolstoy-warandpeace']),
+]  # all 5 giants slotted: womaninwhite->mystery, middlemarch/bleakhouse->social realism,
+   # montecristo->adventure, warandpeace->its own historical/epic line (war scenes would skew "domestic=calm")
 def fl(b,k):
     try: return float(rows[b][k])
     except: return None
