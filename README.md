@@ -116,7 +116,7 @@ python llm_creative_tester.py
 ```
 
 This will run the tester with default settings:
-- Models: GPT-5.4 and Gemini 3.1 Pro Preview
+- Models: GPT-5.5 and Gemini 3.1 Pro Preview
 - 3 repeats per model
 - Parameters from `parameters.txt`
 - Target word count: 500 words
@@ -340,12 +340,12 @@ segmentation recorded; the input file is never touched.
 .
 ├── llm_creative_tester.py     # Main script (CLI)
 ├── llm_tester_ui.py           # Graphical user interface
-├── ai_helper.py               # LLM backend dispatch (API + CLI)
+├── ai_helper.py               # LLM backend dispatch: compatibility layer over the shared llm-backends package (keeps the frozen per-model payload profile in MODEL_CONFIG)
 ├── parameters.txt             # Example parameters
-├── requirements.txt           # Python dependencies
-├── cli_backends/              # Local agent-CLI backends (codex/claude/gemini)
+├── requirements.txt           # Python dependencies (llm-backends pinned to a git tag)
+├── cli_backends/              # Import-path shims over llm-backends' CLI interfaces (codex/claude/gemini)
 │   ├── __init__.py            # Package initialization
-│   ├── agent_cwd.py           # Shared neutral scratch cwd for CLI agents
+│   ├── agent_cwd.py           # Shim: re-exports the package's neutral scratch cwd
 │   ├── claude_cli_interface.py
 │   ├── gemini_cli_interface.py
 │   └── codex_interface.py
@@ -390,7 +390,7 @@ Currently supported models (defined in `llm_tester_ui.py`) fall into two groups.
 
 OpenAI GPT-5 models support a `reasoning_effort` parameter (none, low, medium, high, xhigh) which controls how much thinking the model does. This defaults to "high" for creative writing tasks.
 
-To add support for additional models, modify the `ai_helper.py` file and update the `AVAILABLE_MODELS` list in `llm_tester_ui.py`. The CLI backends live in the `cli_backends/` package (ported from the StoryDaemon writing ecosystem).
+To add support for additional models, edit `ai_helper.MODEL_CONFIG` (the per-model payload profile). The GUI's `AVAILABLE_MODELS` list is now derived automatically from `ai_helper.get_supported_models()`, so you don't maintain it by hand. Model dispatch itself goes through the shared [`llm-backends`](https://github.com/EdwardAThomson/llm-backends) package; the `cli_backends/` modules are thin import-path shims over that package's CLI interfaces.
 
 ## License
 
