@@ -2,6 +2,49 @@
 
 A chronological narrative of development. Newest entries first.
 
+## 2026-07-15
+
+The headline was migration step 3: `ai_helper.py` became a thin compatibility
+layer over the shared `llm-backends` package (pinned to the v0.1.1 tag) while
+keeping its exact public surface and, crucially, the frozen per-model payload
+profile (`MODEL_CONFIG`) in-repo. OpenAI, Anthropic, and OpenRouter now delegate
+to the package; Gemini deliberately stays local because the package path lacks
+`top_p`/`top_k` and the frozen benchmark payload sends `top_p=1, top_k=40`, so
+delegating would have changed requests on the wire. The `*-cli` keys construct
+the package's CLI interfaces (the repo's own userns workaround and key-stripping,
+returned home), and `cli_backends/` shrank to import-path shims. A nice
+side-effect: `AVAILABLE_MODELS` is now literally `get_supported_models()` and
+`DEFAULT_MODELS` is import-time validated, turning the old "three places in sync"
+rule structural, and the derivation surfaced two registry keys the hand-maintained
+UI list had been missing. Because this is a longitudinal benchmark, the whole
+point of the step was proving nothing moved on the wire: 47 new tests, with
+`test_payload_equality` driving both the pre-migration `ai_helper` (a sha256-guarded
+snapshot from git history) and the new path through identical fake clients and
+asserting byte-equal request kwargs across the model matrix, plus
+`test_cli_backend_equivalence` on argv, stripped child envs, and neutral-cwd
+behaviour. Suite went from 353 passed (2 collection errors) to 417 passed; the
+migration made `ai_helper` importable SDK-free, restoring 17 OpenRouter tests.
+
+The masters-corpus benchmark also reached a milestone: War & Peace finished its
+DeepSeek nd1 run, so all 26 books are now scored on both st1 and nd1. The report
+was refreshed to v2 with the five giants folded in, which moved several headline
+numbers (peak-position correlation r -0.70 -> -0.64, dialogue max 68% -> 78% for
+Monte Cristo, threads now spanning 2-184 with War & Peace as a cast/length
+outlier), and `nd1_reference.json` was built: the per-metric distribution across
+all 26 DeepSeek-judged masterworks that LLM-generated nd1 scores get compared
+against via `--reference`, which is the entire reason the corpus exists. Its
+generator refuses to run if the sidecars mix judges, so the reference is always
+single-judge. Finally, a hero banner was added to the README and immediately
+optimized from a 2.3MB PNG to a 56KB 1200x630 WebP so it isn't a heavy download
+as a site thumbnail.
+
+**Decisions & notes:** Non-payload deltas from the package were audited and
+accepted as off-the-wire: OpenAI/Anthropic client `max_retries` is now 1 (was the
+SDK default 2, transient-retry behaviour only), the package's claude backend also
+strips the deprecated `CLAUDE_API_KEY`, and the tempdir prefix was renamed. The
+package pin should only be upgraded between scoring campaigns, re-running the
+payload test each time.
+
 ## 2026-07-14
 
 Harvest day for the masters-corpus effort: the scoring pipeline was hardened
