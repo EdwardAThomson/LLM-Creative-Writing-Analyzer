@@ -81,6 +81,9 @@ class DryRunJudge:
         self.calls += 1
         if '"tension_level"' in prompt:
             return '{"tension_level": 5, "rationale": "dry-run placeholder"}'
+        if '"placement"' in prompt:
+            return ('{"placement": "present", "internal_jump": false, '
+                    '"nesting": "none", "rationale": "dry-run placeholder"}')
         if '"principal_cast"' in prompt:
             return ('{"pov": "Placeholder Protagonist", '
                     '"principal_cast": ["Placeholder Protagonist", "Placeholder Ally"], '
