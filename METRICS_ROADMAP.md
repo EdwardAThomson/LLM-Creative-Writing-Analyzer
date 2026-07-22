@@ -463,9 +463,10 @@ frozen until the smoke test and reliability pilot pass, and both are cheap
 - [ ] **C2. Backlog:** Phase 3 adherence; Phase 4 judge/Elo (margin-weighted
   pairwise per the EQ-Bench lesson); embedding-cloud shape; readability
   spread.
-- [ ] **Fix `tests/test_aggregate_nd1.py` in the minimal venv:** collection
-  fails on a top-level `sentence_transformers` import (pre-existing, from
-  c839a1b); lazy-import or skip-guard it so `pytest -q` is green again.
+- [x] **Fix `tests/test_aggregate_nd1.py` in the minimal venv** (2026-07-22):
+  it imported through the `utils` package, whose eager `__init__` pulls
+  `sentence_transformers`; switched to the conftest `load_metric` file-path
+  loader like the other pure-module tests.
 
 ## Phase 4 — LLM-as-judge (quality ground truth; the anchor)
 
