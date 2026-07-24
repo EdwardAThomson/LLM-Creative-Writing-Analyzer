@@ -275,7 +275,11 @@ deterministic majority-cast Jaccard clustering; runs, hand-offs, convergence,
 tension deltas at switches). The rubrics are versioned artifacts ported from the
 StoryDaemon masters studies, each with a provenance header carrying the
 reliability numbers as measured there and a caveat that they must be re-verified
-in this harness before findings are trusted.
+in this harness before findings are trusted. A fourth, opt-in metric,
+**chronology map** (per-unit temporal placement and a discontinuity index,
+ported from the StoryScope taxonomy), is runnable via `--metrics
+chronology_map` but stays out of the frozen `nd1` manifest until its validation
+pilot passes.
 
 There is no generation step, and the analysis pipeline runs at zero LLM spend in
 `--dry-run` mode (tests use fakes throughout):

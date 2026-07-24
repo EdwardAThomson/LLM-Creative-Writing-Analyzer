@@ -5,7 +5,10 @@ library. Its object of study is different from both: not "how similar are N runs
 of one prompt" but "what long-range story structure does ONE arbitrary-length
 text have". It ports StoryDaemon's validated narrative gauges into this analyzer
 as first-class metrics: tension trajectory, block/mode rhythm, and thread
-architecture.
+architecture. A fourth metric, chronology map (a StoryScope temporal-structure
+port), is scaffolded as opt-in only: runnable via `--metrics chronology_map`
+but deliberately not in the frozen `nd1` manifest until its validation pilot
+passes and `nd2.yaml` is cut.
 
 There is **no generation step**. The benchmark scores user-supplied text (a
 novel, a generated long-form run, anything), so it works equally on masters
@@ -92,9 +95,11 @@ benchmarks/narrative_dynamics/
     tension_anchors.py        the 0-10 anchored tension rubric
     block_types.py            the 7-type block rubric + master reference bands
     cast_extraction.py        the cast/POV/strand extraction prompt
+    chronology_scale.py       the per-unit temporal-placement rubric (StoryScope port)
   tension_trajectory.py       metric: compute(units, ctx) -> dict
   block_rhythm.py             metric: compute(units, ctx) -> dict
   thread_architecture.py      metric: compute(units, ctx) -> dict
+  chronology_map.py           metric: compute(units, ctx) -> dict (opt-in; not in nd1)
   reference.py                masters-comparison hook: format, loader, builder, compare
   report.py                   text-report rendering (JSON is the result dict itself)
 ```
@@ -160,9 +165,26 @@ Known edge, inherited and reported honestly: single-POV books whose supporting
 cast rotates fragment at theta 0.3 (The Thirty-Nine Steps reads as 5 threads at
 0.3, 1 at 0.2), hence `theta_sensitivity` in every result.
 
+### chronology_map (opt-in scaffold; not in nd1)
+
+Each unit is annotated by the judge with its dominant temporal placement
+relative to the narrative present (present / analepsis / prolepsis / mixed), an
+internal-time-jump flag, and flashback-nesting depth, against the
+`chronology_scale` rubric (ported from StoryScope's temporal_structure/events
+taxonomy features, one call per unit). A unit that can't be parsed after a
+re-ask becomes a hole (`placement: null`), never a hard failure. Everything
+downstream is deterministic: placement shares, present/flashback shares,
+adjacent-unit placement transitions, within-unit jump rate, max nesting depth,
+and a discontinuity index. A `storyscope_projection` block reconstructs
+StoryScope's whole-story scales (TMP_ORD_010/001/004/007, EVT_TYP_009) with
+provisional band edges so runs can be validated against their released gold
+labels; those projected labels are heuristic until calibrated on the StoryScope
+dev split (see METRICS_ROADMAP), which is why the metric ships outside every
+frozen manifest: run it with `--metrics chronology_map`.
+
 ## Provenance and the re-verification caveat
 
-The rubrics are versioned artifacts copied from StoryDaemon (source commit
+The three nd1 rubrics are versioned artifacts copied from StoryDaemon (source commit
 `abb21b7be9ae5c42c710b406d58e906e8d8d1e50`, 2026-07-12), each carrying a
 `PROVENANCE` header with the reliability numbers **as measured in the source
 harness** (annotator `anthropic/claude-haiku-4.5`):
@@ -174,6 +196,11 @@ harness** (annotator `anthropic/claude-haiku-4.5`):
   8/8; LORE is the noisiest label (1/3 cross-model), treat LORE rates with wide
   error bars;
 * cast extraction: mean cast Jaccard 0.95, POV match 100 percent.
+
+The opt-in `chronology_scale.py` rubric carries its own provenance header from a
+different source harness (StoryScope, arXiv:2604.03136; its reliability numbers
+are corpus-wide across all 304 taxonomy features, not per-feature, and not for
+this per-unit adaptation).
 
 **Those numbers do not transfer automatically.** They were measured with a
 specific judge model, prompt framing, batching, and corpus. Before findings from
