@@ -8,8 +8,11 @@ from benchmarks.narrative_dynamics.judge import FakeJudge
 
 
 def test_available_lists_exactly_the_metric_modules():
-    assert nd.available() == ["block_rhythm", "tension_trajectory",
-                              "thread_architecture"]
+    # chronology_map is discoverable (runnable via --metrics) but deliberately
+    # NOT in nd1: nd1 stays frozen until the StoryScope-informed metrics are
+    # validated and a new nd2 manifest is cut (see METRICS_ROADMAP nd2/v3).
+    assert nd.available() == ["block_rhythm", "chronology_map",
+                              "tension_trajectory", "thread_architecture"]
 
 
 def test_resolve_nd1_manifest():

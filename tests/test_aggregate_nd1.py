@@ -9,7 +9,11 @@ from __future__ import annotations
 import csv
 import json
 
-from utils.metrics import aggregate_nd1 as agg
+from conftest import load_metric
+
+# Loaded by file path like the other pure metric-library modules: importing the
+# ``utils`` package would pull heavy deps (see conftest).
+agg = load_metric("aggregate_nd1")
 
 
 def _make_sidecar(

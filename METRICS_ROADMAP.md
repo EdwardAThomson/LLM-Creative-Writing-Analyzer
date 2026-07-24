@@ -1,6 +1,6 @@
 # Metrics Roadmap — Creative-Writing Analysis Upgrades
 
-_Status: partially implemented — v2 ships 8 metrics (Phases 1–2) · updated 2026-06-19 · companion to [ROADMAP.md](ROADMAP.md)_
+_Status: partially implemented — v2 ships 8 metrics (Phases 1–2); nd2/v3 proposed · updated 2026-07-22 · companion to [ROADMAP.md](ROADMAP.md)_
 
 ## Context
 
@@ -240,6 +240,233 @@ all, zero LLM calls end to end.
 Naming guard: the new module names deliberately avoid the v1 legacy names
 (`structure`, `entity_analysis`, ...) so the frozen vN manifests keep resolving
 to exactly what they resolved to before (tested).
+
+## nd2 + v3 — StoryScope-informed metrics (PROPOSED 2026-07-16, not started)
+
+External motivation: **StoryScope** (Russell et al., arXiv:2604.03136, UMD +
+DeepMind) induced 304 interpretable narrative features over 61,608 stories and
+showed narrative structure alone separates human from AI fiction (93.2 macro-F1)
+and survives style-stripping edits. Their strongest signals overlap this repo's
+blind spots almost perfectly; the feature-by-feature mapping lives in
+[storyscope_comparison.md](storyscope_comparison.md). This section plans the
+smallest extension that captures their highest-value findings, inside the
+existing architecture: **no new benchmark series** — judge-scored metrics go to
+`nd2.yaml` (extends: nd1), local metrics go to `v3.yaml` (extends: v2). All
+frozen manifests stay untouched (Hard invariant 4).
+
+Their released assets (github.com/jenna-russell/storyscope): the full 304-feature
+taxonomy with per-feature `question` + `detection_method` strings (80% of a
+rubric already written), 10,272 prompts, 51,336 AI stories (HF:
+`jjrussell10/storyscope`), and per-story gold feature annotations
+(`storyscope_features.parquet`, 7.6 MB, in-repo). The human-written side is NOT
+released (Books3 copyright), so external validation is AI-vs-AI only. The full
+core-30 feature list is in an unpublished appendix; everything below builds on
+the ~22 core features named in the main text.
+
+**Rubric discipline (same as nd1):** each ported feature definition becomes a
+versioned rubric artifact with a PROVENANCE header (source: StoryScope taxonomy
+`<feature_id>`, arXiv version, extraction date). Their reliability was measured
+THERE (annotator Gemini 3 Flash, repeatability α = 0.88, human κ = 0.84 on a
+240-feature subset) and does not transfer; re-verify in this harness before
+trusting findings, exactly as the nd1 rubrics require.
+
+### nd2 candidates (judge-scored, `compute(units, ctx)` via `ctx["judge"]`)
+
+- [~] **`chronology_map`** (from `TMP_ORD_010` discontinuity, `TMP_ORD_001`
+  global structure, `TMP_ORD_004` flashback nesting, `TMP_ORD_007` strands,
+  `EVT_TYP_009` present-vs-flashback balance) — *What:* per-unit temporal
+  placement annotation (present / analepsis / prolepsis / mixed) plus
+  internal-jump and nesting flags, aggregated deterministically into a
+  discontinuity index, flashback share, transition rate, and max nesting. *Why:*
+  StoryScope's strongest human-leaning core block and this repo's largest gap;
+  humans subvert linearity, AI narrates first-clue-to-reveal. *How:* one judge
+  call per unit (module `chronology_map.py` + rubric artifact
+  `rubrics/chronology_scale.py`, ported from the released taxonomy with a
+  PROVENANCE header); the whole-story `TMP_ORD_*`/`EVT_TYP_009` scales are
+  reconstructed deterministically in a `storyscope_projection` block (chosen
+  over a second whole-text judge pass to keep one prompt shape; projection band
+  edges are provisional, to be calibrated in the pilot). **Status: scaffolded
+  2026-07-17** (module + rubric + fake-judge tests written; runnable via
+  `--metrics chronology_map`; NOT in any frozen manifest yet). *Done-when:*
+  `storyscope_projection` labels over their dev parquet correlate with the gold
+  `TMP_ORD_010` labels (Spearman, target ≥ 0.6) and a double-pass reliability
+  check in THIS harness passes the nd1 bar.
+- [ ] **`thematic_explicitness`** (from `SIT_MET_303` moralizing scale,
+  `SIT_MET_501` narratorial commentary, `SIT_MET_102` ending self-commentary) —
+  *What:* per-unit 1-5 "explains its own theme" score plus binary
+  narrator-moralizing detection; aggregate register and an ending-zone reading.
+  *Why:* their single most AI-leaning core cluster (narrator states the lesson
+  77% AI vs 52% human); pure blind spot here. *How:* one judge call per unit;
+  rubric text adapted from the taxonomy `detection_method` strings. *Done-when:*
+  same validation gates as `chronology_map` against `SIT_MET_303` gold labels.
+- [ ] **`ending_closure`** (from `PLT_MOR_003` closure type, `PLT_MOR_006`
+  degree, `PLT_MOR_002` protagonist moral polarity) — *What:* judged closure
+  type (resolved / ambiguous / open), 1-5 closure degree, and protagonist moral
+  ambivalence on the final units. *Why:* AI favors tidy internal-acceptance
+  endings (47% vs 27%); complements the tension tail/ending-mode reading
+  `tension_trajectory` already produces. *How:* one judge call over the last
+  ~2 units + synopsis of unit tensions from `ctx["unit_tensions"]` (metric
+  ordering note: runs after tension_trajectory, like thread_architecture).
+  *Done-when:* validation against `PLT_MOR_006` gold labels.
+
+### v3 candidates (local, zero-LLM, frozen-lexicon pattern like `cliche_density`)
+
+- [ ] **`emotion_mode`** (from `AGENT_EMO_001` explicit naming vs
+  `AGENT_EMO_009`/`012` somatic conveyance) — *What:* per-1k-word rates of
+  (a) explicit emotion labels (frozen lexicon, `LEXICON_VERSION`) and
+  (b) somatic/body-sensation phrases (tightening chest, cold sweat, breath
+  caught...); report both plus the explicit:somatic ratio. *Why:* their most
+  striking effect size (humans name emotions 29% vs 8% AI; AI renders emotion
+  somatically 81% vs 38%) and it inverts the folk "show don't tell" heuristic:
+  AI over-shows. *How:* two curated lexicons + counts; NRC emotion lexicon as
+  seed for (a). *Done-when:* separates their five AI sources on the dev parquet
+  in the direction their gold labels imply; lexicons frozen and versioned.
+- [ ] **`reader_address`** (from `PER_POV_009` direct address, `SIT_MET_002`/
+  `004` fourth-wall) — *What:* rate of narrator-to-reader address outside
+  dialogue (second-person outside quotes, "dear reader" class markers,
+  parenthetical asides). *Why:* humans break the fourth wall far more (67% vs
+  39%; direct address 28% vs 7%); cheap and regex-tractable. *How:* reuse
+  `dialogue_ratio`'s quote parsing to exclude dialogue spans, then pattern
+  census. *Done-when:* near-zero false-positive rate on a hand-checked sample
+  (second-person protagonists are the known confound; exclude 2nd-person POV
+  texts or report separately).
+
+### Validation plan (before freezing either manifest)
+
+1. **Pilot on their dev split** (`stories_dev.parquet`, in-repo: 100 prompts ×
+   5 AI sources, ~500 stories, ~4 units each at ~1500 words): run nd2
+   candidates, compare against their gold feature annotations for the same
+   stories (join on `prompt_id` + `source`). Judge cost order: ~500 × 5 ≈ 2.5k
+   calls; pilot 50 stories (~250 calls) first, mirroring the nd1 pilot pattern.
+2. **Reproduce a published separation as a smoke test:** run nd1
+   `tension_trajectory` over a Claude-vs-others sample of their corpus and
+   confirm the "Claude has the flattest event escalation" finding lands; this
+   validates the harness against their result before any new metric ships.
+3. **Reliability re-verification in this harness** per the nd1 rule
+   (double-pass agreement on a stratified sample); their α/κ numbers are
+   provenance, not evidence.
+4. Only then: freeze `nd2.yaml` / `v3.yaml` and re-score `results/` +
+   sidecars.
+
+Naming guard (same as st1): none of the five proposed names collide with the
+v1 legacy names, and `chronology_map` avoids `structure`-adjacent naming.
+
+Risks: judge-vs-their-annotator drift (we validate against Gemini 3 Flash
+labels using a different judge; disagreement may be annotator bias on either
+side, so gate on rank correlation, not exact agreement); somatic lexicon
+curation is genuinely hard (open-ended phrase space; start narrow and
+high-precision); no human-side validation is possible from their release, so
+human-vs-AI direction claims must cite their paper, not our reproduction.
+
+## nd2 + v3 — EQ-Bench-informed metrics (PROPOSED 2026-07-22, not started)
+
+External motivation: **EQ-Bench Creative Writing v3 / Longform** (eqbench.com);
+the full comparison lives in [eqbench_comparison.md](eqbench_comparison.md).
+It is a judge-preference leaderboard, not a behavioural analyser, so there is
+no core-axis overlap; but four of its mechanisms are worth porting. Same
+routing rule as the StoryScope batch: **no new benchmark series**; judge-scored
+metrics go to `nd2.yaml`, local metrics go to `v3.yaml`. Their pairwise-Elo
+layer is NOT a new item: it is the existing Phase 4 "Pairwise comparison →
+Elo / Bradley-Terry" entry, with the added lesson that margin-weighted
+pairwise judging is the known fix if nd rubric scores compress at the top.
+
+### v3 candidates (local, zero-LLM)
+
+- [ ] **`slop_density`**: *What:* frequency of over-represented LLM n-grams
+  against a **corpus-derived** frozen lexicon (separate from the curated
+  `cliche_density` list; own `LEXICON_VERSION` plus a recorded derivation
+  recipe). *Why:* EQ-Bench's one clearly superior artifact; empirical
+  derivation catches GPT-isms nobody thought to curate. *How:* derive
+  over-represented n-grams from the `results/` corpus against a reference
+  frequency list (or seed from EQ-Bench's published slop list with
+  provenance noted), freeze, count like `cliche_density`. *Done-when:*
+  lexicon frozen + versioned, separates models on the existing 13-model
+  corpus, and reported correlation with `cliche_density` confirms it adds
+  signal rather than duplicating it.
+- [ ] **`vocab_complexity`**: *What:* proportion of 3+ syllable words per run
+  (plus aggregate), a vocabulary-inflation detector. *Why:* EQ-Bench added it
+  to catch "vocab maxxing" that inflates judged scores; `vocabulary_diversity`
+  does not isolate this construct. *How:* stdlib syllable heuristic (or CMU
+  dict, lazy); trivially cheap. *Done-when:* per-run + aggregate reported and
+  shown length-robust.
+- [ ] **`paragraph_shape`**: *What:* single-sentence-paragraph rate and
+  paragraph-length distribution/variance. *Why:* EQ-Bench found judges miss
+  this structural degradation tic and had to bolt on a hard-coded penalty; a
+  mechanical detector is the honest version, and it sits naturally beside
+  nd1's `block_rhythm`. *How:* pure text parsing, stdlib. *Done-when:*
+  per-run stats reported; flags a planted degraded sample in tests.
+
+Note: the EQ-Bench explicitness borrow (emotion naming vs somatic rendering)
+is already covered by the StoryScope-informed `emotion_mode` above; the two
+sources independently motivate the same metric, so no extra item.
+
+### nd2 candidate (judge-scored, `compute(units, ctx)` via `ctx["judge"]`)
+
+- [ ] **`quality_decay`**: *What:* per-unit holistic craft score on a small
+  anchored rubric, reported as the full curve plus slope, first-vs-final
+  delta, and worst-unit position. *Why:* the done-right version of EQ-Bench
+  Longform's "degradation" sparkline; their own docs concede judges miss
+  structural decay when scoring holistically, which argues for per-unit
+  scoring over segmentation units. Also the first step toward Phase 4's
+  quality axis, scoped to structure-over-length. *How:* one judge call per
+  unit; new versioned rubric artifact (no StoryDaemon provenance, so it needs
+  the reliability protocol from scratch: double-pass agreement on a
+  stratified sample before findings are trusted). No ordering dependency on
+  `ctx["unit_tensions"]`. *Done-when:* reliability passes the nd1 bar and the
+  curve separates a known-degrading long generation from a masters text.
+
+Naming guard (same as st1): none of the four names collide with the v1 legacy
+names or existing library modules.
+
+## Execution order — nd2/v3 work queue (2026-07-22)
+
+Two parallel tracks. Track A (judge-scored, nd) is strictly ordered: each step
+gates the next. Track B (local, v3) is gated only by build effort and can run
+alongside. Critical path is A1-A3: nothing judge-scored can be trusted or
+frozen until the smoke test and reliability pilot pass, and both are cheap
+(~500 calls total) relative to what they unblock.
+
+**Track A (nd, judge-scored, in order):**
+
+- [ ] **A1. Harness smoke test:** nd1 `tension_trajectory` over a
+  Claude-vs-others StoryScope sample; confirm their "Claude has the flattest
+  escalation" finding reproduces before anything new ships.
+- [ ] **A2. nd1 reliability re-verification:** double-pass agreement on a
+  stratified sample (pilot one novel, ~250 calls). Standing gate for ALL nd
+  findings; also proves the protocol new rubrics reuse.
+- [ ] **A3. `chronology_map` validation pilot:** StoryScope dev split (50
+  stories first, ~250 calls); calibrate the provisional projection bands;
+  gates: Spearman >= 0.6 vs gold `TMP_ORD_010` + double-pass reliability here.
+- [ ] **A4. Build + validate `thematic_explicitness`, `ending_closure`:**
+  mechanical ports using the chronology_map files as template; same A3 gates.
+- [ ] **A5. Build + validate `quality_decay`:** rubric from scratch (no
+  external gold labels), so last, after the protocol is battle-tested.
+- [ ] **A6. Freeze `nd2.yaml`** (extends: nd1) with what survived.
+
+**Track B (v3, local, parallelizable):**
+
+- [ ] **B1. `vocab_complexity` + `paragraph_shape`:** stdlib builds, tests
+  with planted samples; smallest items, good warm-ups.
+- [ ] **B2. `slop_density`:** derivation script over `results/` (or seed from
+  EQ-Bench's list), freeze lexicon + recipe, counting module; gate: adds
+  signal beyond `cliche_density`.
+- [ ] **B3. `emotion_mode`:** curate + freeze the two lexicons (NRC seed;
+  somatic list narrow/high-precision); direction check on the dev parquet.
+- [ ] **B4. `reader_address`:** quote-parsing reuse + pattern census;
+  hand-check the second-person-POV confound.
+- [ ] **B5. Freeze `v3.yaml`** (extends: v2) and re-score `results/` sidecars.
+
+**After both tracks:**
+
+- [ ] **C1. First masters run:** 26-work Gutenberg corpus (~6,000-6,500
+  calls), scoring nd2, building the `nd_reference/1` masters baseline.
+- [ ] **C2. Backlog:** Phase 3 adherence; Phase 4 judge/Elo (margin-weighted
+  pairwise per the EQ-Bench lesson); embedding-cloud shape; readability
+  spread.
+- [x] **Fix `tests/test_aggregate_nd1.py` in the minimal venv** (2026-07-22):
+  it imported through the `utils` package, whose eager `__init__` pulls
+  `sentence_transformers`; switched to the conftest `load_metric` file-path
+  loader like the other pure-module tests.
 
 ## Phase 4 — LLM-as-judge (quality ground truth; the anchor)
 

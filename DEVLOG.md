@@ -2,6 +2,45 @@
 
 A chronological narrative of development. Newest entries first.
 
+## 2026-07-22
+
+A planning-and-scaffolding day aimed at the next metric generation (nd2/v3),
+grounded in two external benchmarks. First, an EQ-Bench comparison doc
+(`eqbench_comparison.md`) mapped their Creative Writing v3 and Longform
+benchmarks against the v1/v2/nd1/st1 sets in both directions, mirroring the
+earlier StoryScope comparison, and shortlisted borrowable candidates: a
+corpus-derived slop lexicon, per-unit quality decay, vocab complexity, and
+paragraph-shape tics. That fed a large METRICS_ROADMAP update which added the
+StoryScope feature-mapping doc (`storyscope_comparison.md`), a full nd2/v3
+candidate section (judge-scored metrics like `thematic_explicitness` and
+`ending_closure` go to a future `nd2.yaml`; local zero-LLM ones to `v3.yaml`),
+and an ordered two-track work queue: track A is the judge-scored nd validation
+chain, track B the local v3 builds.
+
+The first concrete piece landed too: `chronology_map`, a scaffold of
+StoryScope's temporal-structure signal (their strongest human-vs-AI
+discriminator and this repo's biggest blind spot). It annotates each unit's
+temporal placement (present / analepsis / prolepsis / mixed) plus internal-jump
+and nesting-depth flags via one judge call per unit, then aggregates
+deterministically into a discontinuity index, flashback share, transition rate,
+and max nesting. A `storyscope_projection` block reconstructs their whole-story
+TMP_ORD/EVT_TYP scales with provisional band edges so runs can be validated
+against their released gold labels. Ships with a versioned rubric carrying
+StoryScope provenance, fake-judge tests, and a hole-not-failure policy for
+unparseable annotations. Deliberately kept out of nd1, which stays frozen until
+validation passes and nd2 is cut. Finally, a pre-existing collection breakage in
+the minimal venv was fixed: `test_aggregate_nd1` had imported through the eager
+`utils` package (which pulls sentence_transformers), and now loads the
+stdlib-only module by file path like the other pure-module tests. Full suite:
+438 passed.
+
+**Decisions & notes:** StoryScope's reliability numbers (and the projection band
+edges) were measured in their harness and must be re-verified here before
+findings are trusted; the done-when gate is Spearman >= 0.6 against their gold
+TMP_ORD_010 labels plus a double-pass reliability check at the nd1 bar. Their
+human-written corpus is unreleased (Books3), so external validation is AI-vs-AI
+only.
+
 ## 2026-07-15
 
 The headline was migration step 3: `ai_helper.py` became a thin compatibility
