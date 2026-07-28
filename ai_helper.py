@@ -26,7 +26,7 @@
 
 import os
 
-from llm_backends import multi_provider_llm as _mpl
+from llm_backends import DEFAULT_API_MODEL, multi_provider_llm as _mpl
 
 try:
     from dotenv import load_dotenv
@@ -204,7 +204,10 @@ def get_supported_models():
     return list(MODEL_CONFIG.keys())
 
 
-def send_prompt(prompt, model="gpt-5.5"):
+def send_prompt(prompt, model=DEFAULT_API_MODEL):
+    # Generic fallback model comes from llm_backends.DEFAULT_API_MODEL
+    # (currently "gpt-5.5"); the library owns the canonical default, and the
+    # pinned tag in requirements.txt keeps it frozen for this benchmark.
     # General OpenRouter passthrough: "openrouter:<upstream-model-id>" routes to
     # OpenRouter with the upstream id verbatim (e.g. "openrouter:deepseek/deepseek-chat",
     # "openrouter:anthropic/claude-haiku-4.5"), so any OpenRouter model works without

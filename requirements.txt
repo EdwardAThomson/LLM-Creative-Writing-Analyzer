@@ -4,7 +4,7 @@
 # scoring campaigns, and re-run tests/test_payload_equality.py.
 # For day-to-day development a sibling checkout works too:
 #   pip install -e ../llm-backends
-llm-backends @ git+https://github.com/EdwardAThomson/llm-backends@v0.1.1
+llm-backends @ git+https://github.com/EdwardAThomson/llm-backends@v0.2.0
 openai>=1.60.0
 python-dotenv>=1.0.0
 google-generativeai>=0.8.0
