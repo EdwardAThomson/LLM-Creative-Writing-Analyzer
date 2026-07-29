@@ -86,7 +86,7 @@ Rules that keep it sane:
 All model dispatch goes through `ai_helper.send_prompt(prompt, model=...)`.
 Since July 2026 `ai_helper.py` is a **compatibility layer over the shared
 `llm-backends` package** (pinned in `requirements.txt` to
-`llm-backends @ git+https://github.com/EdwardAThomson/llm-backends@v0.1.1`; a
+`llm-backends @ git+https://github.com/EdwardAThomson/llm-backends@v0.2.0`; a
 sibling checkout via `pip install -e ../llm-backends` works for dev). The
 analyzer's per-model payload profile (model id, system prompt, max_tokens,
 temperature presence/absence, reasoning_effort) stays defined HERE, in
