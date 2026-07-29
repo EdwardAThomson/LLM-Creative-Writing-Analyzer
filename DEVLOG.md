@@ -2,6 +2,24 @@
 
 A chronological narrative of development. Newest entries first.
 
+## 2026-07-28
+
+A small hygiene fix that hands ownership of the generic fallback model to the
+shared `llm-backends` package and moves the requirements pin forward. `send_prompt`
+had a hardcoded `model="gpt-5.5"` default; it now reads
+`llm_backends.DEFAULT_API_MODEL` so the library, not this repo, owns the canonical
+default (behaviour-identical today, since that constant is still `gpt-5.5`). The
+package pin was bumped `v0.1.1` -> `v0.2.0`. The reason a version bump is safe here
+is that this repo's facade already carries its own fiction `role_description`
+defaults on every code path, so the 0.2.0 change that drops the package's built-in
+default system prompt does not alter any outgoing payload. Full suite: 438 passed.
+
+**Decisions & notes:** the pinned tag in `requirements.txt` keeps the fallback
+frozen for the benchmark even though the constant is now sourced from the library;
+per the repo's discipline, upgrade the pin only between scoring campaigns and re-run
+`tests/test_payload_equality.py`, which was the guard confirming payload byte-equality
+across this change.
+
 ## 2026-07-22
 
 A planning-and-scaffolding day aimed at the next metric generation (nd2/v3),
