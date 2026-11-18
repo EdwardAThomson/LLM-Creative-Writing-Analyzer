@@ -454,6 +454,13 @@ frozen until the smoke test and reliability pilot pass, and both are cheap
   somatic list narrow/high-precision); direction check on the dev parquet.
 - [ ] **B4. `reader_address`:** quote-parsing reuse + pattern census;
   hand-check the second-person-POV confound.
+- [x] **B1b. `word_origin`** (built 2026-11-18, ported from StoryDaemon):
+  share of French/Latin vs Old English words over a frozen table
+  (`utils/metrics/_data/word_origin.json`, `TABLE_VERSION` 1; Etymological
+  Wordnet CC BY-SA 3.0 + hand labels). Library module only, in no manifest
+  yet; separates the 13-model corpus (15% to 32%, ranges barely overlap):
+  [reports/word_origin_2026-11.md](reports/word_origin_2026-11.md). Also a
+  candidate for `st2` (per-book register, e.g. Tolkien 8%, Austen 19%).
 - [ ] **B5. Freeze `v3.yaml`** (extends: v2) and re-score `results/` sidecars.
 
 **After both tracks:**
