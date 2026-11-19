@@ -54,6 +54,11 @@ in `METRICS_ROADMAP.md`; the rules that protect the longitudinal series:
 - **`ctx`** is a scratch dict shared across metrics in one run — caches the spaCy
   model (`ctx['_nlp']`) and embedding model (`ctx['_sentence_model']`) so a batch
   loads each once. Directory mode reuses one `ctx` across all files.
+- `word_origin` (French/Latin vs Old English share) reads a frozen data table,
+  `utils/metrics/_data/word_origin.json` (`TABLE_VERSION`), built in StoryDaemon
+  (`scripts/build_word_origin_table.py`) and licensed CC BY-SA 3.0 as a
+  derivative of the Etymological Wordnet. Copy a rebuilt table from there and
+  bump `TABLE_VERSION`; never edit it by hand. It is in no manifest yet.
 - When a metric or a frozen lexicon (e.g. `cliche_density` `LEXICON_VERSION`)
   changes, re-score the corpus with `python -m utils.metrics results/ --benchmark v2`
   to refresh every sidecar.
